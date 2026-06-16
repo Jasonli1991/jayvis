@@ -1,0 +1,14 @@
+.env
+*.session
+*.session-journal
+__pycache__/
+.venv/
+~/.n/
+*.log
+.bot.pid
+.pytest_cache/
+
+# User-data prompt files written by the control panel at runtime (never commit)
+prompts/owner_profile.json
+prompts/WeeklyFocus.md
+prompts/obsidian_folders.json

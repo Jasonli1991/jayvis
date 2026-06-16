@@ -1,0 +1,25 @@
+{
+  "assistant_name": "JAYVIS",
+  "owner_name": "Your Name",
+  "title": "Your Title",
+  "company": "Your Company",
+  "projects": [
+    {
+      "name": "example-project",
+      "desc": "A short description of what this project does"
+    }
+  ],
+  "team": [
+    {
+      "name": "Teammate Name",
+      "role": "Their role (e.g. backend / frontend)"
+    }
+  ],
+  "bosses": [
+    {
+      "name": "Manager Name",
+      "note": "How the assistant should handle messages from this person"
+    }
+  ],
+  "routing": "domain → who handles it (e.g. crawlers → Alex; backend → Sam)"
+}

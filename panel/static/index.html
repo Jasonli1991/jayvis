@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JAYVIS · 控制台</title>
+<link rel="stylesheet" href="style.css">
+<script>try{var t=localStorage.getItem('panel-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+</head>
+<body>
+
+<!-- icon sprite (Lucide-style, inline · offline-safe) -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></symbol>
+  <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></symbol>
+  <symbol id="i-square" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></symbol>
+  <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/></symbol>
+  <symbol id="i-umbrella" viewBox="0 0 24 24"><path d="M22 12a10.06 10.06 0 0 0-20 0Z"/><path d="M12 12v8a2 2 0 0 0 4 0"/><path d="M12 2v1"/></symbol>
+  <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"/><path d="M5 3v4M19 17v4M3 5h4M17 19h4"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-id" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6 16a3 3 0 0 1 6 0"/><path d="M15 10h3M15 13.5h3"/></symbol>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-row">
+    <div class="brand">
+      <span class="brand-mark">J</span>
+      <div class="brand-txt">
+        <span class="brand-name">JAYVIS</span>
+        <span class="brand-sub"><span class="jv">J</span>ust <span class="jv">A</span>sk — <span class="jv">Y</span>our <span class="jv">V</span>irtual <span class="jv">I</span>ntelligent <span class="jv">S</span>idekick</span>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button id="theme-toggle" class="icon-btn lg" title="切換亮 / 暗主題" aria-label="切換亮 / 暗主題">
+        <svg class="ic theme-sun"><use href="#i-sun"></use></svg>
+        <svg class="ic theme-moon"><use href="#i-moon"></use></svg>
+      </button>
+      <div class="botbtns">
+        <button data-act="start" class="btn ok"><svg class="ic fill"><use href="#i-play"></use></svg>啟動</button>
+        <button data-act="stop" class="btn danger"><svg class="ic fill"><use href="#i-square"></use></svg>停止</button>
+        <button data-act="restart" class="btn ghost"><svg class="ic"><use href="#i-rotate"></use></svg>重啟</button>
+      </div>
+    </div>
+  </div>
+  <div class="statusbar">
+    <div class="statusbar-row">
+      <span class="badge"><span id="dot" class="dot off"></span><span class="badge-k">BOT</span><span id="botstate" class="badge-v">—</span></span>
+      <span class="badge"><svg class="ic"><use href="#i-cpu"></use></svg><span class="badge-k">模型</span><span id="models" class="badge-v mono">—</span></span>
+      <span class="badge"><svg class="ic"><use href="#i-database"></use></svg><span class="badge-k">記憶</span><span id="mem" class="badge-v mono">—</span></span>
+      <span class="badge"><svg class="ic"><use href="#i-users"></use></svg><span class="badge-k">白名單</span><span id="allowcount" class="badge-v mono">—</span></span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="card" style="--d:0">
+    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-id"></use></svg></span><h2>身份設定</h2></div>
+    <div class="grid-3">
+      <div class="field"><label for="pf-name">名字</label><input id="pf-name"></div>
+      <div class="field"><label for="pf-title">職稱</label><input id="pf-title"></div>
+      <div class="field"><label for="pf-company">公司</label><input id="pf-company"></div>
+    </div>
+    <div class="field"><label for="pf-projects">專案（每行一筆：名稱｜說明）</label><textarea id="pf-projects" rows="4"></textarea></div>
+    <div class="field"><label for="pf-team">團隊（每行一筆：名稱｜分工）</label><textarea id="pf-team" rows="4"></textarea></div>
+    <div class="field"><label for="pf-bosses">老闆（每行一筆：名稱｜備註）</label><textarea id="pf-bosses" rows="2"></textarea></div>
+    <div class="field"><label>轉介規則（領域 → 負責人）</label>
+      <div id="pf-routing-rows" class="routing-rows"></div>
+      <button id="pf-routing-add" class="btn sm" type="button"><svg class="ic"><use href="#i-plus"></use></svg>新增規則</button>
+    </div>
+    <div class="actions"><button id="pf-save" class="btn primary"><svg class="ic"><use href="#i-save"></use></svg>儲存身份</button><span class="hint">儲存後需重啟 bot 生效</span><span id="pf-msg" class="msg"></span></div>
+  </section>
+
+  <section class="card" style="--d:1">
+    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-umbrella"></use></svg></span><h2>請假設定</h2></div>
+    <div class="field"><label for="lv-status">狀態（自動判定）</label><input id="lv-status" readonly></div>
+    <div class="field"><label>請假期間</label>
+      <button id="lv-range" class="range-btn" type="button"><svg class="ic"><use href="#i-umbrella"></use></svg><span id="lv-range-txt">點選日期區間</span></button>
+      <div id="cal" class="cal" hidden></div>
+    </div>
+    <div class="field"><label for="lv-focus">本週重點</label><textarea id="lv-focus" rows="6"></textarea></div>
+    <div class="actions">
+      <button id="lv-save" class="btn primary"><svg class="ic"><use href="#i-save"></use></svg>儲存請假設定</button>
+      <span class="hint">儲存後需重啟 bot 生效</span>
+      <span id="lv-msg" class="msg"></span>
+    </div>
+  </section>
+
+  <div class="grid-2">
+    <section class="card" style="--d:2">
+      <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-users"></use></svg></span><h2>Telegram</h2></div>
+      <div class="grid-2">
+        <div class="field"><label for="bot-token">Bot Token <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">跟 @BotFather 建立 bot 後取得的 token，等同 bot 的完整控制權。改後需重啟 bot 才生效；留空＝不變更，要清除請編輯 .env。</span></span></label><input id="bot-token" type="password" class="mono" autocomplete="off"></div>
+        <div class="field"><label for="owner-id">你的 TG id（owner）<span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">你本人的 TG 數字 id（@userinfobot 取得）。設了之後：你免加白名單就能用 bot，也是行事曆動作的唯一觸發者。改後需重啟 bot。</span></span></label><input id="owner-id" class="mono" inputmode="numeric" autocomplete="off"></div>
+      </div>
+      <div class="actions"><button id="tg-save" class="btn"><svg class="ic"><use href="#i-save"></use></svg>儲存</button><span class="hint">儲存後需重啟 bot 生效</span><span id="bot-token-msg" class="msg"></span></div>
+      <label class="section-label">白名單同事 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">只有名單內的 TG 使用者，bot 才會回應（私訊、或群組裡 @ bot）。用 @userinfobot 取得對方的數字 id；別名僅顯示用，bot 回覆時可自然稱呼對方。改後即時生效，不必重啟。你本人（owner，上方那欄）免加進名單 —— bot 自動回應你。</span></span></label>
+      <ul id="allowlist" class="chips"></ul>
+      <div class="inline">
+        <input id="allow-new-id" inputmode="numeric" class="mono" placeholder="user_id">
+        <input id="allow-new-alias" placeholder="別名（誰）">
+        <button id="allow-add" class="btn"><svg class="ic"><use href="#i-plus"></use></svg>新增</button>
+      </div>
+      <span id="allow-msg" class="msg"></span>
+    </section>
+
+    <section class="card" style="--d:3">
+      <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-sparkles"></use></svg></span>
+        <h2>動作工具 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">讓你本人私訊 JAYVIS 直接管行事曆（新增/查詢/改/刪）。只有「你的 TG id」能觸發、寫入前都會先問你 yes；同事永遠唯讀。預設關閉。首次會跳 macOS「允許控制 Calendar」，請按允許。改後需重啟 bot。</span></span></h2>
+      </div>
+      <div class="field"><label class="switch"><input id="ac-enabled" type="checkbox"><span>啟用行事曆動作（owner 專屬・僅 macOS）</span></label></div>
+      <div class="field"><label for="ac-cal">目標日曆名（選填，空＝每次問你 / 第一本）<span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">填一本常用日曆（如 工作 / 團隊共用），新增行程就直接進那本。留空＝新增時 JAYVIS 會列清單問你要哪一本。owner（你的 TG id）在上方「Telegram」卡設定。</span></span></label><input id="ac-cal" class="mono" placeholder="如：工作 / 團隊共用"></div>
+      <div class="field"><label class="switch"><input id="ac-email" type="checkbox"><span>啟用發信／讀信（owner 專屬・僅 macOS）</span></label></div>
+      <div class="field"><label for="ac-mail-acct">寄件帳號（選填，空＝寄信時問你）<span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">寄信用哪個 Mail 帳號（email 位址）；留空＝每次寄信列帳號問你。首次會跳 macOS「允許控制 Mail」。讀信摘要時該封內容會送進當前模型。改後需重啟 bot。</span></span></label><input id="ac-mail-acct" class="mono" placeholder="如：you@example.com"></div>
+      <div class="field"><label class="switch"><input id="ac-media" type="checkbox"><span>啟用媒體工具（owner 專屬・圖片去背／轉檔／調尺寸）<span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">你本人私訊傳圖片/文件 + 一句話（如「幫我去背」「轉成 pdf」「縮到 1080 寬」），JAYVIS 處理後以檔案回傳。圖片用 Pillow + rembg（跨平台，HEIC 需 pillow-heif）；文件(Word/PDF)需另裝 LibreOffice。改後需重啟 bot。</span></span></span></label></div>
+      <div class="field model-row"><span id="lo-status" class="hint" style="flex:1;min-width:0"></span><button id="lo-install" class="btn" type="button" style="display:none"><svg class="ic"><use href="#i-play"></use></svg>安裝 LibreOffice</button></div>
+      <div class="field"><label class="switch"><input id="ac-search" type="checkbox"><span>啟用時事搜尋（owner 專屬・需 Tavily 金鑰）<span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">你本人私訊問「最新／今天／股價／匯率／天氣…」等時事時，先打 Tavily 搜尋再用搜到的資料回你並標來源。金鑰填在下方。同事不會觸發。改後需重啟 bot。</span></span></span></label></div>
+      <div class="field"><label for="key-tavily">Tavily 金鑰（時事搜尋用）</label><input id="key-tavily" type="password" class="mono" autocomplete="off" placeholder="未設定"></div>
+      <div class="actions"><button id="ac-save" class="btn primary"><svg class="ic"><use href="#i-save"></use></svg>儲存</button><span class="hint">儲存後需重啟 bot 生效</span><span id="ac-msg" class="msg"></span></div>
+    </section>
+  </div>
+
+  <section class="card" style="--d:4">
+    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-database"></use></svg></span><h2>記憶管理 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">兩個層次：上半「知識來源」把 Obsidian 筆記與 GitHub commit 灌進向量知識庫（bot 回答同事問題的依據）；下半「對談記憶」是助理記得的每次對談與動作（含時間），可依對象檢視、清除。</span></span></h2></div>
+    <div class="grid-2">
+      <div>
+        <div class="section-label">知識庫來源（同事問答依據・改了路徑要按「重建索引」才生效）</div>
+        <div class="field"><label for="src-obsidian">你的 Obsidian vault（個人大腦）資料夾 路徑</label>
+          <div class="inline">
+            <input id="src-obsidian" class="mono" placeholder="/Users/你/.../YourVault">
+            <button id="src-browse" class="btn" type="button" title="開啟資料夾選擇視窗"><svg class="ic"><use href="#i-folder"></use></svg>瀏覽…</button>
+          </div>
+        </div>
+        <div class="field"><label for="src-repos">GitHub repos（每行一個 owner/repo，可留空）</label><textarea id="src-repos" rows="3" class="mono"></textarea></div>
+        <div class="actions wrap">
+          <button data-bf="obsidian" class="btn"><svg class="ic"><use href="#i-rotate"></use></svg>儲存並重建索引 Obsidian</button>
+          <button data-bf="github" class="btn"><svg class="ic"><use href="#i-rotate"></use></svg>儲存並重建索引 GitHub</button>
+        </div>
+        <div id="bf-msg" class="msg"></div>
+
+        <div class="section-label" style="margin-top:18px">程式委派來源（程式問題用・委派時即時讀取，免重建索引）</div>
+        <div class="field"><label for="src-code">程式碼母資料夾（子資料夾＝專案，可留空）</label>
+          <div class="inline">
+            <input id="src-code" class="mono" placeholder="/Users/你/MyProjects">
+            <button id="src-code-browse" class="btn" type="button" title="開啟資料夾選擇視窗"><svg class="ic"><use href="#i-folder"></use></svg>瀏覽…</button>
+          </div>
+        </div>
+        <div class="actions wrap">
+          <button id="src-code-save" class="btn" type="button"><svg class="ic"><use href="#i-save"></use></svg>儲存</button>
+          <span id="src-code-msg" class="msg"></span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">對談記憶（助理記得誰、聊過什麼，含時間）</div>
+        <div class="row-inline"><label for="mem-person">對象</label>
+          <select id="mem-person" class="mono"></select></div>
+        <ul id="mem-timeline" class="chips" style="max-height:200px"></ul>
+        <div class="actions wrap">
+          <button id="mem-clear-one" class="btn"><svg class="ic"><use href="#i-trash"></use></svg>清除此人</button>
+          <button id="mem-clear-all" class="btn"><svg class="ic"><use href="#i-trash"></use></svg>清除全部</button>
+          <span id="mem-msg" class="msg"></span>
+        </div>
+        <div class="section-label">助理對你的長期認識（自動觀察、可清除）</div>
+        <pre id="mem-profile" class="mono" style="max-height:160px;overflow:auto;white-space:pre-wrap;margin:0">—</pre>
+        <div class="actions wrap">
+          <button id="mem-profile-clear" class="btn"><svg class="ic"><use href="#i-trash"></use></svg>清除認識</button>
+          <span id="mem-profile-msg" class="msg"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" style="--d:5">
+    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-route"></use></svg></span><h2>模型路由 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">模型名開頭決定供應商：gemini-*→Google、claude-*→Anthropic、gpt-*/o*→OpenAI 金鑰所指端點。設了相容端點後，其他任意模型名（gemma4:12b、qwen3:8b 等）都走該端點；本地 Ollama 金鑰可留空。金鑰留空＝不變更，要清除請編輯 .env。</span></span> <span id="md-models-hint" class="hint head-hint"></span></h2></div>
+    <div class="model-row">
+      <div class="field"><label for="md-general">一般</label><input id="md-general" class="mono" autocomplete="off" placeholder="gemini-2.5-flash 或點選本地"></div>
+      <div class="field"><label for="md-code">程式</label><input id="md-code" class="mono" autocomplete="off" placeholder="claude-opus-4-8 或點選本地"></div>
+      <button id="md-refresh-models" class="btn" type="button" title="重新整理本地模型"><svg class="ic"><use href="#i-rotate"></use></svg>重新整理</button>
+    </div>
+    <div class="field">
+      <label for="md-threshold">檢索門檻
+        <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg>
+          <span class="info-text">回答前先看知識庫有沒有夠相關的內容：相關度低於此值就回「資料不足」而不硬答（不會呼叫模型）。<br><b>調高</b>＝更嚴格、少幻覺、較常婉拒；<b>調低</b>＝更願意回答，但根據弱時可能亂掰。本地小模型較易幻覺，建議別調太低（0.3 起跳）。</span>
+        </span>
+        <span id="md-threshold-val" class="thresh-val mono">0.30</span>
+      </label>
+      <input id="md-threshold" type="range" min="0" max="0.9" step="0.05" class="range-slider">
+    </div>
+    <div class="grid-3 eq">
+      <div class="field"><label for="key-gemini">Gemini API key</label><input id="key-gemini" type="password" class="mono" autocomplete="off"></div>
+      <div class="field"><label for="key-anthropic">Anthropic API key</label><input id="key-anthropic" type="password" class="mono" autocomplete="off"></div>
+      <div class="field"><label for="key-openai">OpenAI API key</label><input id="key-openai" type="password" class="mono" autocomplete="off"></div>
+    </div>
+    <div class="field"><label for="md-baseurl">OpenAI 相容端點 Base URL（選填：公司 Ollama / 第三方供應商；留空＝官方 OpenAI）</label><input id="md-baseurl" class="mono" placeholder="http://192.168.50.229:11435/v1"></div>
+    <div class="actions">
+      <button id="md-save" class="btn primary"><svg class="ic"><use href="#i-save"></use></svg>儲存</button>
+      <span class="hint">儲存後需重啟 bot 生效</span>
+      <span id="md-msg" class="msg"></span>
+    </div>
+  </section>
+
+  <section class="card accent-card" style="--d:6">
+    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-sparkles"></use></svg></span><h2>分析模式</h2></div>
+    <p class="hint">廣撈知識庫 + 綜合摘要，做跨語料分析</p>
+    <textarea id="an-q" rows="2" placeholder="例：幫我分析目前我的知識庫中，有哪些項目是可以應用在現階段專案上的？"></textarea>
+    <div class="actions">
+      <button id="an-run" class="btn primary"><svg class="ic"><use href="#i-sparkles"></use></svg>執行分析</button>
+      <span id="an-msg" class="msg"></span>
+    </div>
+    <div id="an-answer" class="answer"></div>
+    <div id="an-sources" class="sources"></div>
+  </section>
+
+  <section class="card" style="--d:7">
+    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-terminal"></use></svg></span><h2>即時 Log</h2></div>
+    <pre id="log" class="log">—</pre>
+  </section>
+</main>
+
+<footer class="appfoot"><span class="jv">J</span>AYVIS <span id="ver" class="mono">—</span> · Your self-hosted AI sidekick</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
