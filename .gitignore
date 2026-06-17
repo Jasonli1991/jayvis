@@ -12,3 +12,6 @@ __pycache__/
 prompts/owner_profile.json
 prompts/WeeklyFocus.md
 prompts/obsidian_folders.json
+
+# Local-only dev planning artifacts (superpowers specs/plans) — not part of the public project
+docs/superpowers/
