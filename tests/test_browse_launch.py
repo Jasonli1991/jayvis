@@ -38,29 +38,33 @@ def test_is_ready(monkeypatch, tmp_path):
     assert bl.is_ready() is False             # 套件沒裝 → 不崩、回 False
 
 
-def test_install_runs_pip_then_playwright(monkeypatch):
-    cmds = []
-    class _R:
-        returncode = 0
-        stdout = "ok"
-        stderr = ""
-    monkeypatch.setattr(bl.subprocess, "run", lambda cmd, **k: cmds.append(cmd) or _R())
-    ok, log = bl.install()
-    assert ok is True
-    assert cmds[0][1:4] == ["-m", "pip", "install"]
-    assert cmds[1][1:4] == ["-m", "playwright", "install"]
+def test_start_install_is_background(monkeypatch, tmp_path):
+    monkeypatch.setattr(bl, "INSTALL_LOG", tmp_path / "browse-install.log")
+    monkeypatch.setattr(bl, "is_ready", lambda: False)
+    monkeypatch.setattr(bl, "_install_proc", None)
+    cap = {}
+    class _P:
+        def poll(self): return None            # 模擬背景仍在跑
+    monkeypatch.setattr(bl.subprocess, "Popen", lambda args, **k: cap.update(args=args) or _P())
+    r = bl.start_install()
+    assert r == {"installing": True}           # 非阻塞、立即回
+    a = cap["args"]
+    assert a[0] == bl.sys.executable and a[1] == "-c"   # 背景子行程，無 shell
+    assert "pip" in a[2] and "playwright" in a[2]
 
 
-def test_install_stops_on_failure(monkeypatch):
-    class _R:
-        returncode = 1
-        stdout = ""
-        stderr = "boom"
-    runs = []
-    monkeypatch.setattr(bl.subprocess, "run", lambda cmd, **k: runs.append(cmd) or _R())
-    ok, log = bl.install()
-    assert ok is False
-    assert len(runs) == 1                      # 第一步失敗就停，不跑第二步
+def test_start_install_skips_when_ready(monkeypatch):
+    monkeypatch.setattr(bl, "is_ready", lambda: True)
+    ran = []
+    monkeypatch.setattr(bl.subprocess, "Popen", lambda *a, **k: ran.append(1))
+    assert bl.start_install() == {"ready": True}
+    assert ran == []                           # 已就緒 → 不重裝
+
+
+def test_install_status_reports_ready_and_installing(monkeypatch):
+    monkeypatch.setattr(bl, "is_ready", lambda: False)
+    monkeypatch.setattr(bl, "is_installing", lambda: True)
+    assert bl.install_status() == {"ready": False, "installing": True}
 
 
 def test_shutdown_pattern_is_profile_path(monkeypatch):

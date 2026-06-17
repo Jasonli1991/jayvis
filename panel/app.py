@@ -156,15 +156,14 @@ def api_browse_enabled_get():
 
 @app.get("/api/browse/ready")
 def api_browse_ready_get():
-    # 瀏覽元件（playwright 套件 + Chromium）是否已安裝。前端據此決定要不要先提示下載。
-    return jsonify({"ready": browse_launch.is_ready()})
+    # 瀏覽元件是否已就緒 / 正在背景安裝。前端據此決定提示下載或繼續輪詢。
+    return jsonify(browse_launch.install_status())
 
 
 @app.post("/api/browse/install")
 def api_browse_install_post():
-    # 下載瀏覽器元件（~150MB）。前端會先跳確認，使用者按確定才打這支。
-    ok, log = browse_launch.install()
-    return jsonify({"ok": ok, "log": log})
+    # 背景下載瀏覽器元件（~150MB），非阻塞。前端先跳確認、確定才打這支，再輪詢 ready。
+    return jsonify(browse_launch.start_install())
 
 
 @app.post("/api/browse/enabled")

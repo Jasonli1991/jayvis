@@ -55,8 +55,9 @@ def test_browse_enabled_get_post_roundtrip(tmp_path, monkeypatch):
 def test_browse_ready_and_install_endpoints(monkeypatch):
     import browse_launch
     monkeypatch.setattr(browse_launch, "is_ready", lambda: False)
+    monkeypatch.setattr(browse_launch, "is_installing", lambda: False)
     c = app.test_client()
-    assert c.get("/api/browse/ready").get_json() == {"ready": False}       # 沒裝 → 前端會跳確認
-    monkeypatch.setattr(browse_launch, "install", lambda: (True, [{"cmd": "pip", "rc": 0}]))
+    assert c.get("/api/browse/ready").get_json() == {"ready": False, "installing": False}
+    monkeypatch.setattr(browse_launch, "start_install", lambda: {"installing": True})
     r = c.post("/api/browse/install", json={})
-    assert r.status_code == 200 and r.get_json()["ok"] is True
+    assert r.status_code == 200 and r.get_json() == {"installing": True}    # 非阻塞、回安裝中

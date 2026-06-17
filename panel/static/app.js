@@ -563,23 +563,39 @@ async function loadBrowse() {
   } catch (e) { warn($("browse-msg"), "載入失敗"); }
 }
 
+function _sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+async function waitBrowseReady(maxMs) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < maxMs) {
+    const s = await getJSON("/api/browse/ready");
+    if (s.ready) return true;
+    if (!s.installing) return false;          // 沒在裝又沒好 → 視為失敗
+    flash($("browse-msg"), "正在背景下載瀏覽器元件…（約 1–2 分鐘，可繼續用面板）");
+    await _sleep(4000);
+  }
+  return false;
+}
+
 function wireBrowse() {
   $("browse-enabled").addEventListener("change", async () => {
     const on = $("browse-enabled").checked;
     try {
       if (on) {
-        const rdy = await getJSON("/api/browse/ready");
-        if (!rdy.ready) {                                   // 第一次：先提示、確定後才下載
-          if (!confirm("第一次啟用需下載瀏覽器元件（約 150MB）才能瀏覽。要現在安裝嗎？")) {
-            $("browse-enabled").checked = false;
-            flash($("browse-msg"), "已取消安裝");
-            return;
+        let st = await getJSON("/api/browse/ready");
+        if (!st.ready) {                                    // 第一次：先提示、確定後才背景下載
+          if (!st.installing) {
+            if (!confirm("第一次啟用需下載瀏覽器元件（約 150MB）才能瀏覽。要現在安裝嗎？")) {
+              $("browse-enabled").checked = false;
+              flash($("browse-msg"), "已取消安裝");
+              return;
+            }
+            await postJSON("/api/browse/install", {});      // 背景啟動，不阻塞
           }
-          flash($("browse-msg"), "正在下載瀏覽器元件，約 1–2 分鐘，請別關面板…");
-          const ins = await postJSON("/api/browse/install", {});
-          if (!ins.ok) {
+          const okReady = await waitBrowseReady(300000);    // 輪詢最多 5 分鐘
+          if (!okReady) {
             $("browse-enabled").checked = false;
-            warn($("browse-msg"), "安裝失敗，請看終端 Log");
+            warn($("browse-msg"), "安裝未完成，請看終端 Log 後再試");
             return;
           }
         }

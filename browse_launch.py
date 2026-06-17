@@ -9,9 +9,13 @@ import subprocess
 import sys
 import time
 import urllib.request
+from pathlib import Path
 from urllib.parse import urlparse
 
 import config
+
+INSTALL_LOG = Path(__file__).resolve().parent / "browse-install.log"
+_install_proc = None
 
 
 def _port() -> int:
@@ -47,17 +51,31 @@ def is_ready() -> bool:
         return False
 
 
-def install() -> tuple:
-    """安裝 playwright 套件 + 下載 Chromium 到「當前 venv」（sys.executable）。回 (ok, log)。"""
-    log = []
-    for cmd in ([sys.executable, "-m", "pip", "install", "playwright>=1.40"],
-                [sys.executable, "-m", "playwright", "install", "chromium"]):
-        r = subprocess.run(cmd, capture_output=True, text=True)
-        log.append({"cmd": " ".join(cmd), "rc": r.returncode,
-                    "tail": ((r.stdout or "") + (r.stderr or ""))[-400:]})
-        if r.returncode != 0:
-            return False, log
-    return True, log
+def is_installing() -> bool:
+    return _install_proc is not None and _install_proc.poll() is None
+
+
+def install_status() -> dict:
+    """供面板輪詢：元件是否就緒、是否正在背景安裝。"""
+    return {"ready": is_ready(), "installing": is_installing()}
+
+
+def start_install() -> dict:
+    """背景安裝 playwright 套件 + 下載 Chromium 到「當前 venv」(sys.executable)，非阻塞。
+    仿 LibreOffice：Popen 背景跑、寫 log，面板自行輪詢 install_status()。"""
+    global _install_proc
+    if is_ready():
+        return {"ready": True}
+    if is_installing():
+        return {"installing": True}
+    logf = open(INSTALL_LOG, "a")
+    # 背景子行程依序跑 pip install + playwright install（list 形式、無 shell，避免注入）
+    runner = ("import subprocess, sys;"
+              "subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'playwright>=1.40']);"
+              "subprocess.check_call([sys.executable, '-m', 'playwright', 'install', 'chromium'])")
+    _install_proc = subprocess.Popen([sys.executable, "-c", runner],
+                                     stdout=logf, stderr=subprocess.STDOUT)
+    return {"installing": True}
 
 
 def launch(wait_s: float = 20.0) -> bool:
