@@ -17,6 +17,9 @@ import cooldown
 import group_memory
 import guard
 import inbox_capture
+import browse_agent
+import browse_tool
+import browse_allowlist
 import code_delegate
 import memory
 import persona
@@ -31,6 +34,36 @@ _QUIET_LOGGERS = ("httpx", "httpcore", "telegram", "apscheduler")
 for _n in _QUIET_LOGGERS:
     logging.getLogger(_n).setLevel(logging.WARNING)
 _log = logging.getLogger("jayvis")
+
+_pending_browse = {}                  # owner_id -> {"pending": dict}
+
+_BROWSE_HINT = ("瀏覽", "幫我看 http", "看一下 http", "打開網", "查網", "逛", "網頁", "後台")
+
+
+def _looks_like_browse(text: str) -> bool:
+    t = text or ""
+    if "http://" in t or "https://" in t:
+        return True
+    return any(h in t for h in _BROWSE_HINT)
+
+
+def _is_confirm_reply(text: str) -> bool:
+    return (text or "").strip() in ("確認", "好", "可以", "yes", "y", "取消", "不要", "no", "n")
+
+
+def _is_yes(text: str) -> bool:
+    return (text or "").strip() in ("確認", "好", "可以", "yes", "y")
+
+
+async def _deliver_browse(msg, context, res, uid) -> None:
+    from io import BytesIO
+    if res.status == "pending":
+        _pending_browse[uid] = {"pending": res.pending}
+        await msg.reply_text(f"⚠️ 這個動作會改東西：{res.summary}\n要我執行嗎？回「確認」或「取消」。")
+    else:
+        await _send_long(msg, res.summary or "（沒有內容）")
+    if res.screenshot:
+        await context.bot.send_photo(chat_id=msg.chat_id, photo=BytesIO(res.screenshot))
 
 
 def is_owner(user_id: int) -> bool:
@@ -317,6 +350,35 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await msg.reply_text(f"（需要修的話回「修復計畫」，我請 Agent 擬一份給 {config.OWNER_NAME} 審）")
             return
 
+    # 助理瀏覽網頁（借用已登入 Chrome）：僅 owner 私訊；讀自動、寫入前確認
+    if config.BROWSE_ENABLED and is_owner(user.id) and not is_group:
+        pend = _pending_browse.get(user.id)
+        if pend and _is_confirm_reply(text):
+            _pending_browse.pop(user.id, None)
+            try:
+                res = await asyncio.to_thread(browse_agent.resume, pend["pending"], _is_yes(text))
+                await _deliver_browse(msg, context, res, user.id)
+            except Exception as e:
+                await msg.reply_text("瀏覽器操作出狀況了，我先停手 🙏")
+                await notify_owner_error(context.bot, e, where="瀏覽操作")
+            return
+        if _looks_like_browse(text):
+            await msg.reply_text("好，我去看一下，稍等…")
+            try:
+                res = await asyncio.to_thread(browse_agent.run, text, None)
+                await _deliver_browse(msg, context, res, user.id)
+            except browse_tool.BrowseUnavailable:
+                await msg.reply_text(
+                    "Chrome 沒開遠端偵錯。請用：\n"
+                    "open -a 'Google Chrome' --args --remote-debugging-port=9222\n"
+                    "啟動後再試一次 🙏")
+            except browse_tool.NotAllowed as e:
+                await msg.reply_text(f"「{e}」不在我的瀏覽白名單，要我加進去嗎？（回「加白名單 <網域>」）")
+            except Exception as e:
+                await msg.reply_text("瀏覽出了點狀況，我先停手 🙏")
+                await notify_owner_error(context.bot, e, where="瀏覽網頁")
+            return
+
     group_context = group_memory.recent_transcript(chat.id) if is_group else None
     try:
         await context.bot.send_chat_action(chat_id=msg.chat_id, action="typing")
@@ -386,6 +448,7 @@ def main() -> None:
         _log.exception("memory.migrate_json failed")
     _log.info("✅ %s v%s ｜%s 啟動（long polling）｜allowlist=%d 人",
               config.APP_NAME, config.APP_VERSION, config.ASSISTANT_NAME, len(config.ALLOWLIST_USER_IDS))
+    browse_tool.sweep_tmp()
     if config.ACTIONS_ENABLED:
         import threading
         threading.Thread(target=agent.warm_calendars, daemon=True).start()   # 預熱日曆快取，避免冷快取逾時
