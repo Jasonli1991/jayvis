@@ -160,24 +160,28 @@ def compose_reply(sender_id: int, incoming: str, image_bytes: Optional[bytes] = 
     model = choose_model(incoming, source_types)
     reply = generate(model=model, system=system, messages=messages,
                      image_bytes=image_bytes, max_output_tokens=2048)
-
-    if search_failed:                             # 固定句子保證告知（不靠 LLM 自覺）
-        reply = ("⚠️ 時事搜尋暫時不可用（可能 Tavily 額度用完或連線問題），"
-                 "以下用我自己的知識回答、可能不是最新：\n\n" + reply)
+    # reply 此時是 LLM 乾淨答案 —— 記憶/Inbox 都用這版（暫時性錯誤警語只給使用者看）
 
     if not in_group:
         alias = config.ALLOWLIST_ALIASES.get(sender_id) or (
             config.OWNER_NAME if sender_id == config.OWNER_CHAT_ID else None) or sender_name
         memory_text = incoming if not image_bytes else f"[圖片]{' ' + incoming if incoming else ''}"
         memory.append(sender_id, "user", memory_text, alias=alias)
-        memory.append(sender_id, "assistant", reply, alias=alias)
+        memory.append(sender_id, "assistant", reply, alias=alias)      # 乾淨答案，不含警語
 
     if owner_mode and not in_group:
         user_profile.maybe_update(sender_id)            # 每 6 輪背景更新學習畫像
 
     # owner 私訊問到 KB 沒有的知識型問題 → 附一句「要不要記進 Obsidian Inbox」並暫存
-    if (owner_mode and not in_group and not image_bytes and not rag_context
-            and inbox_capture.is_knowledge_question(incoming)):
+    offer = (owner_mode and not in_group and not image_bytes and not rag_context
+             and inbox_capture.is_knowledge_question(incoming))
+    if offer:
         inbox_capture.remember(incoming, reply)         # 暫存「乾淨」答案
+
+    # 以下只組「回傳給使用者」的版本：暫時性錯誤警語 + Inbox 提示，皆不入庫
+    if search_failed:                             # 固定句子保證告知（不靠 LLM 自覺）
+        reply = ("⚠️ 時事搜尋暫時不可用（可能 Tavily 額度用完或連線問題），"
+                 "以下用我自己的知識回答、可能不是最新：\n\n" + reply)
+    if offer:
         reply = reply + inbox_capture.OFFER_LINE        # 使用者看到的才附提示
     return reply
