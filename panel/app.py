@@ -21,6 +21,7 @@ import memory
 import user_profile
 from panel import botctl, env_io, libreoffice
 import analysis
+import browse_allowlist
 from db.connection import get_conn, apply_schema
 from ingest.obsidian import ingest_dir, count_md_files
 from ingest.github import commit_to_chunk
@@ -129,6 +130,21 @@ def api_allow_get():
 def api_allow_post():
     d = request.get_json(force=True)
     env_io.write_allowlist(d.get("entries", []))
+    return jsonify({"ok": True})
+
+
+@app.get("/api/browse/allowlist")
+def api_browse_allow_get():
+    return jsonify({"domains": browse_allowlist.load()})
+
+
+@app.post("/api/browse/allowlist")
+def api_browse_allow_post():
+    d = request.get_json(force=True) or {}
+    domains = d.get("domains", [])
+    if not isinstance(domains, list):
+        return jsonify({"error": "domains must be a list"}), 400
+    browse_allowlist.save(domains)
     return jsonify({"ok": True})
 
 

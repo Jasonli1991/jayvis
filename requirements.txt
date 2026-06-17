@@ -14,3 +14,4 @@ pywebview==5.3.2
 rembg
 Pillow
 pillow-heif
+playwright>=1.40
