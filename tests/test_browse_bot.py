@@ -62,6 +62,7 @@ def _base(monkeypatch):
     monkeypatch.setattr(bot.memory, "append", lambda *a, **k: None)
     bot._pending_browse.clear()
     bot._browse_session.clear()
+    bot._pending_allow.clear()
 
 
 def test_colleague_cannot_browse(monkeypatch, _base):
@@ -141,6 +142,33 @@ def test_browse_passes_detected_url_as_start(monkeypatch, _base):
     u, c = _update(m, 6803)
     asyncio.run(bot.handle_message(u, c))
     assert got["start"] == "https://ka2ka.com"        # 偵測到的網址直接帶去導航
+
+
+def test_whitelist_natural_language_confirm(monkeypatch, _base):
+    # 被擋網域後，owner 自然回「好，幫我加入」即視為同意 → 加白名單 + 自動重試原任務。
+    added = []
+    monkeypatch.setattr(bot.browse_allowlist, "add", lambda d: added.append(d))
+    calls = []
+
+    def run(task, start_url=None, *a, **k):
+        calls.append((task, start_url))
+        if len(calls) == 1:
+            raise browse_tool.NotAllowed("https://ka2ka.com")     # 第一次：不在白名單
+        return browse_agent.BrowseResult("ok", summary="首頁ok", screenshot=None)
+
+    monkeypatch.setattr(browse_agent, "run", run)
+    m1, s1, _ = _msg("可以幫我進ka2ka.com這個網站截圖首頁")
+    u1, c1 = _update(m1, 6803)
+    asyncio.run(bot.handle_message(u1, c1))
+    assert 6803 in bot._pending_allow                             # 記住被擋網域
+    assert any("ka2ka.com" in x for x in s1)
+
+    m2, s2, _ = _msg("好，幫我加入")                              # 自然語言同意
+    u2, c2 = _update(m2, 6803)
+    asyncio.run(bot.handle_message(u2, c2))
+    assert added == ["ka2ka.com"]                                # 真的加了
+    assert calls[1][0] == "可以幫我進ka2ka.com這個網站截圖首頁"   # 自動重試原任務
+    assert 6803 not in bot._pending_allow
 
 
 def test_browse_session_routes_followups(monkeypatch, _base):

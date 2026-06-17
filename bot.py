@@ -42,6 +42,8 @@ _browse_session = {}                  # owner_id -> last_activity_ts（瀏覽模
 _BROWSE_SESSION_TTL_S = 600           # 閒置逾 10 分鐘自動離開瀏覽模式
 _BROWSE_STOP_WORDS = ("結束瀏覽", "停止瀏覽", "離開瀏覽", "結束瀏覽模式", "退出瀏覽")
 
+_pending_allow = {}                   # owner_id -> {"domain","task","url"}：被擋網域待 owner 同意加白名單
+
 _BROWSE_HINT = ("瀏覽", "網站", "網頁", "打開網", "查網", "逛", "後台", "截圖", "首頁")
 
 # 裸網域偵測（如 ka2ka.com、admin.example.com.tw）；不用 \b 因中文字旁不形成詞界。
@@ -83,6 +85,27 @@ async def _deliver_browse(msg, context, res, uid) -> None:
         await _send_long(msg, res.summary or "（沒有內容）")
     if res.screenshot:
         await context.bot.send_photo(chat_id=msg.chat_id, photo=BytesIO(res.screenshot))
+
+
+async def _run_browse(msg, context, user, task, start_url) -> None:
+    """跑一次瀏覽任務並把結果送出；統一處理沒就緒／非白名單／其他例外。"""
+    try:
+        res = await asyncio.to_thread(browse_agent.run, task, start_url)
+        await _deliver_browse(msg, context, res, user.id)
+    except browse_tool.BrowseUnavailable:
+        _browse_session.pop(user.id, None)           # 沒就緒就別把人困在瀏覽模式
+        await msg.reply_text(
+            "瀏覽器還沒就緒。請到控制台面板把「啟用網站瀏覽」打開"
+            "（會自動開啟專用瀏覽器），第一次記得在那個視窗登入要用的網站，再回我一次 🙏")
+    except browse_tool.NotAllowed as e:
+        from urllib.parse import urlparse
+        dom = urlparse(str(e)).hostname or str(e)
+        _pending_allow[user.id] = {"domain": dom, "task": task, "url": str(e)}
+        await msg.reply_text(f"「{dom}」不在我的瀏覽白名單，要我加進去嗎？回「好」即可。")
+    except Exception as e:
+        browse_tool.reset()
+        await msg.reply_text("瀏覽出了點狀況，我先停手 🙏")
+        await notify_owner_error(context.bot, e, where="瀏覽網頁")
 
 
 def is_owner(user_id: int) -> bool:
@@ -380,6 +403,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 await msg.reply_text("瀏覽器操作出狀況了，我先停手 🙏")
                 await notify_owner_error(context.bot, e, where="瀏覽操作")
             return
+        # 提議加白名單後，owner 自然回「好／幫我加入」即視為同意 → 加入並自動重試原任務。
+        pa = _pending_allow.get(user.id)
+        if pa:
+            t = (text or "").strip()
+            if any(w in t for w in ("好", "加", "可以", "yes", "ok", "OK", "行", "沒問題", "要")):
+                _pending_allow.pop(user.id, None)
+                browse_allowlist.add(pa["domain"])
+                _browse_session[user.id] = time.time()
+                await msg.reply_text(f"好，已把 {pa['domain']} 加進白名單 ✅，我這就去看…")
+                await _run_browse(msg, context, user, pa["task"], pa["url"])
+                return
+            if any(w in t for w in ("不", "別", "取消", "算了", "no")):
+                _pending_allow.pop(user.id, None)
+                await msg.reply_text("好，那就先不加。")
+                return
+            _pending_allow.pop(user.id, None)            # 答非所問 → 清掉，當新指令往下走
         # 瀏覽模式：一旦開始瀏覽，後續訊息（截圖、點登入…）繼續走瀏覽工具，直到「結束瀏覽」或閒置逾時。
         in_session = (time.time() - _browse_session.get(user.id, 0)) < _BROWSE_SESSION_TTL_S
         if in_session and text and text.strip() in _BROWSE_STOP_WORDS:
@@ -390,20 +429,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await msg.reply_text("好，我看一下，稍等…" if in_session
                                  else "好，我看一下，稍等…（已進入瀏覽模式：之後直接說要做什麼即可，例如「截圖」「點登入」；說「結束瀏覽」可離開）")
             _browse_session[user.id] = time.time()       # 開始／刷新瀏覽模式
-            try:
-                res = await asyncio.to_thread(browse_agent.run, text, _extract_browse_url(text))
-                await _deliver_browse(msg, context, res, user.id)
-            except browse_tool.BrowseUnavailable:
-                _browse_session.pop(user.id, None)       # 沒就緒就別把人困在瀏覽模式
-                await msg.reply_text(
-                    "瀏覽器還沒就緒。請到控制台面板把「啟用網站瀏覽」打開"
-                    "（會自動開啟專用 Chrome），第一次記得在那個視窗登入要用的網站，再回我一次 🙏")
-            except browse_tool.NotAllowed as e:
-                await msg.reply_text(f"「{e}」不在我的瀏覽白名單，要我加進去嗎？（回「加白名單 <網域>」）")
-            except Exception as e:
-                browse_tool.reset()
-                await msg.reply_text("瀏覽出了點狀況，我先停手 🙏")
-                await notify_owner_error(context.bot, e, where="瀏覽網頁")
+            await _run_browse(msg, context, user, text, _extract_browse_url(text))
             return
 
     # 程式問題委派給 Agent（headless Claude Code）：owner 隨時／同事僅 owner 請假時；私訊、文字
