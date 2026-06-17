@@ -22,10 +22,14 @@ class NotAllowed(RuntimeError):
 
 
 def _open_cdp():
-    """連到既有 Chrome，回 (pw, browser, page)。被測試 monkeypatch。"""
+    """連到既有 Chromium，回 (pw, browser, page)。被測試 monkeypatch。"""
     from playwright.sync_api import sync_playwright
     pw = sync_playwright().start()
-    browser = pw.chromium.connect_over_cdp(config.BROWSE_CDP_URL)
+    try:
+        browser = pw.chromium.connect_over_cdp(config.BROWSE_CDP_URL)
+    except Exception:
+        pw.stop()                 # 連不上就收掉 playwright，避免殘留 greenlet 與下次 start 衝突
+        raise
     ctx = browser.contexts[0] if browser.contexts else browser.new_context()
     page = ctx.pages[0] if ctx.pages else ctx.new_page()
     return pw, browser, page
