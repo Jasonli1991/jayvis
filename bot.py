@@ -35,7 +35,8 @@ for _n in _QUIET_LOGGERS:
     logging.getLogger(_n).setLevel(logging.WARNING)
 _log = logging.getLogger("jayvis")
 
-_pending_browse = {}                  # owner_id -> {"pending": dict}
+_pending_browse = {}                  # owner_id -> {"pending": dict, "ts": float}
+_BROWSE_PENDING_TTL_S = 300           # 確認請求過期時間（秒）
 
 _BROWSE_HINT = ("瀏覽", "幫我看 http", "看一下 http", "打開網", "查網", "逛", "網頁", "後台")
 
@@ -58,7 +59,7 @@ def _is_yes(text: str) -> bool:
 async def _deliver_browse(msg, context, res, uid) -> None:
     from io import BytesIO
     if res.status == "pending":
-        _pending_browse[uid] = {"pending": res.pending}
+        _pending_browse[uid] = {"pending": res.pending, "ts": time.time()}
         await msg.reply_text(f"⚠️ 這個動作會改東西：{res.summary}\n要我執行嗎？回「確認」或「取消」。")
     else:
         await _send_long(msg, res.summary or "（沒有內容）")
@@ -352,9 +353,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # 助理瀏覽網頁（借用已登入 Chrome）：僅 owner 私訊；讀自動、寫入前確認
     if config.BROWSE_ENABLED and is_owner(user.id) and not is_group:
+        # 加白名單指令（優先於 _looks_like_browse 判斷）
+        if text and text.strip().startswith("加白名單"):
+            domain = text.strip()[len("加白名單"):].strip()
+            if not domain:
+                await msg.reply_text("請告訴我要加哪個網域，例如：加白名單 example.com")
+            else:
+                browse_allowlist.add(domain)
+                await msg.reply_text(f"好，已把 {domain} 加進瀏覽白名單 ✅")
+            return
         pend = _pending_browse.get(user.id)
         if pend and _is_confirm_reply(text):
             _pending_browse.pop(user.id, None)
+            if time.time() - pend.get("ts", 0) > _BROWSE_PENDING_TTL_S:
+                await msg.reply_text("這個確認等太久過期了，請重新跟我說一次要做什麼 🙏")
+                return
             try:
                 res = await asyncio.to_thread(browse_agent.resume, pend["pending"], _is_yes(text))
                 await _deliver_browse(msg, context, res, user.id)

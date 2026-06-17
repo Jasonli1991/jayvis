@@ -1,8 +1,10 @@
 import asyncio
+import time
 from types import SimpleNamespace
 
 import pytest
 import bot
+import browse_allowlist
 import config
 import browse_agent
 import browse_tool
@@ -111,3 +113,30 @@ def test_browse_unavailable_message(monkeypatch, _base):
     upd, ctx = _update(msg, 6803)
     asyncio.run(bot.handle_message(upd, ctx))
     assert any("remote-debugging" in s for s in sent)
+
+
+def test_pending_confirm_expires(monkeypatch, _base):
+    """TTL 過期後送出「確認」不應呼叫 browse_agent.resume"""
+    resumed = {"called": False}
+    monkeypatch.setattr(browse_agent, "resume",
+                        lambda *a, **k: resumed.__setitem__("called", True)
+                        or browse_agent.BrowseResult("ok", summary="done"))
+    # 直接注入一筆過期的 pending
+    bot._pending_browse[6803] = {"pending": {"action": "click"}, "ts": time.time() - 9999}
+    msg, sent, _ = _msg("確認")
+    upd, ctx = _update(msg, 6803)
+    asyncio.run(bot.handle_message(upd, ctx))
+    assert not resumed["called"], "resume 不應被呼叫（pending 已過期）"
+    assert 6803 not in bot._pending_browse
+    assert any("過期" in s or "逾時" in s for s in sent)
+
+
+def test_add_whitelist_command(monkeypatch, _base):
+    """owner 送「加白名單 example.com」應呼叫 browse_allowlist.add 並回覆確認"""
+    added = []
+    monkeypatch.setattr(browse_allowlist, "add", lambda domain: added.append(domain))
+    msg, sent, _ = _msg("加白名單 example.com")
+    upd, ctx = _update(msg, 6803)
+    asyncio.run(bot.handle_message(upd, ctx))
+    assert added == ["example.com"], "browse_allowlist.add 應以 'example.com' 呼叫"
+    assert any("example.com" in s for s in sent)
