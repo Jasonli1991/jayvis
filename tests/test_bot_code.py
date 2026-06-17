@@ -350,3 +350,61 @@ def test_notify_owner_error_swallows_send_failure(monkeypatch):
         raise RuntimeError("net")
     tg = SimpleNamespace(send_message=boom)
     asyncio.run(bot.notify_owner_error(tg, ValueError("x"), where="t"))   # 不該往外拋
+
+
+def test_on_error_general_alerts_owner(monkeypatch):
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    bot.reset_alerts()
+    tg, calls = _fake_bot()
+
+    async def send_chat_action(**k):
+        pass
+    ctx = SimpleNamespace(error=ValueError("boom"),
+                          bot=SimpleNamespace(send_message=tg.send_message, send_chat_action=send_chat_action))
+    asyncio.run(bot.on_error(None, ctx))
+    assert any("🚨" in t for _, t in calls)          # 一般例外 → DM owner
+
+
+def test_on_error_network_no_alert(monkeypatch):
+    from telegram.error import NetworkError
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    bot.reset_alerts()
+    tg, calls = _fake_bot()
+    ctx = SimpleNamespace(error=NetworkError("x"), bot=SimpleNamespace(send_message=tg.send_message))
+    asyncio.run(bot.on_error(None, ctx))
+    assert calls == []                                # 網路暫斷 → 不通知
+
+
+def test_compose_error_alerts_owner_for_colleague(monkeypatch):
+    _base(monkeypatch)
+    monkeypatch.setattr(config, "ALLOWLIST_USER_IDS", {555})
+    monkeypatch.setattr(config, "ALLOWLIST_ALIASES", {555: "Bob"})
+    monkeypatch.setattr(bot.persona, "load_profile", lambda: {"bosses": []})
+    monkeypatch.setattr(bot.env_io, "is_on_leave", lambda: True)
+    monkeypatch.setattr(bot.code_delegate, "classify", lambda t: None)
+    bot.reset_alerts()
+
+    def boom(*a, **k):
+        raise ValueError("backend down")
+    monkeypatch.setattr(bot, "compose_reply", boom)
+    msg, sent = _msg("今天天氣")
+    update, ctx = _update(msg, 555)
+    asyncio.run(bot.handle_message(update, ctx))
+    assert any("抱歉" in s for s in sent)                                  # 道歉給用戶
+    assert any(cid == 6803 and "🚨" in t for cid, t in ctx.bot.sent_dms)   # 警報給 owner
+
+
+def test_compose_error_owner_no_alert(monkeypatch):
+    _base(monkeypatch)
+    monkeypatch.setattr(config, "ALLOWLIST_USER_IDS", {6803})
+    monkeypatch.setattr(bot.code_delegate, "classify", lambda t: None)
+    bot.reset_alerts()
+
+    def boom(*a, **k):
+        raise ValueError("x")
+    monkeypatch.setattr(bot, "compose_reply", boom)
+    msg, sent = _msg("今天天氣")
+    update, ctx = _update(msg, 6803, "Owner")
+    asyncio.run(bot.handle_message(update, ctx))
+    assert any("抱歉" in s for s in sent)
+    assert ctx.bot.sent_dms == []                     # owner 本人 → 不另發警報

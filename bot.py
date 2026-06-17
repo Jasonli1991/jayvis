@@ -326,9 +326,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         _log.info("💬 已回覆 %s（%d 字）", _who(user), len(reply or ""))
         if is_group:
             group_memory.record(chat.id, config.ASSISTANT_NAME, reply)
-    except Exception:
+    except Exception as e:
         _log.exception("compose_reply failed for user_id=%s", user.id)
         await msg.reply_text(f"抱歉，我這邊暫時有點狀況（可能是後端額度或連線問題），等一下再問我，或等 {config.OWNER_NAME} 回來確認 🙏")
+        if not is_owner(user.id):                      # owner 本人已收道歉 → 不重複轟
+            await notify_owner_error(context.bot, e, where="回覆訊息")
 
 
 _ALERT_COOLDOWN_S = 300
