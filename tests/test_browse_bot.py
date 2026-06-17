@@ -124,6 +124,25 @@ def test_owner_pending_then_confirm(monkeypatch, _base):
     assert 6803 not in bot._pending_browse
 
 
+def test_extract_url_and_looks_like_browse():
+    assert bot._extract_browse_url("進ka2ka.com這個網站") == "https://ka2ka.com"
+    assert bot._extract_browse_url("看 https://a.example.com/x 這頁") == "https://a.example.com/x"
+    assert bot._extract_browse_url("今天天氣如何") is None
+    assert bot._looks_like_browse("可以幫我進ka2ka.com這個網站截圖首頁") is True   # 裸網域 → 瀏覽
+    assert bot._looks_like_browse("今天天氣如何") is False                       # 一般聊天不誤判
+
+
+def test_browse_passes_detected_url_as_start(monkeypatch, _base):
+    got = {}
+    monkeypatch.setattr(browse_agent, "run",
+                        lambda task, start_url=None, *a, **k: got.update(task=task, start=start_url)
+                        or browse_agent.BrowseResult("ok", summary="ok", screenshot=None))
+    m, _, _ = _msg("可以幫我進ka2ka.com這個網站截圖首頁")
+    u, c = _update(m, 6803)
+    asyncio.run(bot.handle_message(u, c))
+    assert got["start"] == "https://ka2ka.com"        # 偵測到的網址直接帶去導航
+
+
 def test_browse_session_routes_followups(monkeypatch, _base):
     # 進入瀏覽後，後續沒有「瀏覽」關鍵字的訊息（截圖/點登入）仍須走瀏覽工具，不掉回一般聊天。
     calls = []

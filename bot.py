@@ -42,12 +42,26 @@ _browse_session = {}                  # owner_id -> last_activity_ts（瀏覽模
 _BROWSE_SESSION_TTL_S = 600           # 閒置逾 10 分鐘自動離開瀏覽模式
 _BROWSE_STOP_WORDS = ("結束瀏覽", "停止瀏覽", "離開瀏覽", "結束瀏覽模式", "退出瀏覽")
 
-_BROWSE_HINT = ("瀏覽", "幫我看 http", "看一下 http", "打開網", "查網", "逛", "網頁", "後台")
+_BROWSE_HINT = ("瀏覽", "網站", "網頁", "打開網", "查網", "逛", "後台", "截圖", "首頁")
+
+# 裸網域偵測（如 ka2ka.com、admin.example.com.tw）；不用 \b 因中文字旁不形成詞界。
+_DOMAIN_RE = re.compile(
+    r'(?:https?://)?(?:[a-z0-9-]+\.)+'
+    r'(?:com|net|org|io|ai|app|dev|co|me|tw|cc|xyz|info|gov|edu)(?:/\S*)?', re.I)
+
+
+def _extract_browse_url(text: str):
+    """從訊息抓出第一個網址/裸網域，正規化成完整 URL；沒有則 None。"""
+    m = _DOMAIN_RE.search(text or "")
+    if not m:
+        return None
+    u = m.group(0)
+    return u if u.lower().startswith(("http://", "https://")) else "https://" + u
 
 
 def _looks_like_browse(text: str) -> bool:
     t = text or ""
-    if "http://" in t or "https://" in t:
+    if _extract_browse_url(t):                 # 出現網址/裸網域 → 視為瀏覽意圖
         return True
     return any(h in t for h in _BROWSE_HINT)
 
@@ -377,7 +391,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                                  else "好，我看一下，稍等…（已進入瀏覽模式：之後直接說要做什麼即可，例如「截圖」「點登入」；說「結束瀏覽」可離開）")
             _browse_session[user.id] = time.time()       # 開始／刷新瀏覽模式
             try:
-                res = await asyncio.to_thread(browse_agent.run, text, None)
+                res = await asyncio.to_thread(browse_agent.run, text, _extract_browse_url(text))
                 await _deliver_browse(msg, context, res, user.id)
             except browse_tool.BrowseUnavailable:
                 _browse_session.pop(user.id, None)       # 沒就緒就別把人困在瀏覽模式
