@@ -401,7 +401,7 @@ async function loadSources() {
 $("src-browse").onclick = async () => {
   try {
     const r = await postJSON("/api/pick-folder", {start: $("src-obsidian").value.trim()});
-    if (r.path) { $("src-obsidian").value = r.path; flash($("bf-msg"), "已選擇路徑，按「儲存並重建索引 Obsidian」套用"); }
+    if (r.path) { $("src-obsidian").value = r.path; flash($("bf-msg"), "已選擇路徑，按「重建索引 Obsidian」套用"); }
     else if (r.error) warn($("bf-msg"), "此視窗不支援原生選擇（瀏覽器模式），請手動貼路徑");
   } catch (e) { warn($("bf-msg"), "選擇資料夾失敗"); }
 };
