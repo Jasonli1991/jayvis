@@ -13,6 +13,8 @@ def _mock_browser(monkeypatch, snap=None, clicks=None):
     monkeypatch.setattr(bt, "snapshot", lambda: snap)
     monkeypatch.setattr(bt, "extract_text", lambda: "頁面文字")
     monkeypatch.setattr(bt, "screenshot", lambda: b"PNG")
+    monkeypatch.setattr(bt, "reset", lambda: None)
+    monkeypatch.setattr(bag.browse_launch, "shutdown", lambda: None)   # 別真的 pkill
     monkeypatch.setattr(bt, "type_text", lambda ref, text: None)
     if clicks is not None:
         monkeypatch.setattr(bt, "click", lambda ref: clicks.append(ref))
@@ -36,8 +38,24 @@ def test_read_path_returns_ok_summary(monkeypatch):
     assert res.screenshot == b"PNG"
 
 
-def test_screenshot_failure_does_not_crash_task(monkeypatch):
-    # 截圖失敗（頁面當掉/逾時）→ _shot 回 None，任務仍回文字結果、不整個炸掉。
+def test_screenshot_failure_recovers_by_relaunch(monkeypatch):
+    # 截圖第一次失敗（連到壞 Chromium）→ 重啟乾淨的重試成功。
+    _mock_browser(monkeypatch)
+    calls = {"n": 0}
+    def flaky():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("page crashed")   # 第一次失敗
+        return b"PNG2"                            # 重啟後成功
+    monkeypatch.setattr(bt, "screenshot", flaky)
+    _decides(monkeypatch, json.dumps({"action": "done", "summary": "看到首頁了", "mutating": False}))
+    res = bag.run("截圖")
+    assert res.status == "ok"
+    assert res.screenshot == b"PNG2"             # 自動重啟後截到圖
+
+
+def test_screenshot_double_failure_returns_none(monkeypatch):
+    # 兩次都失敗 → 回 None，任務仍回文字結果、不整個炸掉。
     _mock_browser(monkeypatch)
     def boom():
         raise RuntimeError("page crashed")
@@ -46,7 +64,7 @@ def test_screenshot_failure_does_not_crash_task(monkeypatch):
     res = bag.run("截圖")
     assert res.status == "ok"
     assert "首頁" in res.summary
-    assert res.screenshot is None             # 截圖沒了但任務照樣完成
+    assert res.screenshot is None
 
 
 def test_mutating_action_returns_pending_without_executing(monkeypatch):

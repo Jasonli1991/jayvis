@@ -1,10 +1,12 @@
 """瀏覽決策迴圈：LLM 每步回一個 JSON 動作；mutating 動作停下等確認，絕不自動執行。"""
 import json
 import logging
+import time
 from dataclasses import dataclass
 
 import config
 import browse_tool
+import browse_launch
 from llm import generate
 
 _log = logging.getLogger("jayvis")
@@ -80,10 +82,26 @@ def _apply(d: dict) -> None:
 
 
 def _shot():
-    """截圖容錯：失敗（如頁面當掉/逾時）回 None，至少還能回文字結果，不整個任務炸掉。"""
+    """截圖容錯：第一次失敗（常見於連到沒帶穩定旗標/卡住的舊 Chromium）→ 重啟一個乾淨的
+    Chromium 回到原頁再試一次；仍失敗回 None（至少還能回文字結果，不整個任務炸掉）。"""
     try:
         return browse_tool.screenshot()
+    except Exception as e:
+        _log.warning("browse 截圖失敗，重啟瀏覽器重試：%r", e)
+    try:
+        cur = browse_tool.current_url()
     except Exception:
+        cur = None
+    try:
+        browse_tool.reset()
+        browse_launch.shutdown()          # 殺掉可能沒帶旗標/卡住的舊 Chromium
+        browse_tool.connect()             # 自癒 → 啟動帶穩定旗標的新 Chromium（cookie 仍在 profile）
+        if cur:
+            browse_tool.goto(cur)
+            time.sleep(2)
+        return browse_tool.screenshot()
+    except Exception as e:
+        _log.warning("browse 截圖重試仍失敗：%r", e)
         return None
 
 
