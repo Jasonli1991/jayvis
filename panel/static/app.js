@@ -305,7 +305,9 @@ async function loadLibre() { renderLibre(await getJSON("/api/libreoffice")); }
 async function loadMemPersons() {
   const ps = await getJSON("/api/memory/persons");
   const sel = $("mem-person");
+  const cur = sel.value;                                              // 記住目前選的對象
   sel.innerHTML = ps.map(p => `<option value="${esc(p.person_id)}">${esc(p.alias || p.person_id)}（${esc(p.count)}）</option>`).join("");
+  if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;  // 還原選擇，不跳掉
   loadMemTimeline();
 }
 async function loadMemTimeline() {
@@ -316,6 +318,7 @@ async function loadMemTimeline() {
     `<li><span class="hint">${esc(m.ts)}・${esc(m.kind)}</span><br>${esc(m.content)}</li>`).join("") || "<li class='hint'>（無記錄）</li>";
 }
 $("mem-person").onchange = loadMemTimeline;
+$("mem-person").addEventListener("focus", loadMemPersons);   // 點開下拉時重抓對談記憶（含時間軸）→ 免按鈕、免定時、不跟「重啟」混淆
 $("mem-clear-one").onclick = async () => {
   const pid = $("mem-person").value; if (!pid) return;
   const label = $("mem-person").selectedOptions[0]?.textContent || pid;
