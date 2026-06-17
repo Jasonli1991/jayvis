@@ -131,6 +131,21 @@
   </div>
 
   <section class="card" style="--d:4">
+    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-route"></use></svg></span><h2>瀏覽白名單</h2></div>
+    <p class="hint">助理只能進這些網域（含子網域）。空清單＝完全禁止瀏覽。</p>
+    <ul id="browse-list" class="chips"></ul>
+    <div class="inline">
+      <input id="browse-input" type="text" placeholder="例如 analytics.google.com" autocomplete="off">
+      <button id="browse-add" class="btn"><svg class="ic"><use href="#i-plus"></use></svg>新增</button>
+    </div>
+    <div class="actions">
+      <button id="browse-save" class="btn primary"><svg class="ic"><use href="#i-save"></use></svg>儲存</button>
+      <span class="hint">儲存後需重啟 bot 生效</span>
+      <span id="browse-msg" class="msg"></span>
+    </div>
+  </section>
+
+  <section class="card" style="--d:5">
     <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-database"></use></svg></span><h2>記憶管理 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">兩個層次：上半「知識來源」把 Obsidian 筆記與 GitHub commit 灌進向量知識庫（bot 回答同事問題的依據）；下半「對談記憶」是助理記得的每次對談與動作（含時間），可依對象檢視、清除。</span></span></h2></div>
     <div class="grid-2">
       <div>
@@ -180,7 +195,7 @@
     </div>
   </section>
 
-  <section class="card" style="--d:5">
+  <section class="card" style="--d:6">
     <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-route"></use></svg></span><h2>模型路由 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">模型名開頭決定供應商：gemini-*→Google、claude-*→Anthropic、gpt-*/o*→OpenAI 金鑰所指端點。設了相容端點後，其他任意模型名（gemma4:12b、qwen3:8b 等）都走該端點；本地 Ollama 金鑰可留空。金鑰留空＝不變更，要清除請編輯 .env。</span></span> <span id="md-models-hint" class="hint head-hint"></span></h2></div>
     <div class="model-row">
       <div class="field"><label for="md-general">一般</label><input id="md-general" class="mono" autocomplete="off" placeholder="gemini-2.5-flash 或點選本地"></div>
@@ -209,7 +224,7 @@
     </div>
   </section>
 
-  <section class="card accent-card" style="--d:6">
+  <section class="card accent-card" style="--d:7">
     <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-sparkles"></use></svg></span><h2>分析模式</h2></div>
     <p class="hint">廣撈知識庫 + 綜合摘要，做跨語料分析</p>
     <textarea id="an-q" rows="2" placeholder="例：幫我分析目前我的知識庫中，有哪些項目是可以應用在現階段專案上的？"></textarea>
@@ -219,21 +234,6 @@
     </div>
     <div id="an-answer" class="answer"></div>
     <div id="an-sources" class="sources"></div>
-  </section>
-
-  <section class="card" style="--d:7">
-    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-route"></use></svg></span><h2>瀏覽白名單</h2></div>
-    <p class="hint">助理只能進這些網域（含子網域）。空清單＝完全禁止瀏覽。</p>
-    <ul id="browse-list" class="chips"></ul>
-    <div class="inline">
-      <input id="browse-input" type="text" placeholder="例如 analytics.google.com" autocomplete="off">
-      <button id="browse-add" class="btn"><svg class="ic"><use href="#i-plus"></use></svg>新增</button>
-    </div>
-    <div class="actions">
-      <button id="browse-save" class="btn primary"><svg class="ic"><use href="#i-save"></use></svg>儲存</button>
-      <span class="hint">儲存後需重啟 bot 生效</span>
-      <span id="browse-msg" class="msg"></span>
-    </div>
   </section>
 
   <section class="card" style="--d:8">
