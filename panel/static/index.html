@@ -222,6 +222,21 @@
   </section>
 
   <section class="card" style="--d:7">
+    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-route"></use></svg></span><h2>瀏覽白名單</h2></div>
+    <p class="hint">助理只能進這些網域（含子網域）。空清單＝完全禁止瀏覽。</p>
+    <ul id="browse-list" class="chips"></ul>
+    <div class="inline">
+      <input id="browse-input" type="text" placeholder="例如 analytics.google.com" autocomplete="off">
+      <button id="browse-add" class="btn"><svg class="ic"><use href="#i-plus"></use></svg>新增</button>
+    </div>
+    <div class="actions">
+      <button id="browse-save" class="btn primary"><svg class="ic"><use href="#i-save"></use></svg>儲存</button>
+      <span class="hint">儲存後需重啟 bot 生效</span>
+      <span id="browse-msg" class="msg"></span>
+    </div>
+  </section>
+
+  <section class="card" style="--d:8">
     <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-terminal"></use></svg></span><h2>即時 Log</h2></div>
     <pre id="log" class="log">—</pre>
   </section>

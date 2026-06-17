@@ -535,7 +535,50 @@ $("an-run").onclick = () => withBusy($("an-run"), async () => {
   } catch (e) { warn($("an-msg"), "分析失敗，請重試"); }
 });
 
-loadProfile(); loadLeave(); loadBotToken(); loadAllow(); loadModels(); loadLlmKeys(); loadOllamaModels(); loadSources(); loadActions(); loadLibre(); loadMemPersons(); refreshStatus(); refreshLog();
+// 瀏覽白名單
+let _browseDomains = [];
+
+function renderBrowse() {
+  const ul = $("browse-list");
+  ul.innerHTML = "";
+  _browseDomains.forEach((d, i) => {
+    const li = document.createElement("li");
+    li.className = "chip";
+    li.textContent = d;
+    const x = document.createElement("button");
+    x.type = "button"; x.className = "chip-x"; x.textContent = "×";
+    x.onclick = () => { _browseDomains.splice(i, 1); renderBrowse(); };
+    li.appendChild(x);
+    ul.appendChild(li);
+  });
+}
+
+async function loadBrowse() {
+  try {
+    const r = await getJSON("/api/browse/allowlist");
+    _browseDomains = r.domains || [];
+    renderBrowse();
+  } catch (e) { warn($("browse-msg"), "載入失敗"); }
+}
+
+function wireBrowse() {
+  $("browse-add").addEventListener("click", () => {
+    const v = $("browse-input").value.trim().toLowerCase();
+    if (v && !_browseDomains.includes(v)) { _browseDomains.push(v); renderBrowse(); }
+    $("browse-input").value = "";
+  });
+  $("browse-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") $("browse-add").click();
+  });
+  $("browse-save").addEventListener("click", () => withBusy($("browse-save"), async () => {
+    try {
+      await postJSON("/api/browse/allowlist", { domains: _browseDomains });
+      flash($("browse-msg"), "已儲存，重啟 bot 後生效");
+    } catch (e) { warn($("browse-msg"), "儲存失敗，請重試"); }
+  }));
+}
+
+loadProfile(); loadLeave(); loadBotToken(); loadAllow(); loadModels(); loadLlmKeys(); loadOllamaModels(); loadSources(); loadActions(); loadLibre(); loadMemPersons(); loadBrowse(); wireBrowse(); refreshStatus(); refreshLog();
 setInterval(refreshStatus, 5000);
 setInterval(refreshLog, 4000);
 
