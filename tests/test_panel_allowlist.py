@@ -16,3 +16,11 @@ def test_browse_allowlist_get_post_roundtrip(tmp_path, monkeypatch):
 
     r = c.get("/api/browse/allowlist")
     assert r.get_json() == {"domains": ["example.com"]}     # 去重後
+
+
+def test_browse_allowlist_post_rejects_non_list(tmp_path, monkeypatch):
+    monkeypatch.setattr(ba, "_PATH", tmp_path / "browse_allowlist.json")
+    c = app.test_client()
+    r = c.post("/api/browse/allowlist", json={"domains": "oops"})
+    assert r.status_code == 400
+    assert "domains must be a list" in r.get_json()["error"]

@@ -372,6 +372,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 res = await asyncio.to_thread(browse_agent.resume, pend["pending"], _is_yes(text))
                 await _deliver_browse(msg, context, res, user.id)
             except Exception as e:
+                browse_tool.reset()
                 await msg.reply_text("瀏覽器操作出狀況了，我先停手 🙏")
                 await notify_owner_error(context.bot, e, where="瀏覽操作")
             return
@@ -388,6 +389,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             except browse_tool.NotAllowed as e:
                 await msg.reply_text(f"「{e}」不在我的瀏覽白名單，要我加進去嗎？（回「加白名單 <網域>」）")
             except Exception as e:
+                browse_tool.reset()
                 await msg.reply_text("瀏覽出了點狀況，我先停手 🙏")
                 await notify_owner_error(context.bot, e, where="瀏覽網頁")
             return

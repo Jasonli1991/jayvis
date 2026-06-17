@@ -44,3 +44,25 @@ def test_sweep_tmp_removes_files(tmp_path, monkeypatch):
     (tmp_path / "b.png").write_bytes(b"y")
     bt.sweep_tmp()
     assert list(tmp_path.iterdir()) == []
+
+
+def test_click_blocked_when_off_whitelist(monkeypatch):
+    class _Page:
+        url = "https://evil.com/"
+        def query_selector_all(self, *a, **k):
+            raise AssertionError("must not reach element lookup on blocked domain")
+    monkeypatch.setattr(ba, "is_allowed", lambda url: False)
+    monkeypatch.setattr(bt, "_page", _Page())
+    with pytest.raises(bt.NotAllowed):
+        bt.click(0)
+
+
+def test_type_blocked_when_off_whitelist(monkeypatch):
+    class _Page:
+        url = "https://evil.com/"
+        def query_selector_all(self, *a, **k):
+            raise AssertionError("must not reach element lookup on blocked domain")
+    monkeypatch.setattr(ba, "is_allowed", lambda url: False)
+    monkeypatch.setattr(bt, "_page", _Page())
+    with pytest.raises(bt.NotAllowed):
+        bt.type_text(0, "x")

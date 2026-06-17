@@ -1,4 +1,5 @@
 import json
+import logging
 import config
 import browse_agent as bag
 import browse_tool as bt
@@ -81,3 +82,27 @@ def test_step_cap_returns_ok(monkeypatch):
     res = bag.run("無止盡")
     assert res.status == "ok"
     assert "步驟" in res.summary
+
+
+def test_extract_json_logs_warning_on_no_braces(caplog):
+    with caplog.at_level(logging.WARNING, logger="jayvis"):
+        result = bag._extract_json("this is not json at all")
+    assert result == {}
+    assert any("不含 JSON" in r.message for r in caplog.records)
+
+
+def test_extract_json_logs_warning_on_malformed_json(caplog):
+    with caplog.at_level(logging.WARNING, logger="jayvis"):
+        result = bag._extract_json("{not valid json!!!}")
+    assert result == {}
+    assert any("無法解析" in r.message for r in caplog.records)
+
+
+def test_decide_logs_warning_when_llm_returns_garbage(monkeypatch, caplog):
+    _mock_browser(monkeypatch)
+    monkeypatch.setattr(config, "BROWSE_MAX_STEPS", 1)
+    monkeypatch.setattr(bag, "generate", lambda **k: "garbage no json here")
+    with caplog.at_level(logging.WARNING, logger="jayvis"):
+        res = bag.run("任意任務")
+    assert res.status == "ok"   # step cap exhausted
+    assert any("jayvis" == r.name and r.levelno == logging.WARNING for r in caplog.records)

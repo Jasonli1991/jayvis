@@ -1,10 +1,13 @@
 """瀏覽決策迴圈：LLM 每步回一個 JSON 動作；mutating 動作停下等確認，絕不自動執行。"""
 import json
+import logging
 from dataclasses import dataclass
 
 import config
 import browse_tool
 from llm import generate
+
+_log = logging.getLogger("jayvis")
 
 MUTATING_HINT = ("送出", "發布", "發佈", "儲存", "刪除", "付款", "下單", "確認", "寄出", "發送",
                  "submit", "publish", "post", "delete", "pay", "save", "send", "confirm", "order")
@@ -34,7 +37,9 @@ def _extract_json(s: str) -> dict:
         try:
             return json.loads(s[a:b + 1])
         except ValueError:
+            _log.warning("browse_agent: LLM 回傳無法解析的 JSON：%s", s[:200])
             return {}
+    _log.warning("browse_agent: LLM 回傳不含 JSON 大括號：%s", s[:200])
     return {}
 
 

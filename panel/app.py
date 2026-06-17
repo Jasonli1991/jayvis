@@ -141,7 +141,10 @@ def api_browse_allow_get():
 @app.post("/api/browse/allowlist")
 def api_browse_allow_post():
     d = request.get_json(force=True) or {}
-    browse_allowlist.save(d.get("domains", []))
+    domains = d.get("domains", [])
+    if not isinstance(domains, list):
+        return jsonify({"error": "domains must be a list"}), 400
+    browse_allowlist.save(domains)
     return jsonify({"ok": True})
 
 
