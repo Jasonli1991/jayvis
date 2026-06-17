@@ -96,7 +96,8 @@ def extract_text() -> str:
 
 def screenshot() -> bytes:
     _guard_current()
-    return _require_page().screenshot(full_page=False)
+    return _require_page().screenshot(full_page=False, animations="disabled",
+                                      timeout=config.BROWSE_NAV_TIMEOUT_S * 1000)
 
 
 def _nth(ref: int):

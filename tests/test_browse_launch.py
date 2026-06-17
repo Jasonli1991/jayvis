@@ -23,6 +23,8 @@ def test_launch_runs_bundled_chromium(monkeypatch):
     assert a[0] == "/cache/Chromium"          # 用 bundled chromium 執行檔，不是 open -a
     assert "--remote-debugging-port=9222" in a
     assert "--user-data-dir=/tmp/p" in a
+    assert "--disable-features=CalculateNativeWinOcclusion" in a   # 防遮擋時截圖卡死
+    assert "--disable-gpu" in a                                    # 軟體渲染避 Metal 崩潰
 
 
 def test_is_ready(monkeypatch, tmp_path):

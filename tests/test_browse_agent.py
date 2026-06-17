@@ -36,6 +36,19 @@ def test_read_path_returns_ok_summary(monkeypatch):
     assert res.screenshot == b"PNG"
 
 
+def test_screenshot_failure_does_not_crash_task(monkeypatch):
+    # 截圖失敗（頁面當掉/逾時）→ _shot 回 None，任務仍回文字結果、不整個炸掉。
+    _mock_browser(monkeypatch)
+    def boom():
+        raise RuntimeError("page crashed")
+    monkeypatch.setattr(bt, "screenshot", boom)
+    _decides(monkeypatch, json.dumps({"action": "done", "summary": "看到首頁了", "mutating": False}))
+    res = bag.run("截圖")
+    assert res.status == "ok"
+    assert "首頁" in res.summary
+    assert res.screenshot is None             # 截圖沒了但任務照樣完成
+
+
 def test_mutating_action_returns_pending_without_executing(monkeypatch):
     clicks = []
     _mock_browser(monkeypatch, snap=[{"ref": 2, "tag": "button", "name": "發布貼文"}], clicks=clicks)

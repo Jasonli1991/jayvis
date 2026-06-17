@@ -86,7 +86,13 @@ def launch(wait_s: float = 20.0) -> bool:
     subprocess.Popen(
         [exe, f"--remote-debugging-port={_port()}",
          f"--user-data-dir={config.BROWSE_PROFILE_DIR}",
-         "--no-first-run", "--no-default-browser-check"],
+         "--no-first-run", "--no-default-browser-check",
+         # 視窗被遮擋/背景時仍持續合成，否則 headed 截圖會卡死（occlusion 節流）
+         "--disable-backgrounding-occluded-windows",
+         "--disable-features=CalculateNativeWinOcclusion",
+         "--disable-renderer-backgrounding",
+         # 軟體渲染：避開 macOS Metal GPU 崩潰（自動化瀏覽器更穩，截圖照常）
+         "--disable-gpu"],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     deadline = time.time() + wait_s

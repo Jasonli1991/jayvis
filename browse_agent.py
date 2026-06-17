@@ -79,6 +79,14 @@ def _apply(d: dict) -> None:
     # read / 其他 → 不操作（內容已在 text 給過模型）
 
 
+def _shot():
+    """截圖容錯：失敗（如頁面當掉/逾時）回 None，至少還能回文字結果，不整個任務炸掉。"""
+    try:
+        return browse_tool.screenshot()
+    except Exception:
+        return None
+
+
 def run(task: str, start_url: str = None) -> BrowseResult:
     browse_tool.connect()
     if start_url:
@@ -89,17 +97,17 @@ def run(task: str, start_url: str = None) -> BrowseResult:
         d = _decide(task, snap, text)
         if d.get("action") == "done":
             return BrowseResult("ok", summary=d.get("summary", ""),
-                                screenshot=browse_tool.screenshot())
+                                screenshot=_shot())
         if d.get("action") in ("click", "type") and _is_mutating(d, snap):
             return BrowseResult("pending", summary=d.get("why", "需要你確認的操作"),
-                                screenshot=browse_tool.screenshot(), pending=d)
+                                screenshot=_shot(), pending=d)
         _apply(d)
     return BrowseResult("ok", summary="步驟用盡，先到這（要繼續再跟我說）",
-                        screenshot=browse_tool.screenshot())
+                        screenshot=_shot())
 
 
 def resume(pending: dict, approved: bool) -> BrowseResult:
     if not approved:
         return BrowseResult("ok", summary="好，已取消這個操作。")
     _apply(pending)
-    return BrowseResult("ok", summary="已依你的確認執行。", screenshot=browse_tool.screenshot())
+    return BrowseResult("ok", summary="已依你的確認執行。", screenshot=_shot())
