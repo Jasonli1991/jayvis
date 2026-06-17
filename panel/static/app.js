@@ -558,10 +558,21 @@ async function loadBrowse() {
     const r = await getJSON("/api/browse/allowlist");
     _browseDomains = r.domains || [];
     renderBrowse();
+    const e = await getJSON("/api/browse/enabled");
+    $("browse-enabled").checked = !!e.enabled;
   } catch (e) { warn($("browse-msg"), "載入失敗"); }
 }
 
 function wireBrowse() {
+  $("browse-enabled").addEventListener("change", async () => {
+    try {
+      await postJSON("/api/browse/enabled", { enabled: $("browse-enabled").checked });
+      flash($("browse-msg"), $("browse-enabled").checked ? "已啟用，重啟 bot 後生效" : "已停用，重啟 bot 後生效");
+    } catch (e) {
+      $("browse-enabled").checked = !$("browse-enabled").checked;   // 失敗回復
+      warn($("browse-msg"), "切換失敗，請重試");
+    }
+  });
   $("browse-add").addEventListener("click", () => {
     const v = $("browse-input").value.trim().toLowerCase();
     if (v && !_browseDomains.includes(v)) { _browseDomains.push(v); renderBrowse(); }

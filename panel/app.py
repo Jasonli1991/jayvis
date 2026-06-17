@@ -148,6 +148,18 @@ def api_browse_allow_post():
     return jsonify({"ok": True})
 
 
+@app.get("/api/browse/enabled")
+def api_browse_enabled_get():
+    return jsonify({"enabled": env_io.read_browse_enabled()})
+
+
+@app.post("/api/browse/enabled")
+def api_browse_enabled_post():
+    d = request.get_json(force=True) or {}
+    env_io.write_browse_enabled(bool(d.get("enabled")))
+    return jsonify({"ok": True})
+
+
 @app.post("/api/pick-folder")
 def api_pick_folder():
     """喚起 pywebview 原生資料夾選擇器；無原生視窗（純瀏覽器開）回 501。"""

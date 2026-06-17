@@ -70,6 +70,15 @@ def write_actions(enabled: bool, calendar_name: str, email_enabled: bool, mail_a
     set_key(ENV_PATH, "SEARCH_ENABLED", "true" if search_enabled else "false", quote_mode="never")
 
 
+# 助理瀏覽網頁總開關（存 .env；config.BROWSE_ENABLED 同時吃 true/1）
+def read_browse_enabled() -> bool:
+    return (get_key(ENV_PATH, "BROWSE_ENABLED") or "false").strip().lower() in ("1", "true", "yes", "on")
+
+
+def write_browse_enabled(enabled: bool) -> None:
+    set_key(ENV_PATH, "BROWSE_ENABLED", "true" if enabled else "false", quote_mode="never")
+
+
 # owner 身份（Telegram 卡設定；用於動作觸發 + 白名單自動放行）
 def read_owner() -> dict:
     return {"owner_chat_id": get_key(ENV_PATH, "OWNER_CHAT_ID") or ""}
