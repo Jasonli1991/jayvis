@@ -87,6 +87,7 @@ def extract_text() -> str:
 
 
 def screenshot() -> bytes:
+    _guard_current()
     return _require_page().screenshot(full_page=False)
 
 

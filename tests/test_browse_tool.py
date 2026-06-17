@@ -21,8 +21,20 @@ def test_screenshot_returns_bytes(monkeypatch):
         url = "https://example.com/"
         def screenshot(self, **k):
             return b"PNGDATA"
+    monkeypatch.setattr(ba, "is_allowed", lambda url: True)
     monkeypatch.setattr(bt, "_page", _Page())
     assert bt.screenshot() == b"PNGDATA"
+
+
+def test_screenshot_blocked_when_off_whitelist(monkeypatch):
+    class _Page:
+        url = "https://evil.com/"
+        def screenshot(self, **k):
+            raise AssertionError("screenshot() must not be called on blocked domain")
+    monkeypatch.setattr(ba, "is_allowed", lambda url: False)
+    monkeypatch.setattr(bt, "_page", _Page())
+    with pytest.raises(bt.NotAllowed):
+        bt.screenshot()
 
 
 def test_sweep_tmp_removes_files(tmp_path, monkeypatch):
