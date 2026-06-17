@@ -336,22 +336,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             origin_chat=(None if is_owner(user.id) else msg.chat_id))
         return
 
-    # 程式問題委派給 Agent（headless Claude Code）：owner 隨時／同事僅 owner 請假時；私訊、文字
-    if (text and not is_group and config.CODE_ROOT
-            and (is_owner(user.id) or env_io.is_on_leave())):
-        proj = code_delegate.classify(text)
-        if proj:
-            _log.info("🤖 程式委派 %s → 專案 %s", _who(user), proj)
-            await msg.reply_text("收到，正在請該專案的 Agent 看一下，稍等…")
-            ans = await asyncio.to_thread(code_delegate.ask, proj, text, datetime.now())
-            await _send_long(msg, ans)
-            memory.append(user.id, "user", text)
-            memory.append(user.id, "assistant", ans)
-            code_delegate.remember_fix(user.id, proj, text)
-            await msg.reply_text(f"（需要修的話回「修復計畫」，我請 Agent 擬一份給 {config.OWNER_NAME} 審）")
-            return
-
-    # 助理瀏覽網頁（借用已登入 Chrome）：僅 owner 私訊；讀自動、寫入前確認
+    # 助理瀏覽網頁（借用已登入 Chrome）：僅 owner 私訊。
+    # 放在程式委派 gate 之前——明確的「瀏覽」意圖優先，避免網域名（如 ka2ka.com）撞到同名專案被委派攔走。
     if config.BROWSE_ENABLED and is_owner(user.id) and not is_group:
         # 加白名單指令（優先於 _looks_like_browse 判斷）
         if text and text.strip().startswith("加白名單"):
@@ -392,6 +378,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 browse_tool.reset()
                 await msg.reply_text("瀏覽出了點狀況，我先停手 🙏")
                 await notify_owner_error(context.bot, e, where="瀏覽網頁")
+            return
+
+    # 程式問題委派給 Agent（headless Claude Code）：owner 隨時／同事僅 owner 請假時；私訊、文字
+    if (text and not is_group and config.CODE_ROOT
+            and (is_owner(user.id) or env_io.is_on_leave())):
+        proj = code_delegate.classify(text)
+        if proj:
+            _log.info("🤖 程式委派 %s → 專案 %s", _who(user), proj)
+            await msg.reply_text("收到，正在請該專案的 Agent 看一下，稍等…")
+            ans = await asyncio.to_thread(code_delegate.ask, proj, text, datetime.now())
+            await _send_long(msg, ans)
+            memory.append(user.id, "user", text)
+            memory.append(user.id, "assistant", ans)
+            code_delegate.remember_fix(user.id, proj, text)
+            await msg.reply_text(f"（需要修的話回「修復計畫」，我請 Agent 擬一份給 {config.OWNER_NAME} 審）")
             return
 
     group_context = group_memory.recent_transcript(chat.id) if is_group else None

@@ -73,6 +73,24 @@ def test_colleague_cannot_browse(monkeypatch, _base):
     assert called["n"] == 0                    # 同事永遠進不到 browse
 
 
+def test_browse_precedes_code_delegation(monkeypatch, _base):
+    # 回歸：訊息含網域名（ka2ka.com）會撞同名專案；明確「瀏覽」意圖須優先於程式委派，不被攔走。
+    monkeypatch.setattr(config, "CODE_ROOT", "/some/code/root")     # 打開 code-delegate gate
+    ran = {"browse": 0}
+    asked = {"code": 0}
+    monkeypatch.setattr(browse_agent, "run",
+                        lambda *a, **k: ran.__setitem__("browse", 1)
+                        or browse_agent.BrowseResult("ok", summary="ka2ka 首頁看起來…", screenshot=None))
+    monkeypatch.setattr(bot.code_delegate, "classify", lambda text: "ka2ka")   # 模擬撞專案名
+    monkeypatch.setattr(bot.code_delegate, "ask",
+                        lambda *a, **k: asked.__setitem__("code", 1) or "不該被呼叫")
+    msg, sent, _ = _msg("可以幫我瀏覽ka2ka.com這個網站嗎？")
+    upd, ctx = _update(msg, 6803)              # owner
+    asyncio.run(bot.handle_message(upd, ctx))
+    assert ran["browse"] == 1                   # 走瀏覽
+    assert asked["code"] == 0                   # 沒被程式委派攔走
+
+
 def test_owner_read_replies_summary_and_no_memory(monkeypatch, _base):
     monkeypatch.setattr(browse_agent, "run",
                         lambda *a, **k: browse_agent.BrowseResult("ok", summary="流量 12000", screenshot=None))
