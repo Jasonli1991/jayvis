@@ -130,7 +130,7 @@ def test_browse_unavailable_message(monkeypatch, _base):
     msg, sent, _ = _msg("幫我看 https://example.com")
     upd, ctx = _update(msg, 6803)
     asyncio.run(bot.handle_message(upd, ctx))
-    assert any("remote-debugging" in s for s in sent)
+    assert any("啟用網站瀏覽" in s for s in sent)
 
 
 def test_pending_confirm_expires(monkeypatch, _base):

@@ -159,3 +159,5 @@ BROWSE_MAX_STEPS = int(os.getenv("BROWSE_MAX_STEPS", "12"))
 BROWSE_MODEL = os.getenv("BROWSE_MODEL", "claude-opus-4-8")
 BROWSE_NAV_TIMEOUT_S = int(os.getenv("BROWSE_NAV_TIMEOUT_S", "30"))
 BROWSE_TMP_DIR = os.getenv("BROWSE_TMP_DIR", os.path.expanduser("~/.n/browse_tmp"))
+# 專用瀏覽設定檔（獨立 Chrome instance，與個人 Chrome 隔離；第一次需在該視窗登入要用的站）
+BROWSE_PROFILE_DIR = os.getenv("BROWSE_PROFILE_DIR", os.path.expanduser("~/.n/chrome-browse-profile"))

@@ -565,11 +565,18 @@ async function loadBrowse() {
 
 function wireBrowse() {
   $("browse-enabled").addEventListener("change", async () => {
+    const on = $("browse-enabled").checked;
     try {
-      await postJSON("/api/browse/enabled", { enabled: $("browse-enabled").checked });
-      flash($("browse-msg"), $("browse-enabled").checked ? "已啟用，重啟 bot 後生效" : "已停用，重啟 bot 後生效");
+      const r = await postJSON("/api/browse/enabled", { enabled: on });
+      if (on) {
+        flash($("browse-msg"), r.browser_ready
+          ? "已啟用，專用 Chrome 已開啟 — 第一次請在該視窗登入要用的網站；重啟 bot 後生效"
+          : "已啟用，但專用 Chrome 沒起來（請確認有裝 Google Chrome）；重啟 bot 後生效");
+      } else {
+        flash($("browse-msg"), "已停用，並關閉專用 Chrome；重啟 bot 後生效");
+      }
     } catch (e) {
-      $("browse-enabled").checked = !$("browse-enabled").checked;   // 失敗回復
+      $("browse-enabled").checked = !on;   // 失敗回復
       warn($("browse-msg"), "切換失敗，請重試");
     }
   });

@@ -4,6 +4,7 @@ import os
 
 import config
 import browse_allowlist
+import browse_launch
 
 _INTERACTABLE = "a,button,input,textarea,select,[role=button],[role=link]"
 
@@ -36,7 +37,14 @@ def connect() -> None:
         return
     try:
         _pw, _browser, _page = _open_cdp()
-    except Exception as e:           # 連不上 → 統一成 BrowseUnavailable
+        return
+    except Exception:
+        pass
+    # 自癒：專用 Chrome 可能被關了 → 嘗試啟動後重試一次
+    try:
+        browse_launch.launch()
+        _pw, _browser, _page = _open_cdp()
+    except Exception as e:           # 仍連不上 → 統一成 BrowseUnavailable
         raise BrowseUnavailable(str(e))
 
 

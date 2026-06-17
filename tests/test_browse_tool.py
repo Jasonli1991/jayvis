@@ -11,9 +11,29 @@ def test_goto_blocks_non_whitelisted(monkeypatch):
 
 def test_connect_failure_raises_browse_unavailable(monkeypatch):
     bt.reset()
+    monkeypatch.setattr(bt.browse_launch, "launch", lambda *a, **k: False)   # 別真的開 Chrome
     monkeypatch.setattr(bt, "_open_cdp", lambda: (_ for _ in ()).throw(RuntimeError("no chrome")))
     with pytest.raises(bt.BrowseUnavailable):
         bt.connect()
+
+
+def test_connect_self_heals_after_launch(monkeypatch):
+    bt.reset()
+    calls = {"open": 0, "launch": 0}
+
+    def fake_open():
+        calls["open"] += 1
+        if calls["open"] == 1:
+            raise RuntimeError("not yet")          # 第一次：專用 Chrome 還沒開
+        return ("pw", "browser", "page")           # launch 後重試成功
+
+    monkeypatch.setattr(bt, "_open_cdp", fake_open)
+    monkeypatch.setattr(bt.browse_launch, "launch", lambda *a, **k: calls.__setitem__("launch", 1) or True)
+    bt.connect()
+    assert calls["launch"] == 1                     # 失敗後有嘗試啟動
+    assert calls["open"] == 2                       # 重試一次
+    assert bt._page == "page"
+    bt.reset()
 
 
 def test_screenshot_returns_bytes(monkeypatch):

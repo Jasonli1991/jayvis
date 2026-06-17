@@ -369,9 +369,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 await _deliver_browse(msg, context, res, user.id)
             except browse_tool.BrowseUnavailable:
                 await msg.reply_text(
-                    "Chrome 沒開遠端偵錯。請用：\n"
-                    "open -a 'Google Chrome' --args --remote-debugging-port=9222\n"
-                    "啟動後再試一次 🙏")
+                    "瀏覽器還沒就緒。請到控制台面板把「啟用網站瀏覽」打開"
+                    "（會自動開啟專用 Chrome），第一次記得在那個視窗登入要用的網站，再回我一次 🙏")
             except browse_tool.NotAllowed as e:
                 await msg.reply_text(f"「{e}」不在我的瀏覽白名單，要我加進去嗎？（回「加白名單 <網域>」）")
             except Exception as e:
