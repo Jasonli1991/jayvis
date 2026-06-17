@@ -151,3 +151,11 @@ MEMORY_MIN_CHARS = int(os.getenv("MEMORY_MIN_CHARS", "6"))
 # 時事搜尋（Tavily）：開關 + 金鑰；兩者備齊才會搜
 SEARCH_ENABLED = os.getenv("SEARCH_ENABLED", "false").lower() == "true"
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
+
+# ── 助理瀏覽網頁（借用已登入 Chrome）──────────────────────────
+BROWSE_ENABLED = os.getenv("BROWSE_ENABLED", "0") == "1"
+BROWSE_CDP_URL = os.getenv("BROWSE_CDP_URL", "http://localhost:9222")
+BROWSE_MAX_STEPS = int(os.getenv("BROWSE_MAX_STEPS", "12"))
+BROWSE_MODEL = os.getenv("BROWSE_MODEL", "claude-opus-4-8")
+BROWSE_NAV_TIMEOUT_S = int(os.getenv("BROWSE_NAV_TIMEOUT_S", "30"))
+BROWSE_TMP_DIR = os.getenv("BROWSE_TMP_DIR", os.path.expanduser("~/.n/browse_tmp"))
