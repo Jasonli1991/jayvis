@@ -1,3 +1,5 @@
+import os
+
 import config
 
 
@@ -6,8 +8,11 @@ def test_browse_defaults():
     assert isinstance(config.BROWSE_ENABLED, bool)
     assert config.BROWSE_CDP_URL == "http://localhost:9222"
     assert config.BROWSE_MAX_STEPS == 12
-    assert config.BROWSE_MODEL == "claude-opus-4-8"
     assert config.BROWSE_NAV_TIMEOUT_S == 30
+    # BROWSE_MODEL 預設跟隨一般模型（不寫死昂貴模型），可用 env 覆蓋
+    assert config.BROWSE_MODEL
+    if not os.getenv("BROWSE_MODEL"):
+        assert config.BROWSE_MODEL == config.MODEL_GENERAL
     assert config.BROWSE_TMP_DIR.endswith("browse_tmp")
 
 

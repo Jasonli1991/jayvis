@@ -156,7 +156,8 @@ TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
 BROWSE_ENABLED = os.getenv("BROWSE_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
 BROWSE_CDP_URL = os.getenv("BROWSE_CDP_URL", "http://localhost:9222")
 BROWSE_MAX_STEPS = int(os.getenv("BROWSE_MAX_STEPS", "12"))
-BROWSE_MODEL = os.getenv("BROWSE_MODEL", "claude-opus-4-8")
+# 預設跟隨一般模型（用你已設定、有額度的供應商；不寫死昂貴模型）；要更強推理可自行設 BROWSE_MODEL
+BROWSE_MODEL = os.getenv("BROWSE_MODEL", "") or MODEL_GENERAL
 BROWSE_NAV_TIMEOUT_S = int(os.getenv("BROWSE_NAV_TIMEOUT_S", "30"))
 BROWSE_TMP_DIR = os.getenv("BROWSE_TMP_DIR", os.path.expanduser("~/.n/browse_tmp"))
 # 專用瀏覽設定檔（獨立 Chrome instance，與個人 Chrome 隔離；第一次需在該視窗登入要用的站）
