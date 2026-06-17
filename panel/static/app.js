@@ -142,7 +142,8 @@ async function refreshStatus() {
   // 運行中 → 停用「啟動」；停止 → 停用「停止/重啟」
   document.querySelectorAll(".botbtns button").forEach(x => { x.disabled = x.dataset.act === "start" ? s.running : !s.running; });
   $("models").textContent = (s.models.general || "?").split("-").pop() + " / " + (s.models.code || "?").split("-").pop();
-  $("mem").textContent = Object.entries(s.memory || {}).map(([k, v]) => `${k} ${v}`).join("、") || "—";
+  const _memLabel = {conversation: "對話索引", action: "動作", git: "git", obsidian: "obsidian"};
+  $("mem").textContent = Object.entries(s.memory || {}).map(([k, v]) => `${_memLabel[k] || k} ${v}`).join("、") || "—";
   $("allowcount").textContent = s.allowlist;
   if (s.owner_name) {
     document.querySelector(".brand-mark").textContent = s.owner_name.trim().charAt(0).toUpperCase();
