@@ -294,3 +294,43 @@ def test_owner_group_no_profile_injection(monkeypatch):
     assistant.compose_reply(999, "問題", group_context="g")  # owner 在群組
     assert "PROFILE_X" not in seen["system"]
     assert up["n"] == 0
+
+
+def _common_mocks(monkeypatch):
+    monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(True))
+    monkeypatch.setattr(assistant, "_refresh_project_status", lambda: "")
+    monkeypatch.setattr(assistant, "_leave_status_line", lambda: "")
+    monkeypatch.setattr(assistant, "choose_model", lambda i, st: "m")
+    monkeypatch.setattr(assistant.memory, "recent", lambda *a, **k: [])
+    monkeypatch.setattr(assistant.memory, "recall", lambda *a, **k: "")
+    monkeypatch.setattr(assistant, "generate", lambda **k: "乾淨答案")
+    monkeypatch.setattr(assistant.inbox_capture, "is_knowledge_question", lambda t: False)
+
+
+def test_search_failed_warning_not_recorded(monkeypatch):
+    monkeypatch.setattr(assistant.config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(assistant.config, "SEARCH_ENABLED", True)
+    monkeypatch.setattr(assistant.config, "TAVILY_API_KEY", "k")
+    monkeypatch.setattr(assistant.websearch, "looks_like_current_events", lambda t: True)
+    monkeypatch.setattr(assistant.websearch, "search", lambda t: None)     # 失敗 → search_failed
+    _common_mocks(monkeypatch)
+    rec = {}
+    monkeypatch.setattr(assistant.memory, "append",
+                        lambda pid, kind, content, **k: rec.__setitem__(kind, content))
+    out = assistant.compose_reply(6803, "今天台積電股價")
+    assert "時事搜尋暫時不可用" in out                 # 使用者看到警語
+    assert rec["assistant"] == "乾淨答案"              # 記憶只記乾淨答案（不含警語）
+
+
+def test_no_search_failure_records_same(monkeypatch):
+    monkeypatch.setattr(assistant.config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(assistant.config, "SEARCH_ENABLED", True)
+    monkeypatch.setattr(assistant.config, "TAVILY_API_KEY", "k")
+    monkeypatch.setattr(assistant.websearch, "looks_like_current_events", lambda t: False)  # 不觸發搜尋
+    _common_mocks(monkeypatch)
+    rec = {}
+    monkeypatch.setattr(assistant.memory, "append",
+                        lambda pid, kind, content, **k: rec.__setitem__(kind, content))
+    out = assistant.compose_reply(6803, "你好嗎")
+    assert "時事搜尋暫時不可用" not in out
+    assert rec["assistant"] == out                    # 無警語時，記憶與回傳一致
