@@ -38,6 +38,10 @@ _log = logging.getLogger("jayvis")
 _pending_browse = {}                  # owner_id -> {"pending": dict, "ts": float}
 _BROWSE_PENDING_TTL_S = 300           # 確認請求過期時間（秒）
 
+_browse_session = {}                  # owner_id -> last_activity_ts（瀏覽模式中）
+_BROWSE_SESSION_TTL_S = 600           # 閒置逾 10 分鐘自動離開瀏覽模式
+_BROWSE_STOP_WORDS = ("結束瀏覽", "停止瀏覽", "離開瀏覽", "結束瀏覽模式", "退出瀏覽")
+
 _BROWSE_HINT = ("瀏覽", "幫我看 http", "看一下 http", "打開網", "查網", "逛", "網頁", "後台")
 
 
@@ -362,12 +366,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 await msg.reply_text("瀏覽器操作出狀況了，我先停手 🙏")
                 await notify_owner_error(context.bot, e, where="瀏覽操作")
             return
-        if _looks_like_browse(text):
-            await msg.reply_text("好，我去看一下，稍等…")
+        # 瀏覽模式：一旦開始瀏覽，後續訊息（截圖、點登入…）繼續走瀏覽工具，直到「結束瀏覽」或閒置逾時。
+        in_session = (time.time() - _browse_session.get(user.id, 0)) < _BROWSE_SESSION_TTL_S
+        if in_session and text and text.strip() in _BROWSE_STOP_WORDS:
+            _browse_session.pop(user.id, None)
+            await msg.reply_text("好，已結束瀏覽模式。")
+            return
+        if _looks_like_browse(text) or in_session:
+            await msg.reply_text("好，我看一下，稍等…" if in_session
+                                 else "好，我看一下，稍等…（已進入瀏覽模式：之後直接說要做什麼即可，例如「截圖」「點登入」；說「結束瀏覽」可離開）")
+            _browse_session[user.id] = time.time()       # 開始／刷新瀏覽模式
             try:
                 res = await asyncio.to_thread(browse_agent.run, text, None)
                 await _deliver_browse(msg, context, res, user.id)
             except browse_tool.BrowseUnavailable:
+                _browse_session.pop(user.id, None)       # 沒就緒就別把人困在瀏覽模式
                 await msg.reply_text(
                     "瀏覽器還沒就緒。請到控制台面板把「啟用網站瀏覽」打開"
                     "（會自動開啟專用 Chrome），第一次記得在那個視窗登入要用的網站，再回我一次 🙏")

@@ -61,6 +61,7 @@ def _base(monkeypatch):
     monkeypatch.setattr(bot, "_cooldown_exempt", lambda u: True)
     monkeypatch.setattr(bot.memory, "append", lambda *a, **k: None)
     bot._pending_browse.clear()
+    bot._browse_session.clear()
 
 
 def test_colleague_cannot_browse(monkeypatch, _base):
@@ -121,6 +122,36 @@ def test_owner_pending_then_confirm(monkeypatch, _base):
     asyncio.run(bot.handle_message(upd2, ctx2))
     assert resumed["approved"] is True
     assert 6803 not in bot._pending_browse
+
+
+def test_browse_session_routes_followups(monkeypatch, _base):
+    # 進入瀏覽後，後續沒有「瀏覽」關鍵字的訊息（截圖/點登入）仍須走瀏覽工具，不掉回一般聊天。
+    calls = []
+    monkeypatch.setattr(browse_agent, "run",
+                        lambda task, *a, **k: calls.append(task)
+                        or browse_agent.BrowseResult("ok", summary="ok", screenshot=None))
+    compose = []
+    monkeypatch.setattr(bot, "compose_reply", lambda *a, **k: compose.append(1) or "一般回覆")
+    m1, _, _ = _msg("幫我瀏覽 ka2ka.com")
+    u1, c1 = _update(m1, 6803)
+    asyncio.run(bot.handle_message(u1, c1))
+    m2, _, _ = _msg("幫我截圖")                 # 無瀏覽關鍵字
+    u2, c2 = _update(m2, 6803)
+    asyncio.run(bot.handle_message(u2, c2))
+    assert calls == ["幫我瀏覽 ka2ka.com", "幫我截圖"]
+    assert compose == []                        # 後續沒掉回一般聊天（不會謊稱沒功能）
+
+
+def test_browse_session_stop_word(monkeypatch, _base):
+    bot._browse_session[6803] = time.time()     # 模擬瀏覽模式中
+    ran = []
+    monkeypatch.setattr(browse_agent, "run", lambda *a, **k: ran.append(1))
+    m, sent, _ = _msg("結束瀏覽")
+    u, c = _update(m, 6803)
+    asyncio.run(bot.handle_message(u, c))
+    assert ran == []                            # 停止指令不觸發瀏覽
+    assert 6803 not in bot._browse_session       # 已離開瀏覽模式
+    assert any("結束瀏覽" in s for s in sent)
 
 
 def test_browse_unavailable_message(monkeypatch, _base):
