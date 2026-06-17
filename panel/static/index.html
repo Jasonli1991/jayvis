@@ -132,7 +132,7 @@
 
   <section class="card" style="--d:4">
     <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-route"></use></svg></span><h2>瀏覽白名單</h2></div>
-    <div class="field"><label class="switch"><input id="browse-enabled" type="checkbox"><span>啟用網站瀏覽（owner 專屬）<span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">讓你本人私訊 JAYVIS「幫我看 &lt;網址&gt;」可瀏覽網頁並操作（送出/發布等會先問你確認）。打開此開關會自動啟動一個「專用 Chrome」（與你個人 Chrome 隔離）；第一次請在跳出的視窗登入你要讓助理瀏覽的網站（如 ka2ka），cookie 會記住。關閉開關會一併關掉該專用 Chrome。僅白名單網域、僅你本人能觸發。改後需重啟 bot。</span></span></span></label></div>
+    <div class="field"><label class="switch"><input id="browse-enabled" type="checkbox"><span>啟用網站瀏覽（owner 專屬）<span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">讓你本人私訊 JAYVIS「幫我看 &lt;網址&gt;」可瀏覽網頁並操作（送出/發布等會先問你確認）。第一次打開會提示下載「專用瀏覽器元件」(~150MB，用 Playwright 自帶、版本相容的 Chromium，與個人 Chrome 隔離)，確定後安裝；裝好會自動開一個專用視窗，請在裡面登入要讓助理瀏覽的網站（如 ka2ka），cookie 會記住。關閉開關會一併關掉該專用瀏覽器。僅白名單網域、僅你本人能觸發。改後需重啟 bot。</span></span></span></label></div>
     <p class="hint">助理只能進這些網域（含子網域）。空清單＝完全禁止瀏覽。</p>
     <ul id="browse-list" class="chips"></ul>
     <div class="inline">

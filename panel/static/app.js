@@ -567,13 +567,29 @@ function wireBrowse() {
   $("browse-enabled").addEventListener("change", async () => {
     const on = $("browse-enabled").checked;
     try {
-      const r = await postJSON("/api/browse/enabled", { enabled: on });
       if (on) {
-        flash($("browse-msg"), r.browser_ready
-          ? "已啟用，專用 Chrome 已開啟 — 第一次請在該視窗登入要用的網站；重啟 bot 後生效"
-          : "已啟用，但專用 Chrome 沒起來（請確認有裝 Google Chrome）；重啟 bot 後生效");
+        const rdy = await getJSON("/api/browse/ready");
+        if (!rdy.ready) {                                   // 第一次：先提示、確定後才下載
+          if (!confirm("第一次啟用需下載瀏覽器元件（約 150MB）才能瀏覽。要現在安裝嗎？")) {
+            $("browse-enabled").checked = false;
+            flash($("browse-msg"), "已取消安裝");
+            return;
+          }
+          flash($("browse-msg"), "正在下載瀏覽器元件，約 1–2 分鐘，請別關面板…");
+          const ins = await postJSON("/api/browse/install", {});
+          if (!ins.ok) {
+            $("browse-enabled").checked = false;
+            warn($("browse-msg"), "安裝失敗，請看終端 Log");
+            return;
+          }
+        }
+        const res = await postJSON("/api/browse/enabled", { enabled: true });
+        flash($("browse-msg"), res.browser_ready
+          ? "已啟用，專用瀏覽器已開啟 — 第一次請在該視窗登入要用的網站；重啟 bot 後生效"
+          : "已啟用，但瀏覽器沒起來，請看 Log；重啟 bot 後生效");
       } else {
-        flash($("browse-msg"), "已停用，並關閉專用 Chrome；重啟 bot 後生效");
+        await postJSON("/api/browse/enabled", { enabled: false });
+        flash($("browse-msg"), "已停用，並關閉專用瀏覽器；重啟 bot 後生效");
       }
     } catch (e) {
       $("browse-enabled").checked = !on;   // 失敗回復

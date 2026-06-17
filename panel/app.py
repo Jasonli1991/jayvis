@@ -154,6 +154,19 @@ def api_browse_enabled_get():
     return jsonify({"enabled": env_io.read_browse_enabled()})
 
 
+@app.get("/api/browse/ready")
+def api_browse_ready_get():
+    # 瀏覽元件（playwright 套件 + Chromium）是否已安裝。前端據此決定要不要先提示下載。
+    return jsonify({"ready": browse_launch.is_ready()})
+
+
+@app.post("/api/browse/install")
+def api_browse_install_post():
+    # 下載瀏覽器元件（~150MB）。前端會先跳確認，使用者按確定才打這支。
+    ok, log = browse_launch.install()
+    return jsonify({"ok": ok, "log": log})
+
+
 @app.post("/api/browse/enabled")
 def api_browse_enabled_post():
     d = request.get_json(force=True) or {}
@@ -161,9 +174,9 @@ def api_browse_enabled_post():
     env_io.write_browse_enabled(enabled)
     result = {"ok": True, "enabled": enabled}
     try:
-        if enabled:                              # 啟用時順手開專用 Chrome（帶遠端偵錯）
+        if enabled:                              # 啟用時順手開專用 Chromium（帶遠端偵錯）
             result["browser_ready"] = browse_launch.launch()
-        else:                                    # 停用時關閉專用 Chrome（不動個人 Chrome）
+        else:                                    # 停用時關閉專用 Chromium（不動個人 Chrome）
             browse_launch.shutdown()
     except Exception:
         result["browser_ready"] = False
