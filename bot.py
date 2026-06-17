@@ -331,6 +331,31 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await msg.reply_text(f"抱歉，我這邊暫時有點狀況（可能是後端額度或連線問題），等一下再問我，或等 {config.OWNER_NAME} 回來確認 🙏")
 
 
+_ALERT_COOLDOWN_S = 300
+_last_alert = {}                      # "ErrType|where" -> last sent ts（記憶體；重啟清空，可接受）
+
+
+async def notify_owner_error(tg_bot, err, where="") -> None:
+    """非預期例外時 DM owner：gated on OWNER_CHAT_ID、節流、best-effort、不碰記憶。"""
+    if not config.OWNER_CHAT_ID:
+        return
+    key = f"{type(err).__name__}|{where}"
+    now = time.time()
+    if now - _last_alert.get(key, 0) < _ALERT_COOLDOWN_S:
+        return                        # 同錯誤節流中 → 不重送
+    _last_alert[key] = now
+    text = (f"🚨 JAYVIS 出錯{('（' + where + '）') if where else ''}："
+            f"{type(err).__name__}: {str(err)[:200]}\n詳見控制台 Log。")
+    try:
+        await tg_bot.send_message(chat_id=config.OWNER_CHAT_ID, text=text)
+    except Exception:
+        _log.warning("通知 owner 失敗（%s）", type(err).__name__)
+
+
+def reset_alerts():                   # 測試用
+    _last_alert.clear()
+
+
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     """收斂錯誤日誌：與 Telegram 的網路暫斷只記一行（長輪詢會自動重試），
     其餘非預期例外才印完整堆疊，避免 log 被連線抖動洗成滿頁紅字。"""
@@ -339,6 +364,7 @@ async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
         _log.warning("🌐 與 Telegram 連線暫斷，已自動重試（%s）", type(err).__name__)
     else:
         _log.error("未處理例外：%r", err, exc_info=err)
+        await notify_owner_error(context.bot, err, where="處理更新")
 
 
 def main() -> None:

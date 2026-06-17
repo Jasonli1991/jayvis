@@ -289,9 +289,64 @@ def test_on_error_network_is_quiet(caplog):
     assert not any(r.levelname == "ERROR" for r in caplog.records)   # 網路暫斷不該是 ERROR 堆疊
 
 
-def test_on_error_other_is_error(caplog):
+def test_on_error_other_is_error(monkeypatch, caplog):
     import logging
-    ctx = SimpleNamespace(error=ValueError("real bug"))
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 0)        # 不送警報，專測 log
+
+    async def _noop(**k):
+        pass
+    ctx = SimpleNamespace(error=ValueError("real bug"), bot=SimpleNamespace(send_message=_noop))
     with caplog.at_level(logging.WARNING):
         asyncio.run(bot.on_error(None, ctx))
     assert any(r.levelname == "ERROR" for r in caplog.records)       # 真正的例外才印 ERROR
+
+
+# ── 錯誤警報 ────────────────────────────────────────────────────────────────
+def _fake_bot():
+    calls = []
+
+    async def send_message(chat_id, text):
+        calls.append((chat_id, text))
+    return SimpleNamespace(send_message=send_message), calls
+
+
+def test_notify_owner_error_sends(monkeypatch):
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    bot.reset_alerts()
+    tg, calls = _fake_bot()
+    asyncio.run(bot.notify_owner_error(tg, ValueError("backend down"), where="處理更新"))
+    assert len(calls) == 1
+    cid, text = calls[0]
+    assert cid == 6803
+    assert "🚨" in text and "ValueError" in text and "backend down" in text
+    assert "Traceback" not in text                 # 不倒完整堆疊
+
+
+def test_notify_owner_error_gated_off(monkeypatch):
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 0)   # 未設 owner
+    bot.reset_alerts()
+    tg, calls = _fake_bot()
+    asyncio.run(bot.notify_owner_error(tg, ValueError("x"), where="t"))
+    assert calls == []
+
+
+def test_notify_owner_error_throttled(monkeypatch):
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    bot.reset_alerts()
+    tg, calls = _fake_bot()
+    asyncio.run(bot.notify_owner_error(tg, ValueError("a"), where="t"))
+    asyncio.run(bot.notify_owner_error(tg, ValueError("b"), where="t"))  # 同型同來源 → 節流
+    assert len(calls) == 1
+    bot.reset_alerts()
+    asyncio.run(bot.notify_owner_error(tg, ValueError("c"), where="t"))
+    assert len(calls) == 2                          # 重置後再送
+
+
+def test_notify_owner_error_swallows_send_failure(monkeypatch):
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    bot.reset_alerts()
+
+    async def boom(chat_id, text):
+        raise RuntimeError("net")
+    tg = SimpleNamespace(send_message=boom)
+    asyncio.run(bot.notify_owner_error(tg, ValueError("x"), where="t"))   # 不該往外拋
