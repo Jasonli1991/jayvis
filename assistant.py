@@ -113,7 +113,7 @@ def build_owner_system(rag_context: str, project_status: str) -> str:
         "沒有那個區塊，就**別聲稱你搜尋過、也別假裝知道即時賽果／股價／新聞**——老實說你手邊沒有即時資訊。\n"
         "- 不需對外代言、不需婉拒；繁體中文、實用導向。"
     )
-    parts = [_OWNER_TONE, "\n\n" + head]
+    parts = [_OWNER_TONE, "\n\n" + head, "\n\n" + _action_tools_block()]
     if rag_context:
         parts.append("\n\n" + obsidian_folders.prompt_legend())
         parts.append("\n\n## 相關知識庫內容（供你參考，不要直接複製貼上）\n\n" + rag_context)

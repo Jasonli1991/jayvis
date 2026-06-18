@@ -192,3 +192,15 @@ def test_action_tools_code_needs_root(monkeypatch):
     monkeypatch.setattr(_c, "CODE_ROOT", "")             # 沒設 CODE_ROOT → 未啟用
     s = _a._action_tools_block()
     assert "- ⬜ 程式委派" in s
+
+
+def test_owner_system_includes_tools_block(monkeypatch):
+    _all_tools(monkeypatch, False)
+    s = _a.build_owner_system("", "")
+    assert "你的動作工具" in s                  # owner 路徑含工具 block
+
+
+def test_colleague_system_excludes_tools_block(monkeypatch):
+    _all_tools(monkeypatch, False)
+    s = _a._build_system_prompt("", "")
+    assert "你的動作工具" not in s              # 同事/群組路徑不含
