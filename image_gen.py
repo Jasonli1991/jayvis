@@ -1,16 +1,14 @@
-"""Pollinations.AI 生圖 + 回覆中的隱藏配圖標記解析 + 梗圖字幕疊字（Pillow）。
+"""Pollinations.AI 生圖 + 梗圖字幕疊字（Pillow）+ 把中文需求轉成生圖 prompt。
 
-標記格式：`[[圖：<英文畫面描述>]]` 或梗圖 `[[圖：<英文畫面描述>|<字幕(可中文)>]]`。
-有字幕時：生圖叫 flux 別放字（避免亂碼），再用 Pillow 把字幕以粗體+黑邊疊上去。
+觸發由 bot 端關鍵字 gate 決定（確定性）；本模組負責：
+- craft_prompt：用 LLM 把使用者的中文生圖需求轉成 Pollinations 提示（梗圖含字幕）。
+- generate：打 Pollinations 生圖；提示格式 `畫面` 或梗圖 `畫面|字幕`（字幕用 Pillow 疊上、避免亂碼）。
 """
-import re
 import urllib.parse
 import urllib.request
 
 import config
-
-# 全形「：」或半形「:」都吃；非貪婪，可跨行
-_MARKER_RE = re.compile(r"\[\[圖[:：]\s*(.+?)\]\]", re.S)
+from llm import generate as _llm_generate
 
 # 梗圖字幕字型候選（macOS 內建中文字型）；config.IMAGE_GEN_FONT 可覆蓋
 _FONT_CANDIDATES = [
@@ -21,21 +19,31 @@ _FONT_CANDIDATES = [
     "/Library/Fonts/Arial Unicode.ttf",
 ]
 
+_CRAFT_SYS = (
+    "你是生圖 prompt 產生器。把使用者的中文生圖需求轉成 Pollinations 用的提示，"
+    "只輸出『一行』、不要解釋、不要加引號。\n"
+    "- 一般圖：輸出英文畫面描述（具體、可加風格詞）。\n"
+    "- 梗圖：輸出「英文畫面描述|中文字幕」——用半形 | 分隔，左邊只描述畫面（別把字寫進畫面），"
+    "右邊是要疊在圖上的字幕。\n"
+    "例：『畫一隻在月球的貓』→ a cute cat sitting on the moon, starry sky, digital art\n"
+    "例：『做個SpaceX暴跌的梗圖』→ a Falcon 9 rocket crashing into the sea, exhaust as a red falling "
+    "stock chart, dramatic|暴跌啦"
+)
 
-def split_marker(text: str):
-    """抽出第一個 [[圖：...]] 標記。回 (移除所有標記後的乾淨文字, 標記內容 或 None)。
-    標記內容含畫面與可選字幕（以 | 分隔），交給 generate() 解析。"""
-    t = text or ""
-    m = _MARKER_RE.search(t)
-    if not m:
-        return t, None
-    inner = (m.group(1) or "").strip()
-    clean = _MARKER_RE.sub("", t).strip()
-    return clean, (inner or None)
+
+def craft_prompt(request: str) -> str:
+    """把中文生圖需求轉成 Pollinations 提示（`畫面` 或 `畫面|字幕`）。失敗回空字串。"""
+    try:
+        raw = _llm_generate(model=config.MODEL_GENERAL, system=_CRAFT_SYS,
+                            messages=[{"role": "user", "content": request or ""}],
+                            max_output_tokens=200)
+    except Exception:
+        return ""
+    return (raw or "").strip().strip('"').strip()
 
 
 def _split_caption(prompt: str):
-    """把標記內容拆成 (畫面描述, 字幕 或 None)，以第一個 | 分隔。"""
+    """把提示拆成 (畫面描述, 字幕 或 None)，以第一個 | 分隔。"""
     p = prompt or ""
     if "|" in p:
         visual, caption = p.split("|", 1)
@@ -45,7 +53,7 @@ def _split_caption(prompt: str):
 
 def generate(prompt: str):
     """打 Pollinations 生圖，回 PNG/JPEG bytes；失敗回 None。
-    若標記含字幕（| 之後），生圖時要求無文字，再用 Pillow 疊字幕。"""
+    提示含字幕（| 之後）時，生圖要求無文字，再用 Pillow 疊字幕。"""
     visual, caption = _split_caption(prompt)
     if not visual:
         return None

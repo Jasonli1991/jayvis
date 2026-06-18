@@ -69,6 +69,18 @@ def _looks_like_browse(text: str) -> bool:
     return any(h in t for h in _BROWSE_HINT)
 
 
+# 明確要圖的關鍵字（精準到詞，避免「計畫」「畫面」誤觸發）
+_IMG_REQ_HINT = ("畫一", "畫個", "畫張", "畫幅", "畫出", "幫我畫", "幫忙畫", "繪製",
+                 "生成圖", "生成一張", "生一張", "生張圖", "做張圖", "做一張圖", "做個圖", "做個梗圖",
+                 "來張", "來一張", "梗圖", "插圖", "海報", "貼圖", "logo",
+                 "給我一張", "給我張", "配張圖")
+
+
+def _looks_like_image_request(text: str) -> bool:
+    t = (text or "").lower()
+    return any(h in t for h in _IMG_REQ_HINT)
+
+
 def _is_confirm_reply(text: str) -> bool:
     return (text or "").strip() in ("確認", "好", "可以", "yes", "y", "取消", "不要", "no", "n")
 
@@ -433,6 +445,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await _run_browse(msg, context, user, text, _extract_browse_url(text))
             return
 
+    # 生圖：owner 私訊明確要圖時（bot 端關鍵字觸發，確定性；LLM 只負責把需求轉成 prompt）
+    if config.IMAGE_GEN_ENABLED and is_owner(user.id) and not is_group and _looks_like_image_request(text):
+        await msg.reply_text("好，幫你畫，稍等…")
+        try:
+            prompt = await asyncio.to_thread(image_gen.craft_prompt, text)
+            img = await asyncio.to_thread(image_gen.generate, prompt) if prompt else None
+            if img:
+                await context.bot.send_photo(chat_id=msg.chat_id, photo=BytesIO(img))
+            else:
+                await msg.reply_text("這次圖生不出來，稍後再試一次 🙏")
+        except Exception as e:
+            await msg.reply_text("生圖出了點狀況，我先停手 🙏")
+            await notify_owner_error(context.bot, e, where="生圖")
+        return
+
     # 程式問題委派給 Agent（headless Claude Code）：owner 隨時／同事僅 owner 請假時；私訊、文字
     if (text and not is_group and config.CODE_ROOT
             and (is_owner(user.id) or env_io.is_on_leave())):
@@ -453,21 +480,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await context.bot.send_chat_action(chat_id=msg.chat_id, action="typing")
         reply = await asyncio.to_thread(compose_reply, user.id, text, image_bytes, group_context,
                                         user.full_name)
-        text_out, img_prompt = image_gen.split_marker(reply)
-        if text_out:                                   # 純圖回覆（只有標記）→ text_out 為空，別送空訊息
-            await msg.reply_text(text_out)
-            _log.info("💬 已回覆 %s（%d 字）", _who(user), len(text_out))
-            if is_group:
-                group_memory.record(chat.id, config.ASSISTANT_NAME, text_out)
-        # owner 私訊且開關開、且回覆帶配圖標記 → Pollinations 生圖傳 TG（失敗只少一張圖）
-        sent_img = False
-        if config.IMAGE_GEN_ENABLED and is_owner(user.id) and not is_group and img_prompt:
-            img = await asyncio.to_thread(image_gen.generate, img_prompt)
-            if img:
-                await context.bot.send_photo(chat_id=msg.chat_id, photo=BytesIO(img))
-                sent_img = True
-        if not text_out and not sent_img:              # 文字空又沒生出圖 → 至少回一句，別整個沉默/炸掉
-            await msg.reply_text("我想配張圖但這次生不出來，稍後再試一次 🙏")
+        await msg.reply_text(reply)
+        _log.info("💬 已回覆 %s（%d 字）", _who(user), len(reply or ""))
+        if is_group:
+            group_memory.record(chat.id, config.ASSISTANT_NAME, reply)
     except Exception as e:
         _log.exception("compose_reply failed for user_id=%s", user.id)
         await msg.reply_text(f"抱歉，我這邊暫時有點狀況（可能是後端額度或連線問題），等一下再問我，或等 {config.OWNER_NAME} 回來確認 🙏")

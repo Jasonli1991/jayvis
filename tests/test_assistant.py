@@ -334,25 +334,3 @@ def test_no_search_failure_records_same(monkeypatch):
     out = assistant.compose_reply(6803, "你好嗎")
     assert "時事搜尋暫時不可用" not in out
     assert rec["assistant"] == out                    # 無警語時，記憶與回傳一致
-
-
-def test_image_marker_stripped_from_memory_but_kept_in_return(monkeypatch):
-    monkeypatch.setattr(assistant.config, "OWNER_CHAT_ID", 6803)
-    monkeypatch.setattr(assistant.config, "IMAGE_GEN_ENABLED", True)
-    monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(True))
-    monkeypatch.setattr(assistant, "_refresh_project_status", lambda: "")
-    monkeypatch.setattr(assistant, "_leave_status_line", lambda: "")
-    monkeypatch.setattr(assistant, "choose_model", lambda i, st: "m")
-    monkeypatch.setattr(assistant.memory, "recent", lambda *a, **k: [])
-    monkeypatch.setattr(assistant.memory, "recall", lambda *a, **k: "")
-    monkeypatch.setattr(assistant.user_profile, "maybe_update", lambda pid: None)
-    monkeypatch.setattr(assistant.inbox_capture, "is_knowledge_question", lambda t: False)
-    monkeypatch.setattr(assistant, "generate",
-                        lambda **k: "這是一隻貓\n\n[[圖：a cat]]")
-    rec = {}
-    monkeypatch.setattr(assistant.memory, "append",
-                        lambda pid, kind, content, **kw: rec.__setitem__(kind, content))
-    out = assistant.compose_reply(6803, "畫一隻貓")
-    assert "[[圖" not in rec["assistant"]            # 記憶不含標記
-    assert rec["assistant"] == "這是一隻貓"
-    assert "[[圖：a cat]]" in out                     # 回傳值仍含標記（給 bot 解析）

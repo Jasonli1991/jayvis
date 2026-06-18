@@ -10,7 +10,6 @@ import user_profile
 import obsidian_folders
 import persona
 import websearch
-import image_gen
 from panel import env_io as _leave_io
 from rag.retriever import retrieve_result
 from github_sync import get_project_status
@@ -44,18 +43,6 @@ _NO_KB_FALLBACK = (
     "- 通用、技術、常識類問題 → 用你的一般知識與推理把問題答好、答完整、實用。\n"
     "- 但凡涉及 {owner} 的專案、決定、行程、是否在線等個人/內部事實，而你手邊沒有資料 → "
     "誠實說你沒有這項資料、可代為轉達或請對方等 {owner} 回來確認，**絕不編造他的事**。"
-)
-
-_IMG_INSTRUCTION = (
-    "## 生圖能力（只在被明確要求時才用）\n"
-    "**只有當使用者這一則訊息明確要你給一張圖時**（例如「畫…」「生成一張…」「做個梗圖」"
-    "「來張插圖／海報／logo」「給我一張…的圖」），才在回覆最後加一行 "
-    "`[[圖：<英文畫面描述>]]`（梗圖用 `[[圖：<英文畫面>|<字幕>]]`）。\n"
-    "- **其他所有情況一律不要加標記、不要生圖、也不要主動提議做圖**——一般問答、聊天、查資料、"
-    "解釋說明都只用文字回答。寧可不生，也不要每則都配圖。\n"
-    "- 標記使用者看不到、圖會以另一則訊息出現；標記放最後自己一行，文字本身要能獨立（別以冒號結尾指著圖）。\n"
-    "- 梗圖用 `|` 分隔：左邊只描述畫面（別把字寫進畫面），右邊放字幕（可中文，系統會用清楚字型疊上）。"
-    "畫面描述用**英文**；一則最多一張。"
 )
 
 
@@ -136,8 +123,6 @@ def compose_reply(sender_id: int, incoming: str, image_bytes: Optional[bytes] = 
         _blk = user_profile.prompt_block(sender_id)
         if _blk:
             system += "\n\n" + _blk
-        if config.IMAGE_GEN_ENABLED:                # 自動配圖能力只在 owner 私訊啟用
-            system += "\n\n" + _IMG_INSTRUCTION
 
     # 同事（非 owner）且本輪無 KB 命中 → 覆蓋 persona「沒有就說資料不足」，改為盡力答但不編造個人事實
     if not owner_mode and not rag_context:
@@ -175,15 +160,14 @@ def compose_reply(sender_id: int, incoming: str, image_bytes: Optional[bytes] = 
     model = choose_model(incoming, source_types)
     reply = generate(model=model, system=system, messages=messages,
                      image_bytes=image_bytes, max_output_tokens=2048)
-    # reply 可能含 [[圖：...]] 配圖標記；入庫/Inbox 一律用剝除標記後的乾淨版（回傳值仍保留標記給 bot）
-    clean = image_gen.split_marker(reply)[0] or "[圖片]"   # 純圖回覆 → 存佔位，免空白輪次
+    # reply 此時是 LLM 乾淨答案 —— 記憶/Inbox 都用這版（暫時性錯誤警語只給使用者看）
 
     if not in_group:
         alias = config.ALLOWLIST_ALIASES.get(sender_id) or (
             config.OWNER_NAME if sender_id == config.OWNER_CHAT_ID else None) or sender_name
         memory_text = incoming if not image_bytes else f"[圖片]{' ' + incoming if incoming else ''}"
         memory.append(sender_id, "user", memory_text, alias=alias)
-        memory.append(sender_id, "assistant", clean, alias=alias)      # 乾淨答案，不含標記/警語
+        memory.append(sender_id, "assistant", reply, alias=alias)      # 乾淨答案，不含警語
 
     if owner_mode and not in_group:
         user_profile.maybe_update(sender_id)            # 每 6 輪背景更新學習畫像
@@ -192,7 +176,7 @@ def compose_reply(sender_id: int, incoming: str, image_bytes: Optional[bytes] = 
     offer = (owner_mode and not in_group and not image_bytes and not rag_context
              and inbox_capture.is_knowledge_question(incoming))
     if offer:
-        inbox_capture.remember(incoming, clean)         # 暫存「乾淨」答案（不含標記）
+        inbox_capture.remember(incoming, reply)         # 暫存「乾淨」答案
 
     # 以下只組「回傳給使用者」的版本：暫時性錯誤警語 + Inbox 提示，皆不入庫
     if search_failed:                             # 固定句子保證告知（不靠 LLM 自覺）

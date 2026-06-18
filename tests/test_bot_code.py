@@ -425,43 +425,29 @@ def _img_gates(monkeypatch):
     monkeypatch.setattr(bot, "_cooldown_exempt", lambda u: True)
 
 
-def test_image_gen_owner_sends_photo(monkeypatch):
+def test_image_request_owner_generates(monkeypatch):
+    # owner 明確要圖（關鍵字觸發）→ craft_prompt + generate + 送圖。
     _base(monkeypatch)
     _img_gates(monkeypatch)
-    monkeypatch.setattr(bot, "compose_reply", lambda *a, **k: "貓在這 [[圖：a cat]]")
-    monkeypatch.setattr(bot.image_gen, "generate", lambda p: b"PNGDATA")
+    monkeypatch.setattr(bot.image_gen, "craft_prompt", lambda t: "a cat on the moon")
+    gen = []
+    monkeypatch.setattr(bot.image_gen, "generate", lambda p: gen.append(p) or b"PNG")
     photos = []
-    msg, sent = _msg("畫一隻貓")
+    msg, sent = _msg("幫我畫一隻在月球的貓")
     upd, ctx = _update(msg, 6803)
     ctx.bot.send_photo = lambda **k: photos.append(k) or _async_none()
     asyncio.run(bot.handle_message(upd, ctx))
-    assert any("貓在這" in s and "[[圖" not in s for s in sent)   # 文字乾淨無標記
-    assert len(photos) == 1                                       # 有送圖
+    assert gen == ["a cat on the moon"]       # 用 LLM 產的 prompt 生圖
+    assert len(photos) == 1
 
 
-def test_image_only_reply_no_empty_text(monkeypatch):
-    # 純圖回覆（只有標記、無文字）→ 不可送空文字訊息（Telegram 會拒→例外）；只送圖。
+def test_image_request_gen_fails_fallback(monkeypatch):
     _base(monkeypatch)
     _img_gates(monkeypatch)
-    monkeypatch.setattr(bot, "compose_reply", lambda *a, **k: "[[圖：dragon boat]]")
-    monkeypatch.setattr(bot.image_gen, "generate", lambda p: b"PNG")
-    photos = []
-    msg, sent = _msg("給我一張端午節圖")
-    upd, ctx = _update(msg, 6803)
-    ctx.bot.send_photo = lambda **k: photos.append(k) or _async_none()
-    asyncio.run(bot.handle_message(upd, ctx))
-    assert "" not in sent              # 沒送空文字
-    assert len(photos) == 1            # 只送了圖
-
-
-def test_image_only_reply_gen_fails_gives_fallback(monkeypatch):
-    # 純圖回覆但生圖失敗 → 至少回一句 fallback，別整個沉默/炸掉。
-    _base(monkeypatch)
-    _img_gates(monkeypatch)
-    monkeypatch.setattr(bot, "compose_reply", lambda *a, **k: "[[圖：x]]")
+    monkeypatch.setattr(bot.image_gen, "craft_prompt", lambda t: "a cat")
     monkeypatch.setattr(bot.image_gen, "generate", lambda p: None)
     photos = []
-    msg, sent = _msg("給我一張圖")
+    msg, sent = _msg("畫一隻貓")
     upd, ctx = _update(msg, 6803)
     ctx.bot.send_photo = lambda **k: photos.append(k) or _async_none()
     asyncio.run(bot.handle_message(upd, ctx))
@@ -469,15 +455,37 @@ def test_image_only_reply_gen_fails_gives_fallback(monkeypatch):
     assert any("生不出來" in s for s in sent)
 
 
-def test_image_gen_colleague_no_photo(monkeypatch):
+def test_image_request_colleague_no_gen(monkeypatch):
+    # 同事即使說「畫」也不進生圖 gate（owner-only）。
     _base(monkeypatch)
     _img_gates(monkeypatch)
-    monkeypatch.setattr(bot, "compose_reply", lambda *a, **k: "答案 [[圖：x]]")
-    gen = []
-    monkeypatch.setattr(bot.image_gen, "generate", lambda p: gen.append(p) or b"X")
-    photos = []
-    msg, sent = _msg("畫")
-    upd, ctx = _update(msg, 555)              # 同事
-    ctx.bot.send_photo = lambda **k: photos.append(k) or _async_none()
+    crafted = []
+    monkeypatch.setattr(bot.image_gen, "craft_prompt", lambda t: crafted.append(t) or "x")
+    monkeypatch.setattr(bot, "compose_reply", lambda *a, **k: "一般回覆")
+    msg, sent = _msg("幫我畫一隻貓")
+    upd, ctx = _update(msg, 555)
     asyncio.run(bot.handle_message(upd, ctx))
-    assert gen == [] and photos == []         # 非 owner 不生圖、不送圖
+    assert crafted == []                       # 非 owner 不生圖
+
+
+def test_normal_question_skips_image_gate(monkeypatch):
+    # 一般問題（無生圖關鍵字）→ 不進生圖 gate，走一般回覆。
+    _base(monkeypatch)
+    _img_gates(monkeypatch)
+    crafted = []
+    monkeypatch.setattr(bot.image_gen, "craft_prompt", lambda t: crafted.append(t) or "x")
+    monkeypatch.setattr(bot, "compose_reply", lambda *a, **k: "一般文字回覆")
+    msg, sent = _msg("台積電今天股價多少")
+    upd, ctx = _update(msg, 6803)
+    asyncio.run(bot.handle_message(upd, ctx))
+    assert crafted == []
+    assert any("一般文字回覆" in s for s in sent)
+
+
+def test_looks_like_image_request_precision():
+    assert bot._looks_like_image_request("幫我畫一隻貓")
+    assert bot._looks_like_image_request("做個梗圖")
+    assert bot._looks_like_image_request("來張海報")
+    assert not bot._looks_like_image_request("這個計畫怎麼安排")   # 「計畫」不誤觸發
+    assert not bot._looks_like_image_request("畫面看起來怪怪的")   # 「畫面」不誤觸發
+    assert not bot._looks_like_image_request("台積電股價")
