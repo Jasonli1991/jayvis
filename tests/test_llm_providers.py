@@ -176,3 +176,100 @@ def test_openai_base_url_default_when_empty(monkeypatch):
 def test_openai_base_url_respects_compat_endpoint(monkeypatch):
     monkeypatch.setattr(config, "OPENAI_BASE_URL", "http://192.168.0.9:11435/v1")
     assert llm._openai_base_url() == "http://192.168.0.9:11435/v1"
+
+
+# ── list_available_models：三家列對話模型、容錯、去重 ──────────
+from types import SimpleNamespace as _NS
+
+
+def _fake_google(items):
+    # items: list of (name, supported_actions)
+    objs = [_NS(name=n, supported_actions=a) for n, a in items]
+    return _NS(models=_NS(list=lambda: iter(objs)))
+
+
+def _fake_listdata(ids):
+    return _NS(models=_NS(list=lambda: _NS(data=[_NS(id=i) for i in ids])))
+
+
+def _patch_provider_clients(monkeypatch, google=None, anthropic=None, openai=None):
+    mapping = {"google": google, "anthropic": anthropic, "openai": openai}
+
+    def fake_get(provider):
+        c = mapping[provider]
+        if c is None:
+            raise RuntimeError("client boom")
+        return c
+
+    monkeypatch.setattr(llm, "_get_client", fake_get)
+
+
+def _keys(monkeypatch, g="", a="", o=""):
+    monkeypatch.setattr(config, "GEMINI_API_KEY", g)
+    monkeypatch.setattr(config, "ANTHROPIC_API_KEY", a)
+    monkeypatch.setattr(config, "OPENAI_API_KEY", o)
+
+
+def test_list_google_filters_to_chat_generatecontent(monkeypatch):
+    _keys(monkeypatch, g="k")
+    g = _fake_google([
+        ("models/gemini-2.5-flash", ["generateContent", "countTokens"]),
+        ("models/gemma-4-31b-it", ["generateContent"]),
+        ("models/gemini-2.5-flash-image", ["generateContent"]),         # image → 排除
+        ("models/text-embedding-004", ["embedContent"]),                # 無 generateContent → 排除
+        ("models/gemini-3.1-flash-tts-preview", ["generateContent"]),   # tts → 排除
+    ])
+    _patch_provider_clients(monkeypatch, google=g)
+    out = llm.list_available_models()
+    assert "gemini-2.5-flash" in out["models"] and "gemma-4-31b-it" in out["models"]
+    assert "gemini-2.5-flash-image" not in out["models"]
+    assert "text-embedding-004" not in out["models"]
+    assert "gemini-3.1-flash-tts-preview" not in out["models"]
+    assert out["providers"]["google"] == 2
+
+
+def test_list_anthropic_takes_all(monkeypatch):
+    _keys(monkeypatch, a="k")
+    a = _fake_listdata(["claude-opus-4-8", "claude-fable-5"])
+    _patch_provider_clients(monkeypatch, anthropic=a)
+    out = llm.list_available_models()
+    assert set(out["models"]) == {"claude-opus-4-8", "claude-fable-5"}
+    assert out["providers"]["anthropic"] == 2
+
+
+def test_list_openai_filters_to_chat(monkeypatch):
+    _keys(monkeypatch, o="k")
+    o = _fake_listdata(["gpt-4.1", "o3-mini", "text-embedding-3-small",
+                        "gpt-4o-realtime-preview", "whisper-1", "gpt-3.5-turbo-instruct"])
+    _patch_provider_clients(monkeypatch, openai=o)
+    out = llm.list_available_models()
+    assert "gpt-4.1" in out["models"] and "o3-mini" in out["models"]
+    for bad in ("text-embedding-3-small", "gpt-4o-realtime-preview", "whisper-1", "gpt-3.5-turbo-instruct"):
+        assert bad not in out["models"]
+
+
+def test_list_skips_provider_without_key(monkeypatch):
+    _keys(monkeypatch, a="k")              # 只有 anthropic 有金鑰
+    a = _fake_listdata(["claude-opus-4-8"])
+    _patch_provider_clients(monkeypatch, anthropic=a)   # google/openai 的 client 不會被取用
+    out = llm.list_available_models()
+    assert out["providers"] == {"anthropic": 1}
+
+
+def test_list_tolerates_provider_failure(monkeypatch):
+    _keys(monkeypatch, g="k", a="k")
+    a = _fake_listdata(["claude-opus-4-8"])
+    _patch_provider_clients(monkeypatch, google=None, anthropic=a)   # google 取 client 就爆
+    out = llm.list_available_models()
+    assert out["models"] == ["claude-opus-4-8"]        # google 失敗不影響 anthropic
+    assert "google" not in out["providers"]
+
+
+def test_list_dedups_and_sorts(monkeypatch):
+    _keys(monkeypatch, a="k", o="k")
+    a = _fake_listdata(["gpt-4.1", "claude-opus-4-8"])   # 故意與 openai 重疊一個
+    o = _fake_listdata(["gpt-4.1", "o3-mini"])
+    _patch_provider_clients(monkeypatch, anthropic=a, openai=o)
+    out = llm.list_available_models()
+    assert out["models"] == sorted(out["models"])       # 排序
+    assert out["models"].count("gpt-4.1") == 1          # 去重

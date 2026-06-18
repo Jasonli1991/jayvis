@@ -26,6 +26,59 @@ def _openai_base_url() -> str:
     return base if base else "https://api.openai.com/v1"
 
 
+# list_available_models：給面板列出「實際能用的對話模型」，逐供應商容錯。
+_GOOGLE_EXCLUDE = ("embedding", "tts", "image", "audio", "robotics",
+                   "lyria", "live", "computer-use", "deep-research", "customtools")
+_OPENAI_CHAT_PREFIXES = ("gpt-", "o1", "o3", "o4", "chatgpt")
+_OPENAI_EXCLUDE = ("embedding", "tts", "whisper", "dall-e", "image", "audio",
+                   "realtime", "transcribe", "moderation", "search", "instruct")
+
+
+def _list_google_models() -> list:
+    if not config.GEMINI_API_KEY:
+        return []
+    out = []
+    for m in _get_client("google").models.list():
+        name = (getattr(m, "name", "") or "").replace("models/", "")
+        actions = getattr(m, "supported_actions", None) or []
+        if "generateContent" in actions and not any(x in name for x in _GOOGLE_EXCLUDE):
+            out.append(name)
+    return out
+
+
+def _list_anthropic_models() -> list:
+    if not config.ANTHROPIC_API_KEY:
+        return []
+    return [m.id for m in _get_client("anthropic").models.list().data]
+
+
+def _list_openai_models() -> list:
+    if not config.OPENAI_API_KEY:
+        return []
+    out = []
+    for m in _get_client("openai").models.list().data:
+        mid = m.id
+        if mid.startswith(_OPENAI_CHAT_PREFIXES) and not any(x in mid for x in _OPENAI_EXCLUDE):
+            out.append(mid)
+    return out
+
+
+def list_available_models() -> dict:
+    """列出有設金鑰之供應商的對話模型（逐家容錯）。回 {"models":[...], "providers":{name:count}}。"""
+    providers, models = {}, set()
+    for name, fn in (("google", _list_google_models),
+                     ("anthropic", _list_anthropic_models),
+                     ("openai", _list_openai_models)):
+        try:
+            got = fn()
+        except Exception:
+            got = []
+        if got:
+            providers[name] = len(got)
+            models.update(got)
+    return {"models": sorted(models), "providers": providers}
+
+
 def _provider_of(model: str) -> str:
     """依模型名判定供應商：claude-*→anthropic、gpt-*/o*→openai、gemini-*→google。
     其餘未知前綴：設了 OPENAI_BASE_URL（第三方相容端點，如 siraya）就走該端點，否則 google。"""
