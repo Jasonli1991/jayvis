@@ -79,6 +79,18 @@ def test_shutdown_pattern_is_profile_path(monkeypatch):
     assert not cap["args"][2].startswith("-")
 
 
+def test_launch_opens_landing_page(monkeypatch):
+    # 專用瀏覽器一開就停在「請勿關閉」說明頁
+    monkeypatch.setattr(bl, "chromium_path", lambda: "/cache/Chromium")
+    states = iter([False, True])
+    monkeypatch.setattr(bl, "cdp_alive", lambda timeout=1.0: next(states))
+    cap = {}
+    monkeypatch.setattr(bl.subprocess, "Popen", lambda args, **k: cap.update(args=args))
+    bl.launch(wait_s=2)
+    last = cap["args"][-1]
+    assert last.startswith("file://") and last.endswith("browse_landing.html")
+
+
 def test_launch_if_enabled_off(monkeypatch):
     # 未啟用瀏覽 → 不啟動 Chrome
     monkeypatch.setattr(config, "BROWSE_ENABLED", False)

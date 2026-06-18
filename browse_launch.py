@@ -15,6 +15,8 @@ from urllib.parse import urlparse
 import config
 
 INSTALL_LOG = Path(__file__).resolve().parent / "browse-install.log"
+# 專用瀏覽器一開就停在的說明頁（提醒使用者「請勿關閉」），避免被誤以為誤開而關掉。
+_LANDING_URL = (Path(__file__).resolve().parent / "browse_landing.html").as_uri()
 _install_proc = None
 
 
@@ -92,7 +94,8 @@ def launch(wait_s: float = 20.0) -> bool:
          "--disable-features=CalculateNativeWinOcclusion",
          "--disable-renderer-backgrounding",
          # 軟體渲染：避開 macOS Metal GPU 崩潰（自動化瀏覽器更穩，截圖照常）
-         "--disable-gpu"],
+         "--disable-gpu",
+         _LANDING_URL],                          # 開機停在「請勿關閉」說明頁
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     deadline = time.time() + wait_s
