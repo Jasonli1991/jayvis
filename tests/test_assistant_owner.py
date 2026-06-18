@@ -80,7 +80,7 @@ def test_owner_search_injects(monkeypatch):
     monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
     monkeypatch.setattr(config, "SEARCH_ENABLED", True)
     monkeypatch.setattr(config, "TAVILY_API_KEY", "x")
-    monkeypatch.setattr(assistant.websearch, "looks_like_current_events", lambda t: True)
+    monkeypatch.setattr(assistant.websearch, "formulate_query", lambda *a, **k: "q")
     monkeypatch.setattr(assistant.websearch, "search",
                         lambda q, n=5: [{"title": "台股收紅", "url": "http://x", "content": "加權指數上漲"}])
     monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(True))   # KB 無
@@ -95,7 +95,7 @@ def test_owner_search_failed_discloses(monkeypatch):
     monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
     monkeypatch.setattr(config, "SEARCH_ENABLED", True)
     monkeypatch.setattr(config, "TAVILY_API_KEY", "x")
-    monkeypatch.setattr(assistant.websearch, "looks_like_current_events", lambda t: True)
+    monkeypatch.setattr(assistant.websearch, "formulate_query", lambda *a, **k: "q")
     monkeypatch.setattr(assistant.websearch, "search", lambda q, n=5: None)   # 失敗（額度/連線）
     monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(True))
     seen = {}
@@ -110,7 +110,7 @@ def test_owner_search_empty_no_disclosure(monkeypatch):
     monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
     monkeypatch.setattr(config, "SEARCH_ENABLED", True)
     monkeypatch.setattr(config, "TAVILY_API_KEY", "x")
-    monkeypatch.setattr(assistant.websearch, "looks_like_current_events", lambda t: True)
+    monkeypatch.setattr(assistant.websearch, "formulate_query", lambda *a, **k: "q")
     monkeypatch.setattr(assistant.websearch, "search", lambda q, n=5: [])      # 成功但查無
     monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(True))
     seen = {}
@@ -124,7 +124,7 @@ def test_owner_search_off_when_disabled(monkeypatch):
     monkeypatch.setattr(config, "SEARCH_ENABLED", False)        # 開關關
     monkeypatch.setattr(config, "TAVILY_API_KEY", "x")
     called = {"n": 0}
-    monkeypatch.setattr(assistant.websearch, "looks_like_current_events", lambda t: True)
+    monkeypatch.setattr(assistant.websearch, "formulate_query", lambda *a, **k: "q")
     monkeypatch.setattr(assistant.websearch, "search",
                         lambda q, n=5: called.__setitem__("n", 1) or [])
     monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(True))
@@ -139,7 +139,7 @@ def test_colleague_no_search(monkeypatch):
     monkeypatch.setattr(config, "SEARCH_ENABLED", True)
     monkeypatch.setattr(config, "TAVILY_API_KEY", "x")
     called = {"n": 0}
-    monkeypatch.setattr(assistant.websearch, "looks_like_current_events", lambda t: True)
+    monkeypatch.setattr(assistant.websearch, "formulate_query", lambda *a, **k: "q")
     monkeypatch.setattr(assistant.websearch, "search",
                         lambda q, n=5: called.__setitem__("n", 1) or [])
     monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(False, "ctx", ["obsidian"]))

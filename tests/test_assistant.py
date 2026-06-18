@@ -311,7 +311,7 @@ def test_search_failed_warning_not_recorded(monkeypatch):
     monkeypatch.setattr(assistant.config, "OWNER_CHAT_ID", 6803)
     monkeypatch.setattr(assistant.config, "SEARCH_ENABLED", True)
     monkeypatch.setattr(assistant.config, "TAVILY_API_KEY", "k")
-    monkeypatch.setattr(assistant.websearch, "looks_like_current_events", lambda t: True)
+    monkeypatch.setattr(assistant.websearch, "formulate_query", lambda *a, **k: "q")
     monkeypatch.setattr(assistant.websearch, "search", lambda t: None)     # 失敗 → search_failed
     _common_mocks(monkeypatch)
     rec = {}
@@ -326,7 +326,7 @@ def test_no_search_failure_records_same(monkeypatch):
     monkeypatch.setattr(assistant.config, "OWNER_CHAT_ID", 6803)
     monkeypatch.setattr(assistant.config, "SEARCH_ENABLED", True)
     monkeypatch.setattr(assistant.config, "TAVILY_API_KEY", "k")
-    monkeypatch.setattr(assistant.websearch, "looks_like_current_events", lambda t: False)  # 不觸發搜尋
+    monkeypatch.setattr(assistant.websearch, "formulate_query", lambda *a, **k: "")  # 不觸發搜尋
     _common_mocks(monkeypatch)
     rec = {}
     monkeypatch.setattr(assistant.memory, "append",

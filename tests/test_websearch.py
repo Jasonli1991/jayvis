@@ -25,12 +25,22 @@ def teardown_module(module):
     importlib.reload(config)
 
 
-def test_looks_like_current_events():
-    assert websearch.looks_like_current_events("今天台股怎樣")
-    assert websearch.looks_like_current_events("最新的美元匯率")
-    assert websearch.looks_like_current_events("現在天氣如何")
-    assert not websearch.looks_like_current_events("幫我訂機票")
-    assert not websearch.looks_like_current_events("謝謝你")
+def test_formulate_query_returns_query(monkeypatch):
+    # LLM 認為要查 → 回查詢字串（去引號/空白）
+    monkeypatch.setattr(websearch, "_llm_generate", lambda **k: '  西班牙 2026 世界盃 賽果 \n')
+    assert websearch.formulate_query("西班牙世足賽爆冷了？") == "西班牙 2026 世界盃 賽果"
+
+
+def test_formulate_query_none_means_no_search(monkeypatch):
+    monkeypatch.setattr(websearch, "_llm_generate", lambda **k: "NONE")
+    assert websearch.formulate_query("被動元件是什麼") == ""        # 不必查 → 空字串
+
+
+def test_formulate_query_empty_on_llm_failure(monkeypatch):
+    def boom(**k):
+        raise RuntimeError("quota")
+    monkeypatch.setattr(websearch, "_llm_generate", boom)
+    assert websearch.formulate_query("今天股價") == ""              # 失敗寧可不查
 
 
 def test_search_returns_clean_results(monkeypatch):
