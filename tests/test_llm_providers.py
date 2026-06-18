@@ -274,3 +274,29 @@ def test_list_dedups_and_sorts(monkeypatch):
     out = llm.list_available_models()
     assert out["models"] == sorted(out["models"])       # 排序
     assert out["models"].count("gpt-4.1") == 1          # 去重
+
+
+# ── 精簡：去日期快照 + 去舊世代 ─────────────────────────────────
+def test_prune_drops_dated_snapshot_with_sibling():
+    out = llm._prune_models(["gpt-4.1", "gpt-4.1-2025-04-14", "gpt-4o", "gpt-4o-2024-11-20"])
+    assert out == ["gpt-4.1", "gpt-4o"]                  # 有未帶日期同名 → 日期版砍掉
+
+
+def test_prune_keeps_dated_only():
+    # 只有日期版、無未帶日期同名 → 保留（如 claude-haiku-4-5-20251001）
+    assert llm._prune_models(["claude-haiku-4-5-20251001"]) == ["claude-haiku-4-5-20251001"]
+
+
+def test_prune_drops_legacy_families():
+    out = llm._prune_models(["gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-4", "gpt-4-0613",
+                             "gpt-4-turbo", "gpt-4.1", "gpt-4o", "gemini-2.0-flash", "gemini-2.5-flash"])
+    assert out == ["gpt-4.1", "gpt-4o", "gemini-2.5-flash"]   # 舊世代全砍、現役保留
+
+
+def test_list_available_models_applies_pruning(monkeypatch):
+    _keys(monkeypatch, o="k")
+    o = _fake_listdata(["gpt-4.1", "gpt-4.1-2025-04-14", "gpt-3.5-turbo"])
+    _patch_provider_clients(monkeypatch, openai=o)
+    out = llm.list_available_models()
+    assert out["models"] == ["gpt-4.1"]                 # 砍日期快照 + 砍舊世代
+    assert out["providers"]["openai"] == 1              # 數量反映精簡後

@@ -1,5 +1,6 @@
 import base64
 import logging
+import re
 import threading
 
 from google import genai
@@ -63,14 +64,36 @@ def _list_openai_models() -> list:
     return out
 
 
+# 精簡清單：砍「帶日期的快照」（有未帶日期同名時）與「公認舊世代」，避免 picker 被洗版。
+_DATE_SUFFIX = re.compile(r"(-\d{4}-\d{2}-\d{2}|-\d{8}|-\d{4})$")
+
+
+def _is_legacy(m: str) -> bool:
+    return m == "gpt-4" or m.startswith(("gpt-3.5", "gpt-4-", "gemini-2.0"))
+
+
+def _prune_models(ids: list) -> list:
+    """去舊世代 + 去日期快照（有未帶日期同名才砍；只有日期版的保留）。保序。"""
+    kept = [m for m in ids if not _is_legacy(m)]
+    bases = set(kept)
+    out = []
+    for m in kept:
+        base = _DATE_SUFFIX.sub("", m)
+        if base != m and base in bases:
+            continue                      # 有未帶日期同名 → 丟掉這個日期快照
+        out.append(m)
+    return out
+
+
 def list_available_models() -> dict:
-    """列出有設金鑰之供應商的對話模型（逐家容錯）。回 {"models":[...], "providers":{name:count}}。"""
+    """列出有設金鑰之供應商的對話模型（逐家容錯，並精簡舊世代/日期快照）。
+    回 {"models":[...], "providers":{name:count}}。"""
     providers, models = {}, set()
     for name, fn in (("google", _list_google_models),
                      ("anthropic", _list_anthropic_models),
                      ("openai", _list_openai_models)):
         try:
-            got = fn()
+            got = _prune_models(fn())
         except Exception:
             got = []
         if got:
