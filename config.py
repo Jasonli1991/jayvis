@@ -168,3 +168,4 @@ IMAGE_GEN_ENABLED = os.getenv("IMAGE_GEN_ENABLED", "0").strip().lower() in ("1",
 IMAGE_GEN_MODEL = os.getenv("IMAGE_GEN_MODEL", "flux")
 IMAGE_GEN_SIZE = int(os.getenv("IMAGE_GEN_SIZE", "1024"))
 IMAGE_GEN_TIMEOUT_S = int(os.getenv("IMAGE_GEN_TIMEOUT_S", "45"))
+IMAGE_GEN_FONT = os.getenv("IMAGE_GEN_FONT", "")    # 梗圖字幕字型（空＝自動找系統中文字型）

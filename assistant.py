@@ -52,9 +52,10 @@ _IMG_INSTRUCTION = (
     "- **使用者明確要圖時一定要生**：說「畫／梗圖／圖／插圖／海報／logo／示意圖／生成…圖」等，"
     "就直接加標記生圖（可同時附一兩句說明，但**別只給文字概念而不生圖**）。\n"
     "- 答案配圖會更清楚或生動時（視覺場景、物件、概念示意）也可主動加。\n"
-    "- 一則最多一張；描述用**英文**（Pollinations 對英文最準）；若是梗圖，把『畫面＋想呈現的字幕文字』"
-    "都寫進英文描述裡（例：`meme, Falcon 9 rocket landing, exhaust replaced by a red crashing stock chart, "
-    "bold caption \"SOFT LANDING?\"`）。\n"
+    "- 一則最多一張；畫面描述用**英文**（Pollinations 對英文最準）。\n"
+    "- **梗圖請用 `[[圖：<英文畫面描述>|<字幕>]]`**：用 `|` 分隔——左邊只描述畫面（別把字寫進畫面），"
+    "右邊放字幕（可中文）。系統會把字幕用清楚的字型疊到圖上（不要靠生圖模型寫字，會變亂碼）。"
+    "例：`[[圖：a Falcon 9 rocket landing on a drone ship, its exhaust replaced by a red crashing stock chart|硬著陸]]`\n"
     "- 只有純文字就足夠、或不確定時，才不加。"
 )
 
