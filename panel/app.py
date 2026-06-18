@@ -17,6 +17,7 @@ import webview
 from flask import Flask, jsonify, request, send_from_directory
 
 import config
+import llm
 import memory
 import user_profile
 from panel import botctl, env_io, libreoffice
@@ -258,6 +259,15 @@ def api_llm_models_get():
         return jsonify({"models": _fetch_compat_models(base), "endpoint": base})
     except Exception:
         return jsonify({"models": [], "endpoint": base, "error": "unreachable"})
+
+
+@app.get("/api/provider-models")
+def api_provider_models():
+    """列出有設金鑰之供應商的對話模型（Google/Anthropic/OpenAI），供模型路由 picker。容錯不 500。"""
+    try:
+        return jsonify(llm.list_available_models())
+    except Exception:
+        return jsonify({"models": [], "providers": {}})
 
 
 @app.get("/api/actions")
