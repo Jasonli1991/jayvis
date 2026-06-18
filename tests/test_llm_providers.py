@@ -131,3 +131,20 @@ def test_to_openai_messages_with_image():
     parts = msgs[-1]["content"]
     url = next(p for p in parts if p["type"] == "image_url")["image_url"]["url"]
     assert url.startswith("data:image/jpeg;base64,")
+
+
+# ── 額度耗盡偵測（429 / RESOURCE_EXHAUSTED / quota）──────────────
+@pytest.mark.parametrize("msg,expected", [
+    ("429 RESOURCE_EXHAUSTED", True),
+    ("You exceeded your current quota", True),
+    ("Error code: 429", True),
+    ("resource_exhausted: quota", True),
+    ("connection timeout", False),
+    ("400 invalid argument", False),
+])
+def test_is_quota_error(msg, expected):
+    assert llm.is_quota_error(RuntimeError(msg)) is expected
+
+
+def test_quota_msg_points_to_routing():
+    assert "模型路由" in llm.QUOTA_MSG and "429" in llm.QUOTA_MSG

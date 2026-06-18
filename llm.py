@@ -11,6 +11,14 @@ _log = logging.getLogger("llm")
 _clients: dict = {}
 _lock = threading.Lock()
 
+QUOTA_MSG = "⚠️ 模型額度用完了（429 配額耗盡）。請到控制台「模型路由」把模型切到本地 Ollama 或等免費額度重置後再試。"
+
+
+def is_quota_error(e) -> bool:
+    """例外是否為模型額度／配額耗盡（429 / RESOURCE_EXHAUSTED / quota）。各呼叫端共用此單一判定。"""
+    s = str(e).lower()
+    return "429" in s or "resource_exhausted" in s or "quota" in s or "exceeded your current" in s
+
 
 def _provider_of(model: str) -> str:
     """依模型名判定供應商：claude-*→anthropic、gpt-*/o*→openai、gemini-*→google。

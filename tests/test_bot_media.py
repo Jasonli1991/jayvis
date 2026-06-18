@@ -214,3 +214,50 @@ def test_photo_with_media_caption_still_triggers_media(monkeypatch):
     update, ctx = _update_ctx(msg)
     asyncio.run(bot.handle_message(update, ctx))
     assert sent["kind"] == "document" and sent["filename"] == "photo-nobg.png"
+
+
+def _raise_quota(*a, **k):
+    raise RuntimeError("429 RESOURCE_EXHAUSTED: quota")
+
+
+def test_compose_quota_error_owner_gets_quota_msg(monkeypatch):
+    # owner 問答時模型額度耗盡 → 精準指引（去面板模型路由切 Ollama），不重複 DM 通知自己
+    import llm
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 777)
+    monkeypatch.setattr(config, "ALLOWLIST_USER_IDS", {777})
+    monkeypatch.setattr(config, "MEDIA_ENABLED", False)
+    _disable_other_gates(monkeypatch)
+    monkeypatch.setattr(bot, "compose_reply", _raise_quota)
+    notified = {"n": 0}
+
+    async def _notify(*a, **k):
+        notified["n"] += 1
+
+    monkeypatch.setattr(bot, "notify_owner_error", _notify)
+    msg, sent = _msg(caption=None)
+    msg.text = "今天股價如何"
+    update, ctx = _update_ctx(msg)
+    asyncio.run(bot.handle_message(update, ctx))
+    assert sent["text"] == llm.QUOTA_MSG and notified["n"] == 0
+
+
+def test_compose_quota_error_colleague_generic_and_notifies(monkeypatch):
+    # 同事問答撞額度 → 泛用道歉（「模型路由切 Ollama」對同事沒意義）+ 通知 owner
+    import llm
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 999)          # 777 非 owner
+    monkeypatch.setattr(config, "ALLOWLIST_USER_IDS", {777})
+    monkeypatch.setattr(config, "MEDIA_ENABLED", False)
+    _disable_other_gates(monkeypatch)
+    monkeypatch.setattr(bot, "compose_reply", _raise_quota)
+    notified = {"n": 0}
+
+    async def _notify(*a, **k):
+        notified["n"] += 1
+
+    monkeypatch.setattr(bot, "notify_owner_error", _notify)
+    msg, sent = _msg(caption=None)
+    msg.text = "今天股價如何"
+    update, ctx = _update_ctx(msg)
+    asyncio.run(bot.handle_message(update, ctx))
+    assert sent["text"] != llm.QUOTA_MSG and "暫時有點狀況" in sent["text"]
+    assert notified["n"] == 1

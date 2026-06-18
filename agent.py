@@ -311,12 +311,8 @@ def _day_window(date_str: str):
     return d.strftime("%Y-%m-%dT00:00"), nxt.strftime("%Y-%m-%dT00:00")
 
 
-def _is_quota_error(e) -> bool:
-    s = str(e).lower()
-    return "429" in s or "resource_exhausted" in s or "quota" in s or "exceeded your current" in s
-
-
-_QUOTA_MSG = "⚠️ 模型額度用完了（429 配額耗盡）。請到控制台「模型路由」把模型切到本地 Ollama 或等免費額度重置後再試。"
+_is_quota_error = llm.is_quota_error      # 共用 llm 的單一判定
+_QUOTA_MSG = llm.QUOTA_MSG
 _TRUNC_MSG = "⚠️ 模型回應不完整（多半是額度將滿或暫時異常），動作沒執行。請稍後再試，或切換模型。"
 
 

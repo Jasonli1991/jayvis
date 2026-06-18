@@ -17,6 +17,7 @@ import cooldown
 import group_memory
 import guard
 import inbox_capture
+import llm
 import browse_agent
 import image_gen
 import browse_tool
@@ -514,9 +515,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             group_memory.record(chat.id, config.ASSISTANT_NAME, reply)
     except Exception as e:
         _log.exception("compose_reply failed for user_id=%s", user.id)
-        await msg.reply_text(f"抱歉，我這邊暫時有點狀況（可能是後端額度或連線問題），等一下再問我，或等 {config.OWNER_NAME} 回來確認 🙏")
-        if not is_owner(user.id):                      # owner 本人已收道歉 → 不重複轟
-            await notify_owner_error(context.bot, e, where="回覆訊息")
+        if llm.is_quota_error(e) and is_owner(user.id):    # 額度耗盡 → 給 owner 可操作的精準指引
+            await msg.reply_text(llm.QUOTA_MSG)
+        else:
+            await msg.reply_text(f"抱歉，我這邊暫時有點狀況（可能是後端額度或連線問題），等一下再問我，或等 {config.OWNER_NAME} 回來確認 🙏")
+            if not is_owner(user.id):                      # owner 本人已收道歉 → 不重複轟
+                await notify_owner_error(context.bot, e, where="回覆訊息")
 
 
 _ALERT_COOLDOWN_S = 300
