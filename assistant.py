@@ -74,6 +74,33 @@ _OWNER_TONE = (
 )
 
 
+# 動作工具清單：(顯示名, 取「真實可用」狀態的函式)。狀態對齊各 gate 的實際條件，於呼叫時即時讀 config。
+_ACTION_TOOLS = (
+    ("行事曆：查/排/改/刪行程", lambda: config.ACTIONS_ENABLED),
+    ("收發信", lambda: config.EMAIL_ENABLED),
+    ("媒體：圖片去背/轉檔/調尺寸", lambda: config.MEDIA_ENABLED),
+    ("時事搜尋（即時資訊）", lambda: config.SEARCH_ENABLED and bool(config.TAVILY_API_KEY)),
+    ("自動配圖", lambda: config.IMAGE_GEN_ENABLED),
+    ("瀏覽網頁", lambda: config.BROWSE_ENABLED),
+    ("程式委派", lambda: bool(config.CODE_ROOT)),
+)
+
+
+def _action_tools_block() -> str:
+    """owner system prompt 用：列出動作工具與其可用狀態（✅可用／⬜未啟用）+ 行為規則。
+    狀態於呼叫時即時讀 config（A 自我認知 + B 缺工具提示，同一塊文字達成）。"""
+    lines = [f"- {'✅' if avail() else '⬜'} {name}" for name, avail in _ACTION_TOOLS]
+    return (
+        "## 你的動作工具（實際執行由系統負責，不是你在這則回覆裡自己做）\n"
+        + "\n".join(lines)
+        + "\n規則：\n"
+        "- 動作由系統背景處理，**別在這則回覆假裝自己執行了**。\n"
+        "- 若使用者明顯想用某個「⬜未啟用」的工具 → 自然提一句：去控制台面板「動作工具」把它打開"
+        "（時事搜尋還要填 Tavily 金鑰；程式委派要在 .env 設 CODE_ROOT），改後需重啟 bot。\n"
+        "- 別每則都報菜單，只有真的相關時才提。"
+    )
+
+
 def build_owner_system(rag_context: str, project_status: str) -> str:
     """owner 本人模式的 system prompt：有個性(幽默/台灣味)、坦白、不對外代言、不編造個人事實。"""
     owner = config.OWNER_NAME

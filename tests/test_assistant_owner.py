@@ -147,3 +147,48 @@ def test_colleague_no_search(monkeypatch):
     _patch_common(monkeypatch, seen)
     assistant.compose_reply(999, "今天台股怎樣")            # 非 owner
     assert called["n"] == 0
+
+
+# --- 動作工具自我認知 block ---
+import assistant as _a
+import config as _c
+
+
+def _all_tools(monkeypatch, on):
+    monkeypatch.setattr(_c, "ACTIONS_ENABLED", on)
+    monkeypatch.setattr(_c, "EMAIL_ENABLED", on)
+    monkeypatch.setattr(_c, "MEDIA_ENABLED", on)
+    monkeypatch.setattr(_c, "SEARCH_ENABLED", on)
+    monkeypatch.setattr(_c, "TAVILY_API_KEY", "k" if on else "")
+    monkeypatch.setattr(_c, "IMAGE_GEN_ENABLED", on)
+    monkeypatch.setattr(_c, "BROWSE_ENABLED", on)
+    monkeypatch.setattr(_c, "CODE_ROOT", "/x" if on else "")
+
+
+def test_action_tools_block_all_on(monkeypatch):
+    _all_tools(monkeypatch, True)
+    s = _a._action_tools_block()
+    # 只數工具列前綴「- ✅／- ⬜」，避免被規則散文裡的符號干擾
+    assert s.count("- ✅") == 7 and "- ⬜" not in s
+    assert "你的動作工具" in s and "面板" in s          # 含標題與提示去面板
+
+
+def test_action_tools_block_all_off(monkeypatch):
+    _all_tools(monkeypatch, False)
+    s = _a._action_tools_block()
+    assert s.count("- ⬜") == 7 and "- ✅" not in s
+
+
+def test_action_tools_search_needs_key(monkeypatch):
+    _all_tools(monkeypatch, True)
+    monkeypatch.setattr(_c, "TAVILY_API_KEY", "")        # 開了但沒金鑰 → 實際不可用
+    s = _a._action_tools_block()
+    assert "- ⬜ 時事搜尋（即時資訊）" in s
+    assert s.count("- ✅") == 6
+
+
+def test_action_tools_code_needs_root(monkeypatch):
+    _all_tools(monkeypatch, True)
+    monkeypatch.setattr(_c, "CODE_ROOT", "")             # 沒設 CODE_ROOT → 未啟用
+    s = _a._action_tools_block()
+    assert "- ⬜ 程式委派" in s
