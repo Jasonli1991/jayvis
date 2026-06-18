@@ -462,7 +462,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if config.IMAGE_GEN_ENABLED and is_owner(user.id) and not is_group and img_prompt:
             img = await asyncio.to_thread(image_gen.generate, img_prompt)
             if img:
-                from io import BytesIO
                 await context.bot.send_photo(chat_id=msg.chat_id, photo=BytesIO(img))
     except Exception as e:
         _log.exception("compose_reply failed for user_id=%s", user.id)
