@@ -183,6 +183,30 @@ def api_browse_enabled_post():
     return jsonify(result)
 
 
+@app.post("/api/browse/login/begin")
+def api_browse_login_begin():
+    """開可見視窗供使用者登入網站（headed）。容錯不 500。"""
+    try:
+        return jsonify({"ok": True, "ready": browse_launch.begin_login()})
+    except Exception:
+        return jsonify({"ok": False, "ready": False})
+
+
+@app.post("/api/browse/login/end")
+def api_browse_login_end():
+    """登入完成，收掉視窗回 headless。容錯不 500。"""
+    try:
+        browse_launch.end_login()
+        return jsonify({"ok": True})
+    except Exception:
+        return jsonify({"ok": False})
+
+
+@app.get("/api/browse/login/status")
+def api_browse_login_status():
+    return jsonify({"login_mode": browse_launch.is_login_mode()})
+
+
 @app.post("/api/pick-folder")
 def api_pick_folder():
     """喚起 pywebview 原生資料夾選擇器；無原生視窗（純瀏覽器開）回 501。"""
