@@ -1,4 +1,10 @@
+import os
+import re
+from datetime import datetime
+from pathlib import Path
+
 import config
+import inbox_capture
 from db.connection import get_conn
 from retrieval.hybrid import hybrid_search
 from chunks import citation_of
@@ -9,6 +15,38 @@ _SYSTEM = (
     "可做合理推論與彙整，但**必須明確標註依據**，並說明資料不足或不確定之處；"
     "**不要編造超出所給資料的事實**。用繁體中文、結構化（重點條列）。"
 )
+
+_VENDOR_DIR = Path(__file__).resolve().parent / "vendor"
+try:
+    _CHARTJS = (_VENDOR_DIR / "chart.umd.min.js").read_text(encoding="utf-8")
+except Exception:
+    _CHARTJS = ""
+
+
+def _clean_html(raw: str) -> str:
+    """剝掉模型可能加的 ```html / ``` 圍欄與前後空白。"""
+    s = (raw or "").strip()
+    s = re.sub(r"^```[a-zA-Z]*\s*", "", s)
+    s = re.sub(r"\s*```$", "", s)
+    return s.strip()
+
+
+def _looks_like_html(s: str) -> bool:
+    low = (s or "").lower()
+    return "<html" in low or "<body" in low or "<canvas" in low
+
+
+def _inject_chartjs(html: str) -> str:
+    """把內嵌 Chart.js 注入到 <head> 之後（無 <head> 則 <html> 之後；皆無則 prepend）。"""
+    tag = f"<script>{_CHARTJS}</script>"
+    i = html.lower().find("<head>")
+    if i >= 0:
+        j = i + len("<head>")
+        return html[:j] + tag + html[j:]
+    m = re.search(r"<html[^>]*>", html, re.IGNORECASE)
+    if m:
+        return html[:m.end()] + tag + html[m.end():]
+    return tag + html
 
 
 def _open_conn():
