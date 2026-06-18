@@ -408,3 +408,46 @@ def test_compose_error_owner_no_alert(monkeypatch):
     asyncio.run(bot.handle_message(update, ctx))
     assert any("抱歉" in s for s in sent)
     assert ctx.bot.sent_dms == []                     # owner 本人 → 不另發警報
+
+
+async def _async_none():
+    return None
+
+
+def _img_gates(monkeypatch):
+    """讓訊息打到 compose_reply：跳過 code 委派與 browse gate，設定 allowlist。"""
+    monkeypatch.setattr(config, "IMAGE_GEN_ENABLED", True)
+    monkeypatch.setattr(config, "BROWSE_ENABLED", False)
+    monkeypatch.setattr(config, "ALLOWLIST_USER_IDS", {6803, 555})
+    monkeypatch.setattr(config, "ALLOWLIST_ALIASES", {555: "Bob"})
+    monkeypatch.setattr(bot, "is_owner", lambda uid: uid == 6803)
+    monkeypatch.setattr(bot.code_delegate, "classify", lambda t: None)
+    monkeypatch.setattr(bot, "_cooldown_exempt", lambda u: True)
+
+
+def test_image_gen_owner_sends_photo(monkeypatch):
+    _base(monkeypatch)
+    _img_gates(monkeypatch)
+    monkeypatch.setattr(bot, "compose_reply", lambda *a, **k: "貓在這 [[圖：a cat]]")
+    monkeypatch.setattr(bot.image_gen, "generate", lambda p: b"PNGDATA")
+    photos = []
+    msg, sent = _msg("畫一隻貓")
+    upd, ctx = _update(msg, 6803)
+    ctx.bot.send_photo = lambda **k: photos.append(k) or _async_none()
+    asyncio.run(bot.handle_message(upd, ctx))
+    assert any("貓在這" in s and "[[圖" not in s for s in sent)   # 文字乾淨無標記
+    assert len(photos) == 1                                       # 有送圖
+
+
+def test_image_gen_colleague_no_photo(monkeypatch):
+    _base(monkeypatch)
+    _img_gates(monkeypatch)
+    monkeypatch.setattr(bot, "compose_reply", lambda *a, **k: "答案 [[圖：x]]")
+    gen = []
+    monkeypatch.setattr(bot.image_gen, "generate", lambda p: gen.append(p) or b"X")
+    photos = []
+    msg, sent = _msg("畫")
+    upd, ctx = _update(msg, 555)              # 同事
+    ctx.bot.send_photo = lambda **k: photos.append(k) or _async_none()
+    asyncio.run(bot.handle_message(upd, ctx))
+    assert gen == [] and photos == []         # 非 owner 不生圖、不送圖
