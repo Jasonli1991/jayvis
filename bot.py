@@ -331,7 +331,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # owner 媒體工具（去背/轉檔/調尺寸）：私訊 + owner + 啟用 + 帶檔案才走。
     # 文件一律進；照片需有說明（caption），讓無說明的照片仍走一般視覺對話。
     if (not is_group and config.MEDIA_ENABLED and is_owner(user.id)
-            and (msg.document is not None or (msg.photo and text))):
+            and (msg.document is not None
+                 or (msg.photo and text and agent.looks_like_media_request(text)))):
         try:
             if msg.document is not None:
                 f = await msg.document.get_file()

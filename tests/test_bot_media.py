@@ -165,3 +165,52 @@ def test_media_disabled_does_not_trigger(monkeypatch):
     update, ctx = _update_ctx(msg)
     asyncio.run(bot.handle_message(update, ctx))
     assert called["n"] == 0
+
+
+def _disable_other_gates(monkeypatch):
+    monkeypatch.setattr(config, "ACTIONS_ENABLED", False)
+    monkeypatch.setattr(config, "EMAIL_ENABLED", False)
+    monkeypatch.setattr(config, "BROWSE_ENABLED", False)
+    monkeypatch.setattr(config, "IMAGE_GEN_ENABLED", False)
+    monkeypatch.setattr(config, "CODE_ROOT", "")
+
+
+def test_photo_with_non_media_caption_goes_to_vision_qa(monkeypatch):
+    # 附圖+「問截圖內容」的 caption（非去背/轉檔/調尺寸）→ 不進媒體處理，改走 compose_reply 視覺問答帶圖
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 777)
+    monkeypatch.setattr(config, "MEDIA_ENABLED", True)
+    monkeypatch.setattr(config, "ALLOWLIST_USER_IDS", {777})
+    _disable_other_gates(monkeypatch)
+    agent.reset()
+    called = {"media": 0}
+    monkeypatch.setattr(agent, "handle_media",
+                        lambda *a, **k: called.__setitem__("media", called["media"] + 1) or agent.MediaResult(message="x"))
+    captured = {}
+
+    def _compose(uid, text, image_bytes=None, *a, **k):
+        captured["image"] = image_bytes
+        return "看圖回答你"
+
+    monkeypatch.setattr(bot, "compose_reply", _compose)
+    msg, sent = _msg(photo=[_FakeDoc(b"IMG", "photo.jpg")],
+                     caption="我附圖這個呼叫上線什麼時候會重置呢？")
+    update, ctx = _update_ctx(msg)
+    asyncio.run(bot.handle_message(update, ctx))
+    assert called["media"] == 0                       # 沒進媒體處理
+    assert captured.get("image") == b"IMG"            # 走視覺問答、帶圖
+    assert sent["text"] == "看圖回答你"
+
+
+def test_photo_with_media_caption_still_triggers_media(monkeypatch):
+    # 附圖+真的媒體指令（去背）→ 維持原本媒體處理
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 777)
+    monkeypatch.setattr(config, "MEDIA_ENABLED", True)
+    monkeypatch.setattr(config, "ALLOWLIST_USER_IDS", {777})
+    _disable_other_gates(monkeypatch)
+    agent.reset()
+    monkeypatch.setattr(agent, "handle_media",
+                        lambda text, b, name, now: agent.MediaResult(file=b"PNG", filename="photo-nobg.png", note="ok"))
+    msg, sent = _msg(photo=[_FakeDoc(b"IMG", "photo.jpg")], caption="幫我去背")
+    update, ctx = _update_ctx(msg)
+    asyncio.run(bot.handle_message(update, ctx))
+    assert sent["kind"] == "document" and sent["filename"] == "photo-nobg.png"
