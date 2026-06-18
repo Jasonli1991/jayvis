@@ -76,11 +76,32 @@ def log_event(msg: str) -> None:
 _LOG_NOISE = ("api.telegram.org", "Batches:", "sentence_transformers", "pytorch device")
 
 
+def _collapse_tracebacks(lines: list) -> list:
+    """把多行 Python traceback 收摺成一行重點（取最後的例外摘要）。
+    只用於面板顯示（clean）；原始 bot.log 不動，完整 traceback 仍在檔案備查。"""
+    out = []
+    i, n = 0, len(lines)
+    while i < n:
+        if lines[i].strip() == "Traceback (most recent call last):":
+            j = i + 1
+            # 跳過框架行（縮排的 File.../程式碼）與空行，停在例外摘要那一行（非縮排）
+            while j < n and (lines[j][:1] in (" ", "\t") or not lines[j].strip()):
+                j += 1
+            summary = lines[j].strip() if j < n else "（未知錯誤）"
+            out.append("⚠️ " + summary)
+            i = j + 1
+        else:
+            out.append(lines[i])
+            i += 1
+    return out
+
+
 def tail_log(n: int = 200, clean: bool = False) -> str:
     if not LOG_FILE.exists():
         return ""
     lines = LOG_FILE.read_text(encoding="utf-8", errors="replace").splitlines()
     if clean:
+        lines = _collapse_tracebacks(lines)        # 先把 traceback 收成一行
         lines = [ln for ln in lines if ln.strip() and not any(p in ln for p in _LOG_NOISE)]
     return "\n".join(lines[-n:])
 
