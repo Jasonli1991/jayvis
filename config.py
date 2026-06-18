@@ -20,6 +20,10 @@ CLAUDE_MODEL = "claude-haiku-4-5"
 
 # Obsidian vault path（在 .env 設 OBSIDIAN_PATH 指向自己的 vault；留空＝不用 Obsidian）
 OBSIDIAN_PATH = os.getenv("OBSIDIAN_PATH", "")
+# 分析模式 HTML 報告：報告較長 → 大 token；撈更多 KB 以求詳盡（皆可 env 覆蓋）
+ANALYSIS_REPORT_MAX_TOKENS = int(os.getenv("ANALYSIS_REPORT_MAX_TOKENS", "16000"))
+ANALYSIS_REPORT_K = int(os.getenv("ANALYSIS_REPORT_K", "60"))
+ANALYSIS_REPORT_MAX_CONTEXT = int(os.getenv("ANALYSIS_REPORT_MAX_CONTEXT", "40000"))
 
 # 本地資料目錄（對話記憶、白名單、legacy chroma 等可攜檔）
 DATA_DIR = os.path.expanduser("~/.n")

@@ -91,3 +91,82 @@ def analyze(query: str, owner: str = None, model: str = None,
         max_output_tokens=4096,
     )
     return {"answer": answer, "sources": sources}
+
+
+_REPORT_SYSTEM = (
+    f"你是 {config.OWNER_NAME} 的分析助理。根據提供的『筆記/commit 片段』做一份非常詳盡的分析報告。\n"
+    "輸出一份**完整、自包含的 HTML 文件**（從 <!DOCTYPE html> 到 </html>），"
+    "不要任何 HTML 以外的文字、不要 markdown 圍欄。\n"
+    "內容要求：\n"
+    "- 結構清楚（標題、章節、重點），繁體中文，專業排版（內含 <style>）。\n"
+    "- 從資料中找出可量化／時間／類別維度，選**合適的圖表類型**（長條/折線/圓餅/雷達等），"
+    "用 <canvas> + <script>new Chart(...)</script> 內嵌圖表與資料。\n"
+    "- **假設 Chart 這個全域變數已存在，絕對不要自己加 Chart.js 的 <script src>**（系統會注入內嵌版）。\n"
+    "- 必須明確標註依據、說明資料不足或不確定之處；**不要編造超出所給資料的事實**。"
+)
+
+
+def _inbox_dir():
+    root = (config.OBSIDIAN_PATH or "").strip()
+    if not root or not os.path.isdir(root):
+        return None
+    return os.path.join(root, *inbox_capture.INBOX_SUBPATH)
+
+
+def _report_filename(query, now) -> str:
+    return f"{now.strftime('%Y-%m-%d-%H%M')}-analysis-{inbox_capture._slug(query)}.html"
+
+
+def generate_report(query: str, model: str = None, now=None) -> dict:
+    """撈 KB → 強模型生完整 HTML → 注入內嵌 Chart.js → 存 Inbox(.html)。回 {ok,path,filename} 或 {ok,error}。"""
+    now = now or datetime.now()
+    model = model or config.MODEL_CODE
+    inbox = _inbox_dir()                              # fail-fast：先驗路徑，不可用就別呼叫模型
+    if not inbox:
+        return {"ok": False, "error": "Obsidian 路徑沒設好或找不到，先去控制台設定，再執行分析 🙏"}
+    try:
+        os.makedirs(inbox, exist_ok=True)
+    except Exception:
+        return {"ok": False, "error": "Obsidian Inbox 資料夾建立失敗，請檢查控制台的 vault 路徑 🙏"}
+
+    conn = _open_conn()
+    try:
+        cands = hybrid_search(conn, query, owner=config.OWNER_KEY, out_k=config.ANALYSIS_REPORT_K)
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+    if not cands:
+        return {"ok": False, "error": "找不到相關資料，無法分析。"}
+
+    blocks, total = [], 0
+    for c in cands:
+        piece = f"[{_source_label(c)}]\n{c.raw_text}"
+        if total + len(piece) > config.ANALYSIS_REPORT_MAX_CONTEXT:
+            break
+        blocks.append(piece)
+        total += len(piece)
+    context = "\n\n---\n\n".join(blocks)
+    user_msg = f"分析問題：{query}\n\n可用資料：\n{context}"
+
+    html = ""
+    for _ in range(2):                               # 防破：最多兩次
+        raw = generate(model=model, system=_REPORT_SYSTEM,
+                       messages=[{"role": "user", "content": user_msg}],
+                       max_output_tokens=config.ANALYSIS_REPORT_MAX_TOKENS)
+        html = _clean_html(raw)
+        if _looks_like_html(html):
+            break
+    if not _looks_like_html(html):
+        return {"ok": False, "error": "報告生成失敗（模型輸出非 HTML），請重試或在面板把「程式」模型換更強的 🙏"}
+
+    html = _inject_chartjs(html)
+    fname = _report_filename(query, now)
+    path = os.path.join(inbox, fname)
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(html)
+    except Exception:
+        return {"ok": False, "error": "報告寫檔失敗，請稍後再試 🙏"}
+    return {"ok": True, "path": path, "filename": fname}
