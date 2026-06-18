@@ -38,12 +38,13 @@ def test_handle_non_action_still_none(monkeypatch):
     assert agent.handle("你好", _now(), email_on=True) is None   # 真非動作 → 交回 bot
 
 
-def test_handle_other_error_propagates(monkeypatch):
+def test_handle_model_error_falls_through_to_normal(monkeypatch):
+    # 分類階段模型/連線錯誤（非額度，如 500）→ 當作非動作回 None，
+    # 交回 bot 走一般 compose_reply（不誤報成 Mail／行事曆沒回應、不丟掉訊息）
     def _boom(**k):
-        raise RuntimeError("network down")
+        raise RuntimeError("500 INTERNAL")
     monkeypatch.setattr(agent.llm, "generate", _boom)
-    with pytest.raises(RuntimeError):
-        agent.handle("寄信", _now(), email_on=True)   # 非額度錯誤 → 交給 bot 的錯誤處理
+    assert agent.handle("寄信", _now(), email_on=True) is None
 
 
 def test_email_intent_ignored_when_email_off(monkeypatch):

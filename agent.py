@@ -1,5 +1,6 @@
 """owner-only 行事曆 agent：JSON-intent 偵測 + 確認狀態機。不灌 RAG。"""
 import json
+import logging
 import sys
 from dataclasses import dataclass
 
@@ -10,6 +11,8 @@ import image_tool
 import llm
 import mail_tool as mail
 import memory
+
+_log = logging.getLogger("jayvis")     # 與 bot 同名 → 進同一個 bot.log
 
 _ACTIONS = {"create", "list", "update", "delete",
             "send_email", "list_email", "read_email", "delete_email"}
@@ -331,7 +334,8 @@ def handle(text: str, now, calendar_on=True, email_on=False):
     except Exception as e:
         if _is_quota_error(e):
             return _QUOTA_MSG                     # 明確告知額度用完，不誤導成「資料不足」
-        raise                                    # 其他錯誤交給 bot 的錯誤處理
+        _log.warning("意圖分類失敗（%s）→ 當非動作交回一般回覆", type(e).__name__)
+        return None                              # 模型/連線錯誤 → 當非動作，交回 bot 走一般回覆（別誤報成 Mail/行事曆）
     intent = parse_intent(reply)
     if intent is None:
         if '"action"' in reply:                  # 模型想動作但 JSON 壞了/截斷 → 不要落到 abstain
