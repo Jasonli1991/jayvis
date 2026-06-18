@@ -36,6 +36,37 @@ def test_connect_self_heals_after_launch(monkeypatch):
     bt.reset()
 
 
+def test_goto_settles_after_navigation(monkeypatch):
+    # 導航後要等頁面算繪穩定（SPA），再交還給呼叫端抓 snapshot/截圖
+    calls = []
+
+    class _Page:
+        url = "https://ok.com/"
+        def goto(self, url, **k): calls.append("goto")
+        def wait_for_load_state(self, state, **k): calls.append("wait_load:" + state)
+        def wait_for_timeout(self, ms): calls.append("settle")
+
+    monkeypatch.setattr(ba, "is_allowed", lambda url: True)
+    monkeypatch.setattr(bt, "_page", _Page())
+    bt.goto("https://ok.com/")
+    assert calls == ["goto", "wait_load:networkidle", "settle"]
+
+
+def test_goto_settle_survives_networkidle_timeout(monkeypatch):
+    # 有 websocket/輪詢的站 networkidle 會逾時 → 不可致命，仍做固定 settle
+    class _Page:
+        url = "https://ok.com/"
+        settled = False
+        def goto(self, url, **k): pass
+        def wait_for_load_state(self, state, **k): raise RuntimeError("Timeout 2500ms exceeded")
+        def wait_for_timeout(self, ms): self.__class__.settled = True
+
+    monkeypatch.setattr(ba, "is_allowed", lambda url: True)
+    monkeypatch.setattr(bt, "_page", _Page())
+    bt.goto("https://ok.com/")                 # 不應拋
+    assert _Page.settled is True
+
+
 def test_screenshot_returns_bytes(monkeypatch):
     class _Page:
         url = "https://example.com/"

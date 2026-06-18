@@ -160,6 +160,9 @@ BROWSE_MAX_STEPS = int(os.getenv("BROWSE_MAX_STEPS", "12"))
 BROWSE_MODEL = os.getenv("BROWSE_MODEL", "") or MODEL_GENERAL
 BROWSE_NAV_TIMEOUT_S = int(os.getenv("BROWSE_NAV_TIMEOUT_S", "30"))
 BROWSE_TMP_DIR = os.getenv("BROWSE_TMP_DIR", os.path.expanduser("~/.n/browse_tmp"))
+# 導航後等頁面算繪穩定（SPA 客戶端渲染），避免黑圖/空文字：networkidle 上限 + 固定 settle
+BROWSE_SETTLE_TIMEOUT_S = float(os.getenv("BROWSE_SETTLE_TIMEOUT_S", "2.5"))
+BROWSE_SETTLE_MS = int(os.getenv("BROWSE_SETTLE_MS", "1000"))
 # 專用瀏覽設定檔（獨立 Chrome instance，與個人 Chrome 隔離；第一次需在該視窗登入要用的站）
 BROWSE_PROFILE_DIR = os.getenv("BROWSE_PROFILE_DIR", os.path.expanduser("~/.n/chrome-browse-profile"))
 

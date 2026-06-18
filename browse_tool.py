@@ -72,10 +72,25 @@ def _guard_current() -> None:
         raise NotAllowed(current_url())
 
 
+def _settle(page) -> None:
+    """導航後等頁面算繪穩定（SPA 客戶端渲染 + 動態載入），再抓 snapshot/截圖，避免黑圖/空文字。
+    networkidle 對有 websocket/輪詢的站會逾時 → 包成不致命；再給一小段固定時間確保畫面繪出。"""
+    try:
+        page.wait_for_load_state("networkidle", timeout=int(config.BROWSE_SETTLE_TIMEOUT_S * 1000))
+    except Exception:
+        pass
+    try:
+        page.wait_for_timeout(config.BROWSE_SETTLE_MS)
+    except Exception:
+        pass
+
+
 def goto(url: str) -> None:
     if not browse_allowlist.is_allowed(url):
         raise NotAllowed(url)
-    _require_page().goto(url, timeout=config.BROWSE_NAV_TIMEOUT_S * 1000)
+    page = _require_page()
+    page.goto(url, timeout=config.BROWSE_NAV_TIMEOUT_S * 1000)
+    _settle(page)                          # 等 SPA 繪好再交還，否則 snapshot/截圖會抓到空白/黑圖
 
 
 def snapshot() -> list:
@@ -114,6 +129,7 @@ def _nth(ref: int):
 def click(ref: int) -> None:
     _guard_current()
     _nth(ref).click(timeout=config.BROWSE_NAV_TIMEOUT_S * 1000)
+    _settle(_require_page())               # 點擊常觸發導航/動態載入 → 等繪好再抓
 
 
 def type_text(ref: int, text: str) -> None:
