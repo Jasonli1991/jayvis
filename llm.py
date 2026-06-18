@@ -78,10 +78,22 @@ def _to_contents(messages: list[dict], image_bytes: bytes | None):
     return contents
 
 
+# Gemma 4（gemma-4-*）是思考型模型：會先吐 ~140+ 思考 token 才到答案，且思考無法關閉
+# （thinking_budget=0 會 500）。輸出上限太小（分類常用 8~256）會被思考吃光→空輸出/500。
+# 故對 Gemma 把輸出上限拉到足夠容下「思考＋答案」的下限。
+_GEMMA_MIN_OUTPUT_TOKENS = 1024
+
+
+def _effective_max_tokens(model: str, requested: int) -> int:
+    if "gemma" in model.lower():
+        return max(requested, _GEMMA_MIN_OUTPUT_TOKENS)
+    return requested
+
+
 def _gen_google(model, system, messages, image_bytes, max_output_tokens):
     cfg = types.GenerateContentConfig(
         system_instruction=system,
-        max_output_tokens=max_output_tokens,
+        max_output_tokens=_effective_max_tokens(model, max_output_tokens),
     )
     resp = _get_client("google").models.generate_content(
         model=model,

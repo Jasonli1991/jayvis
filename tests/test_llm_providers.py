@@ -148,3 +148,20 @@ def test_is_quota_error(msg, expected):
 
 def test_quota_msg_points_to_routing():
     assert "模型路由" in llm.QUOTA_MSG and "429" in llm.QUOTA_MSG
+
+
+# ── Gemma 思考型模型的輸出 token 下限 ──────────────────────────
+def test_effective_max_tokens_floors_gemma():
+    # Gemma 4 會先消耗思考 token；上限太小會被吃光→空輸出，故設下限
+    assert llm._effective_max_tokens("gemma-4-31b-it", 60) == llm._GEMMA_MIN_OUTPUT_TOKENS
+    assert llm._effective_max_tokens("gemma-4-26b-a4b-it", 8) == llm._GEMMA_MIN_OUTPUT_TOKENS
+
+
+def test_effective_max_tokens_does_not_lower():
+    # 已經夠大的請求不下調
+    assert llm._effective_max_tokens("gemma-4-31b-it", 4096) == 4096
+
+
+def test_effective_max_tokens_non_gemma_untouched():
+    assert llm._effective_max_tokens("gemini-2.5-flash", 60) == 60
+    assert llm._effective_max_tokens("claude-opus-4-8", 16) == 16
