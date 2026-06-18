@@ -546,7 +546,7 @@ function renderBrowse() {
     li.className = "chip";
     li.textContent = d;
     const x = document.createElement("button");
-    x.type = "button"; x.className = "chip-x"; x.textContent = "×";
+    x.type = "button"; x.className = "r-del"; x.title = "刪除"; x.textContent = "✕";
     x.onclick = () => { _browseDomains.splice(i, 1); renderBrowse(); };
     li.appendChild(x);
     ul.appendChild(li);

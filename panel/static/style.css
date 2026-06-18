@@ -193,9 +193,9 @@ input.mono{font-family:var(--mono)}
 .routing-row .r-arrow{flex:0 0 auto;color:var(--text-faint);font-weight:700}
 .routing-row .r-person-wrap{position:relative;flex:1;min-width:0}
 .routing-row .r-person{width:100%}
-.routing-row .r-del{flex:0 0 auto;width:32px;height:32px;border:1px solid var(--border);border-radius:8px;
+.r-del{flex:0 0 auto;width:32px;height:32px;border:1px solid var(--border);border-radius:8px;
   background:transparent;color:var(--text-faint);cursor:pointer;line-height:1}
-.routing-row .r-del:hover{border-color:var(--danger);color:var(--danger)}
+.r-del:hover{border-color:var(--danger);color:var(--danger)}
 .btn.sm{padding:5px 11px;font-size:12px}
 
 /* 本地模型自繪下拉（貼欄位下方） */
