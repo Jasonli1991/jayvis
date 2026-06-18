@@ -111,6 +111,37 @@ def launch(headless: bool = True, wait_s: float = 20.0) -> bool:
     return cdp_alive()
 
 
+_login_mode = False
+
+
+def set_login_mode(on: bool) -> None:
+    global _login_mode
+    _login_mode = bool(on)
+
+
+def is_login_mode() -> bool:
+    return _login_mode
+
+
+def desired_headless() -> bool:
+    """目前該維持哪種模式：登入模式 → headed(False)；否則 headless(True)。看門狗/啟動共用。"""
+    return not _login_mode
+
+
+def begin_login() -> bool:
+    """開可見視窗供登入：標記登入模式 → 收掉現有(headless) → 開 headed。回 CDP 是否就緒。"""
+    set_login_mode(True)
+    shutdown()
+    return launch(headless=False)
+
+
+def end_login() -> bool:
+    """登入完成：清除登入模式 → 收掉(headed) → 回 headless。回 CDP 是否就緒。"""
+    set_login_mode(False)
+    shutdown()
+    return launch(headless=True)
+
+
 def launch_if_enabled() -> bool:
     """面板啟動時用：若 BROWSE_ENABLED 為真就拉起專用 Chromium（重放 toggle ON 的動作），
     讓重開/重啟後不必再手動切開關。缺 playwright/Chromium 等 → 安靜略過、不拋。回是否就緒。"""

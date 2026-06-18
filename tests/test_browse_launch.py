@@ -155,3 +155,32 @@ def test_launch_if_enabled_swallows_error(monkeypatch):
         raise RuntimeError("playwright not installed")
     monkeypatch.setattr(bl, "launch", boom)
     assert bl.launch_if_enabled() is False
+
+
+def test_login_mode_default_and_desired_headless():
+    bl.set_login_mode(False)
+    assert bl.is_login_mode() is False and bl.desired_headless() is True
+    bl.set_login_mode(True)
+    assert bl.is_login_mode() is True and bl.desired_headless() is False
+    bl.set_login_mode(False)                      # 還原，避免污染其他測試
+
+
+def test_begin_login_switches_to_headed(monkeypatch):
+    bl.set_login_mode(False)
+    calls = []
+    monkeypatch.setattr(bl, "shutdown", lambda: calls.append("shutdown"))
+    monkeypatch.setattr(bl, "launch", lambda headless=True, **k: calls.append(("launch", headless)) or True)
+    assert bl.begin_login() is True
+    assert bl.is_login_mode() is True
+    assert calls == ["shutdown", ("launch", False)]
+    bl.set_login_mode(False)
+
+
+def test_end_login_switches_to_headless(monkeypatch):
+    bl.set_login_mode(True)
+    calls = []
+    monkeypatch.setattr(bl, "shutdown", lambda: calls.append("shutdown"))
+    monkeypatch.setattr(bl, "launch", lambda headless=True, **k: calls.append(("launch", headless)) or True)
+    assert bl.end_login() is True
+    assert bl.is_login_mode() is False
+    assert calls == ["shutdown", ("launch", True)]
