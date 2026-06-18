@@ -546,13 +546,12 @@ $("md-save").onclick = () => withBusy($("md-save"), async () => {
 // analysis (panel-direct query)
 $("an-run").onclick = () => withBusy($("an-run"), async () => {
   const q = $("an-q").value.trim(); if (!q) return;
-  $("an-msg").classList.remove("warn", "ok"); $("an-msg").textContent = "分析中…（綜合，約數十秒）";
+  $("an-msg").classList.remove("warn", "ok"); $("an-msg").textContent = "分析中…（產生報告，可能 1–2 分鐘）";
   $("an-answer").textContent = ""; $("an-sources").textContent = "";
   try {
     const r = await postJSON("/api/analyze", {query: q});
-    $("an-msg").textContent = "";
-    $("an-answer").textContent = r.answer || "";
-    $("an-sources").textContent = (r.sources || []).length ? "依據：" + r.sources.join("｜") : "";
+    if (r.ok) { $("an-msg").classList.add("ok"); $("an-msg").textContent = "已產生報告並開啟：" + (r.filename || ""); }
+    else { warn($("an-msg"), r.error || "分析失敗，請重試"); }
   } catch (e) { warn($("an-msg"), "分析失敗，請重試"); }
 });
 
