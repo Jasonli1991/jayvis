@@ -149,15 +149,21 @@ def compose_reply(sender_id: int, incoming: str, image_bytes: Optional[bytes] = 
     # 群組模式：脈絡走 group_context，不混入也不污染 per-人私訊記憶（owner 在群組也不 recall → 私事不外洩）
     if in_group:
         history = []
+        recall_used = False
     else:
         history = memory.recent(sender_id)
         recalled = memory.recall(sender_id, incoming, owner=owner_mode)
+        recall_used = bool(recalled)
         if recalled:
             alias = config.ALLOWLIST_ALIASES.get(sender_id) or (config.OWNER_NAME if owner_mode else None) or sender_name or "對方"
             system += f"\n\n## 你與 {alias} 的過往記憶（供你自然延續，含時間）\n{recalled}"
     messages = history + [{"role": "user", "content": incoming or "（圖片）"}]
 
     model = choose_model(incoming, source_types)
+    _log.info("🧠 compose %s｜model=%s｜RAG=%s｜回想=%s｜歷史%d輪%s",
+              "owner" if owner_mode else "同事", model,
+              "命中" if rag_context else "無", "有" if recall_used else "無",
+              len(history) // 2, "｜搜尋失敗" if search_failed else "")
     reply = generate(model=model, system=system, messages=messages,
                      image_bytes=image_bytes, max_output_tokens=2048)
     # reply 此時是 LLM 乾淨答案 —— 記憶/Inbox 都用這版（暫時性錯誤警語只給使用者看）

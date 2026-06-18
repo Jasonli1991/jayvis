@@ -102,10 +102,16 @@ async def _deliver_browse(msg, context, res, uid) -> None:
 
 async def _run_browse(msg, context, user, task, start_url) -> None:
     """跑一次瀏覽任務並把結果送出；統一處理沒就緒／非白名單／其他例外。"""
+    _log.info("🌐 瀏覽 %s：%s%s", _who(user), _preview(task),
+              f"（→{start_url}）" if start_url else "")
     try:
+        t0 = time.time()
         res = await asyncio.to_thread(browse_agent.run, task, start_url)
+        _log.info("🌐 瀏覽結果 status=%s（%.1fs，%s）", res.status, time.time() - t0,
+                  "有截圖" if getattr(res, "screenshot", None) else "無圖")
         await _deliver_browse(msg, context, res, user.id)
     except browse_tool.BrowseUnavailable:
+        _log.warning("🌐 瀏覽器未就緒")
         _browse_session.pop(user.id, None)           # 沒就緒就別把人困在瀏覽模式
         await msg.reply_text(
             "瀏覽器還沒就緒。請到控制台面板把「啟用網站瀏覽」打開"
@@ -447,14 +453,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # 生圖：owner 私訊明確要圖時（bot 端關鍵字觸發，確定性；LLM 只負責把需求轉成 prompt）
     if config.IMAGE_GEN_ENABLED and is_owner(user.id) and not is_group and _looks_like_image_request(text):
+        _log.info("🎨 生圖 %s：%s", _who(user), _preview(text))
         await msg.reply_text("好，幫你畫，稍等…")
         try:
+            t0 = time.time()
             prompt = await asyncio.to_thread(image_gen.craft_prompt, text)
+            _log.info("🎨 prompt：%s", _preview(prompt) or "（空）")
             img = await asyncio.to_thread(image_gen.generate, prompt) if prompt else None
             if img:
                 await context.bot.send_photo(chat_id=msg.chat_id, photo=BytesIO(img))
+                _log.info("🎨 生圖完成（%d KB，%.1fs）", len(img) // 1024, time.time() - t0)
             else:
                 await msg.reply_text("這次圖生不出來，稍後再試一次 🙏")
+                _log.warning("🎨 生圖失敗（%.1fs，prompt=%s）", time.time() - t0, _preview(prompt) or "空")
         except Exception as e:
             await msg.reply_text("生圖出了點狀況，我先停手 🙏")
             await notify_owner_error(context.bot, e, where="生圖")
@@ -478,10 +489,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     group_context = group_memory.recent_transcript(chat.id) if is_group else None
     try:
         await context.bot.send_chat_action(chat_id=msg.chat_id, action="typing")
+        _t0 = time.time()
         reply = await asyncio.to_thread(compose_reply, user.id, text, image_bytes, group_context,
                                         user.full_name)
         await msg.reply_text(reply)
-        _log.info("💬 已回覆 %s（%d 字）", _who(user), len(reply or ""))
+        _log.info("💬 已回覆 %s（%d 字，%.1fs）", _who(user), len(reply or ""), time.time() - _t0)
         if is_group:
             group_memory.record(chat.id, config.ASSISTANT_NAME, reply)
     except Exception as e:
