@@ -581,6 +581,7 @@ async function loadBrowse() {
     renderBrowse();
     const e = await getJSON("/api/browse/enabled");
     $("browse-enabled").checked = !!e.enabled;
+    refreshLoginBtn();
   } catch (e) { warn($("browse-msg"), "載入失敗"); }
 }
 
@@ -597,6 +598,24 @@ async function waitBrowseReady(maxMs) {
   }
   return false;
 }
+
+async function refreshLoginBtn() {
+  try {
+    const s = await getJSON("/api/browse/login/status");
+    const inLogin = !!s.login_mode;
+    $("browse-login-btn").textContent = inLogin ? "完成登入" : "開啟登入視窗";
+    $("browse-login-status").textContent = inLogin
+      ? "登入中：已開啟視窗，登好你要的網站後按「完成登入」回背景模式" : "";
+  } catch (e) {}
+}
+
+$("browse-login-btn").onclick = async () => {
+  const inLogin = $("browse-login-btn").textContent === "完成登入";
+  try {
+    await postJSON(inLogin ? "/api/browse/login/end" : "/api/browse/login/begin", {});
+  } catch (e) {}
+  refreshLoginBtn();
+};
 
 function wireBrowse() {
   $("browse-enabled").addEventListener("change", async () => {
