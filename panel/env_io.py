@@ -79,6 +79,15 @@ def write_browse_enabled(enabled: bool) -> None:
     set_key(ENV_PATH, "BROWSE_ENABLED", "true" if enabled else "false", quote_mode="never")
 
 
+# 助理自動配圖總開關（存 .env；config.IMAGE_GEN_ENABLED 同時吃 true/1）
+def read_image_gen_enabled() -> bool:
+    return (get_key(ENV_PATH, "IMAGE_GEN_ENABLED") or "false").strip().lower() in ("1", "true", "yes", "on")
+
+
+def write_image_gen_enabled(enabled: bool) -> None:
+    set_key(ENV_PATH, "IMAGE_GEN_ENABLED", "true" if enabled else "false", quote_mode="never")
+
+
 # owner 身份（Telegram 卡設定；用於動作觸發 + 白名單自動放行）
 def read_owner() -> dict:
     return {"owner_chat_id": get_key(ENV_PATH, "OWNER_CHAT_ID") or ""}

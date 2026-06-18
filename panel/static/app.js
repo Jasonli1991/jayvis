@@ -290,6 +290,19 @@ async function loadActions() {
   $("ac-mail-acct").value = a.mail_account || "";
   $("ac-media").checked = !!a.media_enabled;
   $("ac-search").checked = !!a.search_enabled;
+  $("ig-enabled").checked = (await getJSON("/api/image-gen/enabled")).enabled;
+}
+
+function wireImageGen() {
+  $("ig-enabled").addEventListener("change", async () => {
+    try {
+      await postJSON("/api/image-gen/enabled", { enabled: $("ig-enabled").checked });
+      flash($("ac-msg"), "已更新，重啟 bot 後生效");
+    } catch (e) {
+      $("ig-enabled").checked = !$("ig-enabled").checked;
+      warn($("ac-msg"), "切換失敗，請重試");
+    }
+  });
 }
 
 // LibreOffice（文件轉檔）一鍵安裝
@@ -628,7 +641,7 @@ function wireBrowse() {
   }));
 }
 
-loadProfile(); loadLeave(); loadBotToken(); loadAllow(); loadModels(); loadLlmKeys(); loadOllamaModels(); loadSources(); loadActions(); loadLibre(); loadMemPersons(); loadBrowse(); wireBrowse(); refreshStatus(); refreshLog();
+loadProfile(); loadLeave(); loadBotToken(); loadAllow(); loadModels(); loadLlmKeys(); loadOllamaModels(); loadSources(); loadActions(); loadLibre(); loadMemPersons(); loadBrowse(); wireBrowse(); wireImageGen(); refreshStatus(); refreshLog();
 setInterval(refreshStatus, 5000);
 setInterval(refreshLog, 4000);
 
