@@ -27,6 +27,21 @@ def test_generate_returns_bytes_on_success(monkeypatch):
     assert ig.generate("a cat") == b"\x89PNG" + b"x" * 500
 
 
+def test_generate_sends_user_agent(monkeypatch):
+    # Pollinations 會擋掉沒有 User-Agent 的請求 → 必須帶 UA
+    cap = {}
+    class _R:
+        def read(self): return b"\xff\xd8" + b"x" * 500
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    def fake(req, timeout=0):
+        cap["ua"] = req.get_header("User-agent")
+        return _R()
+    monkeypatch.setattr(ig.urllib.request, "urlopen", fake)
+    assert ig.generate("a cat")
+    assert cap["ua"] and "Mozilla" in cap["ua"]
+
+
 def test_generate_none_on_failure(monkeypatch):
     def boom(url, timeout=0):
         raise OSError("net down")

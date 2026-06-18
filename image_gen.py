@@ -27,8 +27,10 @@ def generate(prompt: str):
     url = (f"https://image.pollinations.ai/prompt/{urllib.parse.quote(prompt)}"
            f"?width={config.IMAGE_GEN_SIZE}&height={config.IMAGE_GEN_SIZE}"
            f"&model={config.IMAGE_GEN_MODEL}&nologo=true")
+    # 一定要帶 User-Agent：Pollinations 會擋掉 Python urllib 預設 UA 的請求
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (JAYVIS)"})
     try:
-        with urllib.request.urlopen(url, timeout=config.IMAGE_GEN_TIMEOUT_S) as r:
+        with urllib.request.urlopen(req, timeout=config.IMAGE_GEN_TIMEOUT_S) as r:
             data = r.read()
     except Exception:
         return None
