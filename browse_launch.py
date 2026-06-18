@@ -148,7 +148,7 @@ def launch_if_enabled() -> bool:
     if not config.BROWSE_ENABLED:
         return False
     try:
-        return launch()
+        return launch(headless=desired_headless())
     except Exception:
         return False
 

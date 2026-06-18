@@ -17,7 +17,7 @@ def _browse_watchdog_tick() -> bool:
         import browse_launch
         from panel import env_io
         if env_io.read_browse_enabled() and not browse_launch.cdp_alive():
-            browse_launch.launch()
+            browse_launch.launch(headless=browse_launch.desired_headless())
             return True
     except Exception:
         pass

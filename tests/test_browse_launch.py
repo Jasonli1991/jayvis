@@ -184,3 +184,13 @@ def test_end_login_switches_to_headless(monkeypatch):
     assert bl.end_login() is True
     assert bl.is_login_mode() is False
     assert calls == ["shutdown", ("launch", True)]
+
+
+def test_launch_if_enabled_uses_desired_headless(monkeypatch):
+    monkeypatch.setattr(config, "BROWSE_ENABLED", True)
+    bl.set_login_mode(False)                      # 非登入 → headless
+    cap = {}
+    monkeypatch.setattr(bl, "launch", lambda headless=True, **k: cap.update(headless=headless) or True)
+    bl.launch_if_enabled()
+    assert cap["headless"] is True
+    bl.set_login_mode(False)
