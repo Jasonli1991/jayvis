@@ -69,8 +69,11 @@ def is_knowledge_question(text) -> bool:
     t = (text or "").strip()
     if not t:
         return False
-    sys = ("判斷使用者這句是不是「知識型／學習型問題」（概念、原理、比較、定義、做法、研究等，"
-           "值得記成筆記日後整理）。閒聊、問候、感謝、時事／天氣、雜事指令都不算。只回 yes 或 no。")
+    sys = ("判斷這句是不是『值得存進工作知識庫(Obsidian)的知識型問題』——"
+           "偏技術／專業／概念／原理／比較／可重用的方法論，日後查得到、用得上的那種。\n"
+           "**以下一律不算**：個人身體或健康狀況、生活瑣事、情緒抒發、求助雜事、"
+           "閒聊問候感謝、時事天氣、一次性的事。\n"
+           "拿不準就回 no（寧可不提示）。只回 yes 或 no。")
     try:
         out = generate(model=config.MODEL_GENERAL, system=sys,
                        messages=[{"role": "user", "content": t[:500]}], max_output_tokens=8)
