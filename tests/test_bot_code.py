@@ -58,6 +58,40 @@ def test_owner_code_question_delegates(monkeypatch):
     assert called["n"] == 0                                # 沒走一般 compose_reply
 
 
+class _FakePhoto:
+    async def get_file(self):
+        class _F:
+            async def download_as_bytearray(self):
+                return bytearray(b"IMG")
+        return _F()
+
+
+def test_photo_caption_skips_code_delegation(monkeypatch):
+    # 附圖+caption（程式委派看不到圖）→ 不進純文字程式委派分類，改走 compose_reply 視覺問答帶圖
+    _base(monkeypatch)
+    monkeypatch.setattr(config, "ALLOWLIST_USER_IDS", {6803})
+    monkeypatch.setattr(config, "IMAGE_GEN_ENABLED", False)
+    monkeypatch.setattr(config, "BROWSE_ENABLED", False)
+    classified = {"n": 0}
+    monkeypatch.setattr(bot.code_delegate, "classify",
+                        lambda t: classified.__setitem__("n", classified["n"] + 1) or "projx")
+    captured = {}
+
+    def _compose(uid, text, image_bytes=None, *a, **k):
+        captured["image"] = image_bytes
+        return "看圖回答"
+
+    monkeypatch.setattr(bot, "compose_reply", _compose)
+    msg, sent = _msg(None)
+    msg.caption = "我附圖的這個呼叫上限什麼時候會重置呢？"
+    msg.photo = [_FakePhoto()]
+    update, ctx = _update(msg, 6803, "Owner")
+    asyncio.run(bot.handle_message(update, ctx))
+    assert classified["n"] == 0                            # 沒進程式委派分類
+    assert captured.get("image") == b"IMG"                 # 走視覺問答帶圖
+    assert sent[-1] == "看圖回答"
+
+
 def test_classify_none_falls_through(monkeypatch):
     _base(monkeypatch)
     monkeypatch.setattr(config, "ALLOWLIST_USER_IDS", {6803})

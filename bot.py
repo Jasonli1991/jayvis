@@ -468,7 +468,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             return
 
     # 生圖：owner 私訊明確要圖時（bot 端關鍵字觸發，確定性；LLM 只負責把需求轉成 prompt）
-    if config.IMAGE_GEN_ENABLED and is_owner(user.id) and not is_group and _looks_like_image_request(text):
+    # 附圖/檔時跳過——這類訊息是「關於那張圖」，該走視覺問答；生圖看不到參考圖。
+    if (config.IMAGE_GEN_ENABLED and is_owner(user.id) and not is_group
+            and not msg.photo and msg.document is None and _looks_like_image_request(text)):
         _log.info("🎨 生圖 %s：%s", _who(user), _preview(text))
         await msg.reply_text("好，幫你畫，稍等…")
         try:
@@ -488,8 +490,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await notify_owner_error(context.bot, e, where="生圖")
         return
 
-    # 程式問題委派給 Agent（headless Claude Code）：owner 隨時／同事僅 owner 請假時；私訊、文字
-    if (text and not is_group and config.CODE_ROOT
+    # 程式問題委派給 Agent（headless Claude Code）：owner 隨時／同事僅 owner 請假時；私訊、純文字
+    # 附圖/檔時跳過——Agent 是純文字的、看不到圖；截圖+問題該走視覺問答（compose_reply 看得到圖）。
+    if (text and not is_group and config.CODE_ROOT and not msg.photo and msg.document is None
             and (is_owner(user.id) or env_io.is_on_leave())):
         proj = code_delegate.classify(text)
         if proj:

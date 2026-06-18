@@ -261,3 +261,30 @@ def test_compose_quota_error_colleague_generic_and_notifies(monkeypatch):
     asyncio.run(bot.handle_message(update, ctx))
     assert sent["text"] != llm.QUOTA_MSG and "暫時有點狀況" in sent["text"]
     assert notified["n"] == 1
+
+
+def test_photo_with_draw_caption_skips_image_gen(monkeypatch):
+    # 附圖+「畫」字 caption → 不誤觸生圖（生圖看不到參考圖），改走視覺問答帶圖
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 777)
+    monkeypatch.setattr(config, "ALLOWLIST_USER_IDS", {777})
+    monkeypatch.setattr(config, "MEDIA_ENABLED", False)
+    monkeypatch.setattr(config, "IMAGE_GEN_ENABLED", True)
+    monkeypatch.setattr(config, "ACTIONS_ENABLED", False)
+    monkeypatch.setattr(config, "EMAIL_ENABLED", False)
+    monkeypatch.setattr(config, "BROWSE_ENABLED", False)
+    monkeypatch.setattr(config, "CODE_ROOT", "")
+    gen = {"n": 0}
+    monkeypatch.setattr(bot.image_gen, "craft_prompt",
+                        lambda *a, **k: gen.__setitem__("n", gen["n"] + 1) or "p")
+    captured = {}
+
+    def _compose(uid, text, image_bytes=None, *a, **k):
+        captured["image"] = image_bytes
+        return "看圖回答"
+
+    monkeypatch.setattr(bot, "compose_reply", _compose)
+    msg, sent = _msg(photo=[_FakeDoc(b"IMG", "photo.jpg")], caption="幫我畫一張類似這樣的")
+    update, ctx = _update_ctx(msg)
+    asyncio.run(bot.handle_message(update, ctx))
+    assert gen["n"] == 0                       # 沒進生圖
+    assert captured.get("image") == b"IMG"     # 走視覺問答帶圖
