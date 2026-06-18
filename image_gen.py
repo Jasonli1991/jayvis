@@ -25,17 +25,22 @@ _CRAFT_SYS = (
     "- 一般圖：輸出英文畫面描述（具體、可加風格詞）。\n"
     "- 梗圖：輸出「英文畫面描述|中文字幕」——用半形 | 分隔，左邊只描述畫面（別把字寫進畫面），"
     "右邊是要疊在圖上的字幕。\n"
+    "- 若需求含需靠對話理解的指涉（如『三大天王』『那張』『剛剛說的』），請依提供的『近期對話』"
+    "判斷實際所指（例如對話在談被動元件，『三大天王』就是電阻/電容/電感 resistor/capacitor/inductor）。\n"
     "例：『畫一隻在月球的貓』→ a cute cat sitting on the moon, starry sky, digital art\n"
     "例：『做個SpaceX暴跌的梗圖』→ a Falcon 9 rocket crashing into the sea, exhaust as a red falling "
     "stock chart, dramatic|暴跌啦"
 )
 
 
-def craft_prompt(request: str) -> str:
-    """把中文生圖需求轉成 Pollinations 提示（`畫面` 或 `畫面|字幕`）。失敗回空字串。"""
+def craft_prompt(request: str, context: str = "") -> str:
+    """把中文生圖需求轉成 Pollinations 提示（`畫面` 或 `畫面|字幕`）。
+    context 為近期對話文字，供解析『三大天王』之類的指涉。失敗回空字串。"""
+    user_msg = (f"近期對話（供你理解指涉）：\n{context}\n\n生圖需求：{request or ''}"
+                if context else (request or ""))
     try:
         raw = _llm_generate(model=config.MODEL_GENERAL, system=_CRAFT_SYS,
-                            messages=[{"role": "user", "content": request or ""}],
+                            messages=[{"role": "user", "content": user_msg}],
                             max_output_tokens=200)
     except Exception:
         return ""

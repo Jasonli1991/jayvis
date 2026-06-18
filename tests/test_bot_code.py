@@ -423,13 +423,14 @@ def _img_gates(monkeypatch):
     monkeypatch.setattr(bot, "is_owner", lambda uid: uid == 6803)
     monkeypatch.setattr(bot.code_delegate, "classify", lambda t: None)
     monkeypatch.setattr(bot, "_cooldown_exempt", lambda u: True)
+    monkeypatch.setattr(bot.memory, "recent", lambda *a, **k: [])   # _recent_context 用
 
 
 def test_image_request_owner_generates(monkeypatch):
     # owner 明確要圖（關鍵字觸發）→ craft_prompt + generate + 送圖。
     _base(monkeypatch)
     _img_gates(monkeypatch)
-    monkeypatch.setattr(bot.image_gen, "craft_prompt", lambda t: "a cat on the moon")
+    monkeypatch.setattr(bot.image_gen, "craft_prompt", lambda *a, **k: "a cat on the moon")
     gen = []
     monkeypatch.setattr(bot.image_gen, "generate", lambda p: gen.append(p) or b"PNG")
     photos = []
@@ -444,7 +445,7 @@ def test_image_request_owner_generates(monkeypatch):
 def test_image_request_gen_fails_fallback(monkeypatch):
     _base(monkeypatch)
     _img_gates(monkeypatch)
-    monkeypatch.setattr(bot.image_gen, "craft_prompt", lambda t: "a cat")
+    monkeypatch.setattr(bot.image_gen, "craft_prompt", lambda *a, **k: "a cat")
     monkeypatch.setattr(bot.image_gen, "generate", lambda p: None)
     photos = []
     msg, sent = _msg("畫一隻貓")
@@ -460,7 +461,7 @@ def test_image_request_colleague_no_gen(monkeypatch):
     _base(monkeypatch)
     _img_gates(monkeypatch)
     crafted = []
-    monkeypatch.setattr(bot.image_gen, "craft_prompt", lambda t: crafted.append(t) or "x")
+    monkeypatch.setattr(bot.image_gen, "craft_prompt", lambda *a, **k: crafted.append(a) or "x")
     monkeypatch.setattr(bot, "compose_reply", lambda *a, **k: "一般回覆")
     msg, sent = _msg("幫我畫一隻貓")
     upd, ctx = _update(msg, 555)
@@ -473,7 +474,7 @@ def test_normal_question_skips_image_gate(monkeypatch):
     _base(monkeypatch)
     _img_gates(monkeypatch)
     crafted = []
-    monkeypatch.setattr(bot.image_gen, "craft_prompt", lambda t: crafted.append(t) or "x")
+    monkeypatch.setattr(bot.image_gen, "craft_prompt", lambda *a, **k: crafted.append(a) or "x")
     monkeypatch.setattr(bot, "compose_reply", lambda *a, **k: "一般文字回覆")
     msg, sent = _msg("台積電今天股價多少")
     upd, ctx = _update(msg, 6803)

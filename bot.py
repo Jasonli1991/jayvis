@@ -85,6 +85,16 @@ def _looks_like_image_request(text: str) -> bool:
     return bool(_IMG_REQ_RE.search(t))
 
 
+def _recent_context(uid: int, n: int = 4) -> str:
+    """最近 n 輪對話的精簡文字，供生圖解析『三大天王』之類的指涉。"""
+    try:
+        turns = memory.recent(uid)[-n * 2:]
+        return "\n".join(f"{'我' if t.get('role') == 'user' else '助理'}："
+                         f"{(t.get('content') or '')[:120]}" for t in turns)
+    except Exception:
+        return ""
+
+
 def _is_confirm_reply(text: str) -> bool:
     return (text or "").strip() in ("確認", "好", "可以", "yes", "y", "取消", "不要", "no", "n")
 
@@ -461,7 +471,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await msg.reply_text("好，幫你畫，稍等…")
         try:
             t0 = time.time()
-            prompt = await asyncio.to_thread(image_gen.craft_prompt, text)
+            ctx = _recent_context(user.id)            # 帶近期對話，讓「三大天王」之類指涉解析正確
+            prompt = await asyncio.to_thread(image_gen.craft_prompt, text, ctx)
             _log.info("🎨 prompt：%s", _preview(prompt) or "（空）")
             img = await asyncio.to_thread(image_gen.generate, prompt) if prompt else None
             if img:
