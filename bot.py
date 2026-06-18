@@ -29,9 +29,11 @@ from panel import env_io
 
 logging.basicConfig(level=logging.INFO)
 # 第三方 INFO 噪音：httpx 每次 long-poll 都印一行（且 URL 內含 bot token！）、
-# telegram.ext 的 Application started/stopping/stop() complete 生命週期、apscheduler 排程。
+# telegram.ext 的 Application started/stopping/stop() complete 生命週期、apscheduler 排程、
+# google-genai 每次呼叫印「AFC is enabled…」（我們沒用 function calling、純噪音）。
 # 壓到 WARNING：保留真正的警告/錯誤，砍掉每次重啟的洗版與 token 落地 bot.log。
-_QUIET_LOGGERS = ("httpx", "httpcore", "telegram", "apscheduler")
+_QUIET_LOGGERS = ("httpx", "httpcore", "telegram", "apscheduler",
+                  "google_genai", "google.genai", "google")
 for _n in _QUIET_LOGGERS:
     logging.getLogger(_n).setLevel(logging.WARNING)
 _log = logging.getLogger("jayvis")
