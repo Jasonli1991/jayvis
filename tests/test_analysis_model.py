@@ -20,8 +20,8 @@ def test_api_analyze_passes_live_env_model(tmp_path, monkeypatch):
     envf.write_text("MODEL_CODE=gemini-2.5-flash\n", encoding="utf-8")
     monkeypatch.setattr(env_io, "ENV_PATH", str(envf))
     seen = {}
-    monkeypatch.setattr(app_mod.analysis, "analyze",
-                        lambda q, model=None: seen.update(q=q, model=model) or {"answer": "a", "sources": []})
+    monkeypatch.setattr(app_mod.analysis, "generate_report",
+                        lambda q, model=None: seen.update(q=q, model=model) or {"ok": False, "error": "x"})
     r = app_mod.app.test_client().post("/api/analyze", json={"query": "測試"})
     assert r.status_code == 200
     assert seen["model"] == "gemini-2.5-flash"

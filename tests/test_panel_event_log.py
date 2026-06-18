@@ -23,9 +23,10 @@ def test_analyze_logs_event(monkeypatch):
     events = []
     monkeypatch.setattr(app_mod.botctl, "log_event", lambda m: events.append(m))
     monkeypatch.setattr(app_mod.env_io, "read_models", lambda: {"code": "m"})
-    monkeypatch.setattr(app_mod.analysis, "analyze",
-                        lambda q, model=None: {"answer": "分析結果文字", "sources": ["a", "b"]})
+    monkeypatch.setattr(app_mod.analysis, "generate_report",
+                        lambda q, model=None: {"ok": True, "path": "/x/r.html", "filename": "2026-analysis-x.html"})
+    monkeypatch.setattr(app_mod.webbrowser, "open", lambda u: None)
     r = app_mod.app.test_client().post("/api/analyze", json={"query": "幫我分析最近的爬蟲問題"},
                                        headers={"Origin": "http://127.0.0.1:8765"})
     assert r.status_code == 200
-    assert any("分析" in e and "來源" in e for e in events)
+    assert any("分析報告" in e for e in events)

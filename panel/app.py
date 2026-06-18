@@ -16,6 +16,8 @@ logging.getLogger("werkzeug").setLevel(logging.ERROR)
 import webview
 from flask import Flask, jsonify, request, send_from_directory
 
+import webbrowser
+
 import config
 import llm
 import memory
@@ -541,9 +543,14 @@ def api_analyze():
     q = (d.get("query") or "").strip()
     if not q:
         return jsonify({"error": "empty"}), 400
-    model = env_io.read_models()["code"]          # 即時讀 .env（改了不必重啟面板）
-    result = analysis.analyze(q, model=model)
-    preview = q[:30] + ("…" if len(q) > 30 else "")
-    botctl.log_event(f"🔍 分析：{preview} → {len(str(result.get('answer', '')))} 字"
-                     f"（{len(result.get('sources') or [])} 來源）")
+    model = env_io.read_models()["code"]          # 即時讀 .env（程式高階模型）
+    result = analysis.generate_report(q, model=model)
+    if result.get("ok") and result.get("path"):
+        try:
+            webbrowser.open("file://" + result["path"])    # 生完自動用瀏覽器開啟
+        except Exception:
+            pass
+        botctl.log_event(f"📊 分析報告 → {result.get('filename')}")
+    else:
+        botctl.log_event(f"📊 分析失敗：{result.get('error', '')}")
     return jsonify(result)
