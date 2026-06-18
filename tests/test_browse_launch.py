@@ -77,3 +77,28 @@ def test_shutdown_pattern_is_profile_path(monkeypatch):
     # pattern 用完整路徑、不以 - 開頭（避免 macOS pkill 把它當參數）
     assert cap["args"] == ["pkill", "-f", "/Users/x/.n/chrome-browse-profile"]
     assert not cap["args"][2].startswith("-")
+
+
+def test_launch_if_enabled_off(monkeypatch):
+    # 未啟用瀏覽 → 不啟動 Chrome
+    monkeypatch.setattr(config, "BROWSE_ENABLED", False)
+    called = {"n": 0}
+    monkeypatch.setattr(bl, "launch", lambda *a, **k: called.__setitem__("n", 1) or True)
+    assert bl.launch_if_enabled() is False
+    assert called["n"] == 0
+
+
+def test_launch_if_enabled_on(monkeypatch):
+    # 啟用瀏覽 → 啟動 Chrome（啟動時重放 toggle ON 做的事）
+    monkeypatch.setattr(config, "BROWSE_ENABLED", True)
+    monkeypatch.setattr(bl, "launch", lambda *a, **k: True)
+    assert bl.launch_if_enabled() is True
+
+
+def test_launch_if_enabled_swallows_error(monkeypatch):
+    # 缺 playwright/Chromium 等 → 安靜略過、不拋（面板啟用流程會引導安裝）
+    monkeypatch.setattr(config, "BROWSE_ENABLED", True)
+    def boom(*a, **k):
+        raise RuntimeError("playwright not installed")
+    monkeypatch.setattr(bl, "launch", boom)
+    assert bl.launch_if_enabled() is False

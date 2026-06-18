@@ -103,6 +103,17 @@ def launch(wait_s: float = 20.0) -> bool:
     return cdp_alive()
 
 
+def launch_if_enabled() -> bool:
+    """面板啟動時用：若 BROWSE_ENABLED 為真就拉起專用 Chromium（重放 toggle ON 的動作），
+    讓重開/重啟後不必再手動切開關。缺 playwright/Chromium 等 → 安靜略過、不拋。回是否就緒。"""
+    if not config.BROWSE_ENABLED:
+        return False
+    try:
+        return launch()
+    except Exception:
+        return False
+
+
 def shutdown() -> None:
     """關閉專用 Chromium。pattern 用完整 profile 路徑（不以 - 開頭，避免 macOS pkill 報錯），
     只殺帶這個 user-data-dir 的程序，不動到個人 Chrome。"""
