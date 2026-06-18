@@ -79,6 +79,23 @@ def test_shutdown_pattern_is_profile_path(monkeypatch):
     assert not cap["args"][2].startswith("-")
 
 
+def test_launch_forces_software_rendering_and_clean_relaunch(monkeypatch):
+    # 針對 AGXMetalG13X 崩潰：強制 SwiftShader 軟體渲染、避開 Metal；並加乾淨重啟 flag
+    monkeypatch.setattr(bl, "chromium_path", lambda: "/cache/Chromium")
+    states = iter([False, True])
+    monkeypatch.setattr(bl, "cdp_alive", lambda timeout=1.0: next(states))
+    cap = {}
+    monkeypatch.setattr(bl.subprocess, "Popen", lambda args, **k: cap.update(args=args))
+    bl.launch(wait_s=2)
+    a = cap["args"]
+    assert "--use-angle=swiftshader" in a          # 純 CPU 繪圖，不走 Metal
+    assert "--use-gl=angle" in a
+    assert "--disable-gpu-compositing" in a
+    assert "--disable-session-crashed-bubble" in a  # 崩潰後重啟不跳「還原分頁？」
+    assert "--noerrdialogs" in a
+    assert "--disable-hang-monitor" in a
+
+
 def test_launch_opens_landing_page(monkeypatch):
     # 專用瀏覽器一開就停在「請勿關閉」說明頁
     monkeypatch.setattr(bl, "chromium_path", lambda: "/cache/Chromium")

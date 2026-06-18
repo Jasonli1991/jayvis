@@ -93,8 +93,12 @@ def launch(wait_s: float = 20.0) -> bool:
          "--disable-backgrounding-occluded-windows",
          "--disable-features=CalculateNativeWinOcclusion",
          "--disable-renderer-backgrounding",
-         # 軟體渲染：避開 macOS Metal GPU 崩潰（自動化瀏覽器更穩，截圖照常）
-         "--disable-gpu",
+         # 軟體渲染：避開 macOS Metal GPU 崩潰（AGXMetalG13X 仍會被載入 → 主執行緒 segfault）。
+         # --disable-gpu 只關內容繪圖；再用 SwiftShader 純 CPU 繪圖、關 GPU 合成，盡量不碰 Metal。
+         "--disable-gpu", "--use-gl=angle", "--use-angle=swiftshader",
+         "--disable-gpu-compositing",
+         # 乾淨重啟：崩潰後重開不跳「還原分頁？」、不被錯誤對話框/無回應監視器中斷自動化
+         "--disable-session-crashed-bubble", "--noerrdialogs", "--disable-hang-monitor",
          _LANDING_URL],                          # 開機停在「請勿關閉」說明頁
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
