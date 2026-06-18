@@ -97,15 +97,39 @@ def test_launch_forces_software_rendering_and_clean_relaunch(monkeypatch):
 
 
 def test_launch_opens_landing_page(monkeypatch):
-    # 專用瀏覽器一開就停在「請勿關閉」說明頁
+    # 著陸頁只在 headed（登入）視窗出現
     monkeypatch.setattr(bl, "chromium_path", lambda: "/cache/Chromium")
     states = iter([False, True])
     monkeypatch.setattr(bl, "cdp_alive", lambda timeout=1.0: next(states))
     cap = {}
     monkeypatch.setattr(bl.subprocess, "Popen", lambda args, **k: cap.update(args=args))
-    bl.launch(wait_s=2)
+    bl.launch(headless=False, wait_s=2)
     last = cap["args"][-1]
     assert last.startswith("file://") and last.endswith("browse_landing.html")
+
+
+def test_launch_headless_adds_flag_no_landing(monkeypatch):
+    monkeypatch.setattr(bl, "chromium_path", lambda: "/cache/Chromium")
+    states = iter([False, True])
+    monkeypatch.setattr(bl, "cdp_alive", lambda timeout=1.0: next(states))
+    cap = {}
+    monkeypatch.setattr(bl.subprocess, "Popen", lambda args, **k: cap.update(args=args))
+    bl.launch(headless=True, wait_s=2)
+    a = cap["args"]
+    assert "--headless=new" in a
+    assert not any(str(x).endswith("browse_landing.html") for x in a)   # headless 不開著陸頁
+
+
+def test_launch_headed_has_landing_no_headless(monkeypatch):
+    monkeypatch.setattr(bl, "chromium_path", lambda: "/cache/Chromium")
+    states = iter([False, True])
+    monkeypatch.setattr(bl, "cdp_alive", lambda timeout=1.0: next(states))
+    cap = {}
+    monkeypatch.setattr(bl.subprocess, "Popen", lambda args, **k: cap.update(args=args))
+    bl.launch(headless=False, wait_s=2)
+    a = cap["args"]
+    assert "--headless=new" not in a
+    assert any(str(x).endswith("browse_landing.html") for x in a)
 
 
 def test_launch_if_enabled_off(monkeypatch):

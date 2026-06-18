@@ -80,28 +80,29 @@ def start_install() -> dict:
     return {"installing": True}
 
 
-def launch(wait_s: float = 20.0) -> bool:
-    """啟動專用 Chromium（headed，帶偵錯埠）。已就緒就直接回 True。回傳 CDP 是否就緒。"""
+def launch(headless: bool = True, wait_s: float = 20.0) -> bool:
+    """啟動專用 Chromium。預設 headless（無視窗，給 bot 自動化，根治 macOS AppKit/Metal 崩潰）；
+    headless=False 開可見視窗供使用者登入網站。已就緒就直接回 True。回傳 CDP 是否就緒。"""
     if cdp_alive():
         return True
     exe = chromium_path()                        # 未安裝會丟例外 → 由呼叫端處理
-    subprocess.Popen(
-        [exe, f"--remote-debugging-port={_port()}",
-         f"--user-data-dir={config.BROWSE_PROFILE_DIR}",
-         "--no-first-run", "--no-default-browser-check",
-         # 視窗被遮擋/背景時仍持續合成，否則 headed 截圖會卡死（occlusion 節流）
-         "--disable-backgrounding-occluded-windows",
-         "--disable-features=CalculateNativeWinOcclusion",
-         "--disable-renderer-backgrounding",
-         # 軟體渲染：避開 macOS Metal GPU 崩潰（AGXMetalG13X 仍會被載入 → 主執行緒 segfault）。
-         # --disable-gpu 只關內容繪圖；再用 SwiftShader 純 CPU 繪圖、關 GPU 合成，盡量不碰 Metal。
-         "--disable-gpu", "--use-gl=angle", "--use-angle=swiftshader",
-         "--disable-gpu-compositing",
-         # 乾淨重啟：崩潰後重開不跳「還原分頁？」、不被錯誤對話框/無回應監視器中斷自動化
-         "--disable-session-crashed-bubble", "--noerrdialogs", "--disable-hang-monitor",
-         _LANDING_URL],                          # 開機停在「請勿關閉」說明頁
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )
+    args = [exe, f"--remote-debugging-port={_port()}",
+            f"--user-data-dir={config.BROWSE_PROFILE_DIR}",
+            "--no-first-run", "--no-default-browser-check",
+            # 視窗被遮擋/背景時仍持續合成，否則 headed 截圖會卡死（occlusion 節流）
+            "--disable-backgrounding-occluded-windows",
+            "--disable-features=CalculateNativeWinOcclusion",
+            "--disable-renderer-backgrounding",
+            # 軟體渲染：避開 macOS Metal（AGXMetalG13X）崩潰；SwiftShader 純 CPU 繪圖、關 GPU 合成
+            "--disable-gpu", "--use-gl=angle", "--use-angle=swiftshader",
+            "--disable-gpu-compositing",
+            # 乾淨重啟：崩潰後重開不跳「還原分頁？」、不被錯誤對話框/無回應監視器中斷
+            "--disable-session-crashed-bubble", "--noerrdialogs", "--disable-hang-monitor"]
+    if headless:
+        args.append("--headless=new")            # 無視窗：bot 自動化用
+    else:
+        args.append(_LANDING_URL)                # 可見登入視窗：停在登入說明頁
+    subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     deadline = time.time() + wait_s
     while time.time() < deadline:
         if cdp_alive():
