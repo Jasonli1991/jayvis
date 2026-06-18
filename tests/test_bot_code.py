@@ -486,6 +486,10 @@ def test_looks_like_image_request_precision():
     assert bot._looks_like_image_request("幫我畫一隻貓")
     assert bot._looks_like_image_request("做個梗圖")
     assert bot._looks_like_image_request("來張海報")
+    assert bot._looks_like_image_request("可以幫我做一張三大天王的圖嗎？")   # 動詞+隔字+圖
+    assert bot._looks_like_image_request("幫我生一張端午節的圖片")
     assert not bot._looks_like_image_request("這個計畫怎麼安排")   # 「計畫」不誤觸發
     assert not bot._looks_like_image_request("畫面看起來怪怪的")   # 「畫面」不誤觸發
+    assert not bot._looks_like_image_request("幫我看這張圖")        # 看圖≠生圖
+    assert not bot._looks_like_image_request("圖書館在哪")
     assert not bot._looks_like_image_request("台積電股價")

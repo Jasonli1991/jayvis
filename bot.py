@@ -71,14 +71,16 @@ def _looks_like_browse(text: str) -> bool:
 
 # 明確要圖的關鍵字（精準到詞，避免「計畫」「畫面」誤觸發）
 _IMG_REQ_HINT = ("畫一", "畫個", "畫張", "畫幅", "畫出", "幫我畫", "幫忙畫", "繪製",
-                 "生成圖", "生成一張", "生一張", "生張圖", "做張圖", "做一張圖", "做個圖", "做個梗圖",
-                 "來張", "來一張", "梗圖", "插圖", "海報", "貼圖", "logo",
-                 "給我一張", "給我張", "配張圖")
+                 "梗圖", "插圖", "海報", "貼圖", "logo")
+# 「動詞 + （中間幾個字）+ 圖」彈性比對：抓「做一張三大天王的圖」「幫我生一張…的圖片」等自然講法
+_IMG_REQ_RE = re.compile(r"(畫|做|生成|產生|弄|設計|給我|來|幫我做|幫我畫|幫我生).{0,12}?(圖|圖片|圖像|插畫)")
 
 
 def _looks_like_image_request(text: str) -> bool:
     t = (text or "").lower()
-    return any(h in t for h in _IMG_REQ_HINT)
+    if any(h in t for h in _IMG_REQ_HINT):
+        return True
+    return bool(_IMG_REQ_RE.search(t))
 
 
 def _is_confirm_reply(text: str) -> bool:
