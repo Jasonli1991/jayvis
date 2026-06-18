@@ -4,7 +4,7 @@ import assistant
 def test_build_owner_system_framing():
     s = assistant.build_owner_system("", "")
     assert "本人" in s                         # 本人框架
-    assert "這不是從你的知識庫來的" in s        # 來源註明
+    assert "一般知識" in s                       # 可用一般知識答（不再硬性來源免責）
     assert "不要編造" in s                       # 不編造個人事實
     assert "代表他回答同事" not in s             # 不含對外代言
 

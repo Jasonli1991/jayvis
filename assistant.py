@@ -179,7 +179,7 @@ def compose_reply(sender_id: int, incoming: str, image_bytes: Optional[bytes] = 
     reply = generate(model=model, system=system, messages=messages,
                      image_bytes=image_bytes, max_output_tokens=2048)
     # reply 可能含 [[圖：...]] 配圖標記；入庫/Inbox 一律用剝除標記後的乾淨版（回傳值仍保留標記給 bot）
-    clean = image_gen.split_marker(reply)[0]
+    clean = image_gen.split_marker(reply)[0] or "[圖片]"   # 純圖回覆 → 存佔位，免空白輪次
 
     if not in_group:
         alias = config.ALLOWLIST_ALIASES.get(sender_id) or (

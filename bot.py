@@ -454,15 +454,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         reply = await asyncio.to_thread(compose_reply, user.id, text, image_bytes, group_context,
                                         user.full_name)
         text_out, img_prompt = image_gen.split_marker(reply)
-        await msg.reply_text(text_out)
-        _log.info("💬 已回覆 %s（%d 字）", _who(user), len(text_out or ""))
-        if is_group:
-            group_memory.record(chat.id, config.ASSISTANT_NAME, text_out)
+        if text_out:                                   # 純圖回覆（只有標記）→ text_out 為空，別送空訊息
+            await msg.reply_text(text_out)
+            _log.info("💬 已回覆 %s（%d 字）", _who(user), len(text_out))
+            if is_group:
+                group_memory.record(chat.id, config.ASSISTANT_NAME, text_out)
         # owner 私訊且開關開、且回覆帶配圖標記 → Pollinations 生圖傳 TG（失敗只少一張圖）
+        sent_img = False
         if config.IMAGE_GEN_ENABLED and is_owner(user.id) and not is_group and img_prompt:
             img = await asyncio.to_thread(image_gen.generate, img_prompt)
             if img:
                 await context.bot.send_photo(chat_id=msg.chat_id, photo=BytesIO(img))
+                sent_img = True
+        if not text_out and not sent_img:              # 文字空又沒生出圖 → 至少回一句，別整個沉默/炸掉
+            await msg.reply_text("我想配張圖但這次生不出來，稍後再試一次 🙏")
     except Exception as e:
         _log.exception("compose_reply failed for user_id=%s", user.id)
         await msg.reply_text(f"抱歉，我這邊暫時有點狀況（可能是後端額度或連線問題），等一下再問我，或等 {config.OWNER_NAME} 回來確認 🙏")

@@ -439,6 +439,36 @@ def test_image_gen_owner_sends_photo(monkeypatch):
     assert len(photos) == 1                                       # 有送圖
 
 
+def test_image_only_reply_no_empty_text(monkeypatch):
+    # 純圖回覆（只有標記、無文字）→ 不可送空文字訊息（Telegram 會拒→例外）；只送圖。
+    _base(monkeypatch)
+    _img_gates(monkeypatch)
+    monkeypatch.setattr(bot, "compose_reply", lambda *a, **k: "[[圖：dragon boat]]")
+    monkeypatch.setattr(bot.image_gen, "generate", lambda p: b"PNG")
+    photos = []
+    msg, sent = _msg("給我一張端午節圖")
+    upd, ctx = _update(msg, 6803)
+    ctx.bot.send_photo = lambda **k: photos.append(k) or _async_none()
+    asyncio.run(bot.handle_message(upd, ctx))
+    assert "" not in sent              # 沒送空文字
+    assert len(photos) == 1            # 只送了圖
+
+
+def test_image_only_reply_gen_fails_gives_fallback(monkeypatch):
+    # 純圖回覆但生圖失敗 → 至少回一句 fallback，別整個沉默/炸掉。
+    _base(monkeypatch)
+    _img_gates(monkeypatch)
+    monkeypatch.setattr(bot, "compose_reply", lambda *a, **k: "[[圖：x]]")
+    monkeypatch.setattr(bot.image_gen, "generate", lambda p: None)
+    photos = []
+    msg, sent = _msg("給我一張圖")
+    upd, ctx = _update(msg, 6803)
+    ctx.bot.send_photo = lambda **k: photos.append(k) or _async_none()
+    asyncio.run(bot.handle_message(upd, ctx))
+    assert photos == []
+    assert any("生不出來" in s for s in sent)
+
+
 def test_image_gen_colleague_no_photo(monkeypatch):
     _base(monkeypatch)
     _img_gates(monkeypatch)
