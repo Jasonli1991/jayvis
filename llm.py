@@ -20,6 +20,12 @@ def is_quota_error(e) -> bool:
     return "429" in s or "resource_exhausted" in s or "quota" in s or "exceeded your current" in s
 
 
+def _openai_base_url() -> str:
+    """OpenAI 端點：空值明確用官方端點，避免空字串 OPENAI_BASE_URL 環境變數被 SDK 取走→空 URL。"""
+    base = (config.OPENAI_BASE_URL or "").strip()
+    return base if base else "https://api.openai.com/v1"
+
+
 def _provider_of(model: str) -> str:
     """依模型名判定供應商：claude-*→anthropic、gpt-*/o*→openai、gemini-*→google。
     其餘未知前綴：設了 OPENAI_BASE_URL（第三方相容端點，如 siraya）就走該端點，否則 google。"""
@@ -59,7 +65,7 @@ def _get_client(provider: str):
                     import openai
                     _clients[provider] = openai.OpenAI(
                         api_key=key,
-                        base_url=config.OPENAI_BASE_URL or None)   # None＝官方端點
+                        base_url=_openai_base_url())   # 空值明確用官方端點，避免空字串環境變數毒化
     return _clients[provider]
 
 

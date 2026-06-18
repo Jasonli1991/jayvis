@@ -165,3 +165,14 @@ def test_effective_max_tokens_does_not_lower():
 def test_effective_max_tokens_non_gemma_untouched():
     assert llm._effective_max_tokens("gemini-2.5-flash", 60) == 60
     assert llm._effective_max_tokens("claude-opus-4-8", 16) == 16
+
+
+# ── OpenAI base_url：空值用官方端點（避免空字串環境變數毒化）──────
+def test_openai_base_url_default_when_empty(monkeypatch):
+    monkeypatch.setattr(config, "OPENAI_BASE_URL", "")
+    assert llm._openai_base_url() == "https://api.openai.com/v1"
+
+
+def test_openai_base_url_respects_compat_endpoint(monkeypatch):
+    monkeypatch.setattr(config, "OPENAI_BASE_URL", "http://192.168.0.9:11435/v1")
+    assert llm._openai_base_url() == "http://192.168.0.9:11435/v1"
