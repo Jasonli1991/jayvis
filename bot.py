@@ -18,6 +18,7 @@ import group_memory
 import guard
 import inbox_capture
 import browse_agent
+import image_gen
 import browse_tool
 import browse_allowlist
 import code_delegate
@@ -452,10 +453,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await context.bot.send_chat_action(chat_id=msg.chat_id, action="typing")
         reply = await asyncio.to_thread(compose_reply, user.id, text, image_bytes, group_context,
                                         user.full_name)
-        await msg.reply_text(reply)
-        _log.info("💬 已回覆 %s（%d 字）", _who(user), len(reply or ""))
+        text_out, img_prompt = image_gen.split_marker(reply)
+        await msg.reply_text(text_out)
+        _log.info("💬 已回覆 %s（%d 字）", _who(user), len(text_out or ""))
         if is_group:
-            group_memory.record(chat.id, config.ASSISTANT_NAME, reply)
+            group_memory.record(chat.id, config.ASSISTANT_NAME, text_out)
+        # owner 私訊且開關開、且回覆帶配圖標記 → Pollinations 生圖傳 TG（失敗只少一張圖）
+        if config.IMAGE_GEN_ENABLED and is_owner(user.id) and not is_group and img_prompt:
+            img = await asyncio.to_thread(image_gen.generate, img_prompt)
+            if img:
+                await context.bot.send_photo(chat_id=msg.chat_id, photo=BytesIO(img))
     except Exception as e:
         _log.exception("compose_reply failed for user_id=%s", user.id)
         await msg.reply_text(f"抱歉，我這邊暫時有點狀況（可能是後端額度或連線問題），等一下再問我，或等 {config.OWNER_NAME} 回來確認 🙏")

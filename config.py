@@ -162,3 +162,9 @@ BROWSE_NAV_TIMEOUT_S = int(os.getenv("BROWSE_NAV_TIMEOUT_S", "30"))
 BROWSE_TMP_DIR = os.getenv("BROWSE_TMP_DIR", os.path.expanduser("~/.n/browse_tmp"))
 # 專用瀏覽設定檔（獨立 Chrome instance，與個人 Chrome 隔離；第一次需在該視窗登入要用的站）
 BROWSE_PROFILE_DIR = os.getenv("BROWSE_PROFILE_DIR", os.path.expanduser("~/.n/chrome-browse-profile"))
+
+# ── 助理自動配圖（Pollinations.AI）──────────────────────────
+IMAGE_GEN_ENABLED = os.getenv("IMAGE_GEN_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
+IMAGE_GEN_MODEL = os.getenv("IMAGE_GEN_MODEL", "flux")
+IMAGE_GEN_SIZE = int(os.getenv("IMAGE_GEN_SIZE", "1024"))
+IMAGE_GEN_TIMEOUT_S = int(os.getenv("IMAGE_GEN_TIMEOUT_S", "45"))

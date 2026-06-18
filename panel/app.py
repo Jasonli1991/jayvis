@@ -274,6 +274,18 @@ def api_actions_post():
     return jsonify({"ok": True})
 
 
+@app.get("/api/image-gen/enabled")
+def api_image_gen_get():
+    return jsonify({"enabled": env_io.read_image_gen_enabled()})
+
+
+@app.post("/api/image-gen/enabled")
+def api_image_gen_post():
+    d = request.get_json(force=True) or {}
+    env_io.write_image_gen_enabled(bool(d.get("enabled")))
+    return jsonify({"ok": True})
+
+
 @app.get("/api/libreoffice")
 def api_libreoffice_get():
     return jsonify(libreoffice.status())
