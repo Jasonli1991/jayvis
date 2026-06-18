@@ -50,7 +50,8 @@ def test_openai_client_default_base_url_when_unset(monkeypatch):
     monkeypatch.setattr(llm, "_clients", {})
     monkeypatch.setattr(openai_mod, "OpenAI", lambda **kw: calls.update(kw) or object())
     llm._get_client("openai")
-    assert calls.get("base_url") is None        # None＝官方預設端點
+    # 明確帶官方端點（不傳 None）：避免空字串 OPENAI_BASE_URL 環境變數被 SDK 取走→空 URL
+    assert calls.get("base_url") == "https://api.openai.com/v1"
 
 
 # ── 分派 ─────────────────────────────────────────────────────
