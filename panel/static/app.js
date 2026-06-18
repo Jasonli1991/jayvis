@@ -467,9 +467,11 @@ async function loadModels() {
   $("md-general").value = m.general; $("md-code").value = m.code;
   $("md-threshold").value = m.threshold; _showThreshold();
   $("md-baseurl").value = m.openai_base_url || "";
+  loadProviderModels();
 }
-// 本地模型下拉（自繪，避免 pywebview/WebKit 原生 <datalist> 定位 bug）
+// 模型下拉（自繪，避免 pywebview/WebKit 原生 <datalist> 定位 bug）
 let _ollamaModels = [];
+let _cloudModels = [];   // 三家雲端（Google/Anthropic/OpenAI）對話模型
 
 function _attachModelPicker(input) {
   const field = input.closest(".field");
@@ -478,7 +480,7 @@ function _attachModelPicker(input) {
   field.appendChild(menu);
   const render = () => {
     const q = input.value.trim().toLowerCase();
-    const items = _ollamaModels.filter(m => m.toLowerCase().includes(q));
+    const items = [...new Set([..._cloudModels, ..._ollamaModels])].filter(m => m.toLowerCase().includes(q));
     menu.innerHTML = "";
     if (!items.length) { menu.hidden = true; return; }
     items.forEach(m => {
@@ -509,7 +511,13 @@ async function loadOllamaModels() {
     else hint.textContent = `本地端點 ${_ollamaModels.length} 個模型可選（點欄位選）`;
   } catch (e) { hint.textContent = "讀取失敗"; }
 }
-$("md-refresh-models").onclick = loadOllamaModels;
+async function loadProviderModels() {
+  try {
+    const d = await getJSON("/api/provider-models");
+    _cloudModels = d.models || [];
+  } catch (e) { _cloudModels = []; }
+}
+$("md-refresh-models").onclick = () => { loadProviderModels(); loadOllamaModels(); };
 $("md-baseurl").addEventListener("change", loadOllamaModels);   // 打完 URL 失焦即自動撈（免儲存）
 
 async function loadLlmKeys() {
