@@ -165,6 +165,14 @@ def compose_reply(sender_id: int, incoming: str, image_bytes: Optional[bytes] = 
         if _blk:
             system += "\n\n" + _blk
 
+    if owner_mode and in_group:                     # 群組裡動作工具受限 → 誠實說，別假裝在執行
+        system += (
+            "\n\n## 群組限制（重要）\n"
+            "你現在在群組裡。瀏覽網站／截圖、行事曆、收發／讀信、程式委派、深度分析這些動作"
+            "只有在私訊我時才能執行，群組裡一律做不到。若我在群組要求這類動作，請誠實說這個要"
+            "私訊才能做、請我改用私訊，**絕對不要假裝你正在處理、排隊或稍後通知**。"
+            "（生圖、圖片去背／轉檔、時事查詢在群組可以正常用。）")
+
     # 同事（非 owner）且本輪無 KB 命中 → 覆蓋 persona「沒有就說資料不足」，改為盡力答但不編造個人事實
     if not owner_mode and not rag_context:
         system += "\n\n" + _NO_KB_FALLBACK.format(owner=config.OWNER_NAME)

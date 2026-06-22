@@ -197,6 +197,31 @@ def test_colleague_in_group_no_search(monkeypatch):
     assert called["n"] == 0                       # 同事在群組仍不觸發搜尋
 
 
+def test_owner_in_group_action_tool_guard(monkeypatch):
+    # owner 在群組要求瀏覽/截圖 → system 帶「群組做不到、別假裝在處理」守則；且不誤傷生圖/搜尋
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(config, "SEARCH_ENABLED", False)
+    monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(True))
+    monkeypatch.setattr(assistant.memory, "recall", lambda *a, **k: "")
+    seen = {}
+    _patch_common(monkeypatch, seen)
+    assistant.compose_reply(6803, "幫我截圖 ka2ka.com", group_context="群組脈絡")
+    sys = seen["system"]
+    assert "私訊" in sys and "瀏覽" in sys and "假裝" in sys      # 動作工具群組受限、別假裝在處理
+    assert "生圖" in sys and "時事查詢" in sys                    # 註明生圖/搜尋群組可用，不誤傷
+
+
+def test_owner_dm_no_group_guard(monkeypatch):
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(config, "SEARCH_ENABLED", False)
+    monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(True))
+    monkeypatch.setattr(assistant.memory, "recall", lambda *a, **k: "")
+    seen = {}
+    _patch_common(monkeypatch, seen)
+    assistant.compose_reply(6803, "幫我截圖 ka2ka.com")          # 私訊
+    assert "群組限制" not in seen["system"]                       # 私訊不掛群組守則
+
+
 # --- 動作工具自我認知 block ---
 import assistant as _a
 import config as _c
