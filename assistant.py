@@ -166,11 +166,15 @@ def compose_reply(sender_id: int, incoming: str, image_bytes: Optional[bytes] = 
     if not owner_mode and not rag_context:
         system += "\n\n" + _NO_KB_FALLBACK.format(owner=config.OWNER_NAME)
 
-    # owner 私訊：由 LLM 判斷該不該查（formulate_query）→ 要查才打 Tavily，把結果餵進 system。
+    # owner：由 LLM 判斷該不該查（formulate_query）→ 要查才打 Tavily，把結果餵進 system。
+    # 私訊或群組（owner 被 @）皆可，僅限本人。群組用群組脈絡判斷，避免私訊記憶混入搜尋。
     search_failed = False
-    if owner_mode and not in_group and config.SEARCH_ENABLED and config.TAVILY_API_KEY:
-        _sctx = "\n".join(f"{'我' if t.get('role') == 'user' else '助理'}："
-                          f"{(t.get('content') or '')[:100]}" for t in memory.recent(sender_id)[-6:])
+    if owner_mode and config.SEARCH_ENABLED and config.TAVILY_API_KEY:
+        if in_group:
+            _sctx = group_context or ""
+        else:
+            _sctx = "\n".join(f"{'我' if t.get('role') == 'user' else '助理'}："
+                              f"{(t.get('content') or '')[:100]}" for t in memory.recent(sender_id)[-6:])
         query = websearch.formulate_query(incoming, _sctx)
         if query:                                 # LLM 認為需要查 → 才搜
             hits = websearch.search(query)

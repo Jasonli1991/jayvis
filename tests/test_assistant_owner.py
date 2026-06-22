@@ -149,6 +149,43 @@ def test_colleague_no_search(monkeypatch):
     assert called["n"] == 0
 
 
+def test_owner_search_in_group_injects(monkeypatch):
+    # owner 本人在群組（被 @）也能查；判斷脈絡用群組脈絡，不用私訊記憶。
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(config, "SEARCH_ENABLED", True)
+    monkeypatch.setattr(config, "TAVILY_API_KEY", "x")
+    fq = {}
+    monkeypatch.setattr(assistant.websearch, "formulate_query",
+                        lambda message, context="": fq.update(ctx=context) or "q")
+    monkeypatch.setattr(assistant.websearch, "search",
+                        lambda q, n=5: [{"title": "SpaceX 新聞", "url": "http://x", "content": "獵鷹發射成功"}])
+    monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(True))
+    monkeypatch.setattr(assistant.memory, "recall", lambda *a, **k: "")
+    seen = {}
+    _patch_common(monkeypatch, seen)
+    out = assistant.compose_reply(6803, "今天 spaceX 新聞", group_context="群組脈絡")
+    assert out == "本人回覆"
+    assert "獵鷹發射成功" in seen["system"] and "http://x" in seen["system"]   # 群組也注入搜尋結果
+    assert fq["ctx"] == "群組脈絡"                                            # 用群組脈絡判斷，不混入私訊記憶
+
+
+def test_colleague_in_group_no_search(monkeypatch):
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(config, "SEARCH_ENABLED", True)
+    monkeypatch.setattr(config, "TAVILY_API_KEY", "x")
+    called = {"n": 0}
+    monkeypatch.setattr(assistant.websearch, "formulate_query",
+                        lambda *a, **k: called.__setitem__("n", called["n"] + 1) or "q")
+    monkeypatch.setattr(assistant.websearch, "search",
+                        lambda q, n=5: called.__setitem__("n", called["n"] + 1) or [])
+    monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(False, "ctx", ["obsidian"]))
+    monkeypatch.setattr(assistant.memory, "recall", lambda *a, **k: "")
+    seen = {}
+    _patch_common(monkeypatch, seen)
+    assistant.compose_reply(999, "今天台股怎樣", group_context="群組脈絡")     # 同事在群組
+    assert called["n"] == 0                       # 同事在群組仍不觸發搜尋
+
+
 # --- 動作工具自我認知 block ---
 import assistant as _a
 import config as _c
