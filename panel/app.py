@@ -21,6 +21,7 @@ from pathlib import Path
 
 import config
 import llm
+import leave_digest
 import memory
 import user_profile
 from panel import botctl, env_io, libreoffice
@@ -124,6 +125,18 @@ def api_leave_post():
     d = request.get_json(force=True)
     env_io.write_leave(d.get("leave_start", ""), d.get("leave_end", ""), d.get("focus", ""))
     return jsonify({"ok": True})
+
+
+@app.post("/api/leave/digest")
+def api_leave_digest():
+    """彙整請假期間同事項目+待辦 → 面板顯示並一併發 owner TG。容錯不 500。"""
+    try:
+        result = leave_digest.compile_digest(model=env_io.read_models()["code"])
+        if result.get("ok") and result.get("summary"):
+            result["tg_sent"] = leave_digest.send_to_owner("📋 請假期間彙整：\n\n" + result["summary"])
+        return jsonify(result)
+    except Exception:
+        return jsonify({"ok": False, "error": "彙整失敗，請稍後再試 🙏"})
 
 
 @app.get("/api/allowlist")
