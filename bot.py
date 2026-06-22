@@ -371,7 +371,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if not text and image_bytes is None:
         if env_io.is_on_leave():
-            await msg.reply_text(f"我是 {config.ASSISTANT_NAME}，{config.OWNER_NAME} 請假中；有問題可以直接打給我～")
+            await msg.reply_text(f"我是 {config.ASSISTANT_NAME}，{config.OWNER_NAME} 請假中；有問題可以直接發訊息給我～")
         else:
             await msg.reply_text(f"我是 {config.ASSISTANT_NAME}，{config.OWNER_NAME} 的 AI 助理～有什麼需要可以直接問我 😊")
         return
