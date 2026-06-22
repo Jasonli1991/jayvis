@@ -114,6 +114,22 @@ def timeline(person_id, n=50, conn=None):
             c.close()
 
 
+def conversations_between(start, end, exclude_person_id=None, conn=None):
+    """請假彙整用：撈 ts 區間 [start, end] 的對話（可排除某 person_id），依 ts 升冪。"""
+    c, own = _with_conn(conn)
+    try:
+        rows = c.execute(
+            "SELECT ts, person_alias, person_id, kind, content FROM memories "
+            "WHERE ts >= :s AND ts <= :e AND (:excl IS NULL OR person_id != :excl) "
+            "ORDER BY ts",
+            {"s": start, "e": end, "excl": exclude_person_id}).fetchall()
+        return [{"ts": r["ts"], "person_alias": r["person_alias"], "person_id": r["person_id"],
+                 "kind": r["kind"], "content": r["content"]} for r in rows]
+    finally:
+        if own:
+            c.close()
+
+
 def persons(conn=None):
     c, own = _with_conn(conn)
     try:
