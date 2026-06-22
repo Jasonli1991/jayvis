@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from pathlib import Path
 
 import obsidian_folders
@@ -62,6 +63,28 @@ def parse_frontmatter(text: str):
     meta = _parse_yaml_lite(lines[1:end])
     body = "\n".join(lines[end + 1:]).lstrip("\n")
     return meta, body
+
+
+def _parse_date(s):
+    s = (s or "").strip()
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            pass
+    return None
+
+
+def _note_event_time(meta, fpath):
+    """筆記日期：frontmatter updated/created/date 優先，退回檔案 mtime。"""
+    for key in ("updated", "created", "date"):
+        dt = _parse_date(str(meta.get(key) or ""))
+        if dt:
+            return dt
+    try:
+        return datetime.fromtimestamp(fpath.stat().st_mtime)
+    except Exception:
+        return None
 
 
 # ── 標題分節（H2+ 為邊界，H1 視為標題）────────────────────────────────────────
@@ -176,6 +199,7 @@ def ingest_dir(conn, vault_root, include_dirs=DEFAULT_DIRS) -> int:
     written = 0
     for fpath, rel in _scan_files(vault_root, include_dirs):         # Pass 2
         meta, body = parse_frontmatter(fpath.read_text(encoding="utf-8"))
+        ev = _note_event_time(meta, fpath)
         title = _note_title(meta, body, rel)
         tags = meta.get("tags") or []
         folder = obsidian_folders.label_for(rel)
@@ -186,7 +210,8 @@ def ingest_dir(conn, vault_root, include_dirs=DEFAULT_DIRS) -> int:
                 if s.blocked:
                     continue
                 rec = ChunkRecord(id=f"obsidian::{rel}::{sec_idx}::{sub_idx}",
-                                  source_type="obsidian", doc_path=rel, raw_text=s.text)
+                                  source_type="obsidian", doc_path=rel, raw_text=s.text,
+                                  event_time=ev)
                 if upsert_chunk(conn, rec):
                     written += 1
         seen_dst = set()
