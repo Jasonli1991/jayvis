@@ -444,6 +444,22 @@ $("src-code-save").onclick = () => withBusy($("src-code-save"), async () => {
 });
 
 // 記憶：儲存並重建索引（按下自動先存來源、再灌入知識庫）— busy 鎖鈕、完成/失敗有明確訊息
+// 注意：/api/backfill 非阻塞（開背景 thread 就回），所以要輪詢到背景真的跑完才算完成
+async function waitBackfill(maxMs) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < maxMs) {
+    await new Promise(r => setTimeout(r, 1000));
+    try {
+      const s = await getJSON("/api/status");
+      if (s.backfill) {
+        if (s.backfill.last) $("bf-msg").textContent = s.backfill.last;   // 顯示「執行中…」進度
+        if (!s.backfill.running) return s.backfill.last || "";            // 真的跑完才回
+      }
+    } catch (e) {}
+  }
+  return "";
+}
+
 const _bfBtns = [...document.querySelectorAll("[data-bf]")];
 _bfBtns.forEach(b => b.onclick = () => withBusy(b, async () => {
   const src = b.dataset.bf, others = _bfBtns.filter(x => x !== b);
@@ -453,7 +469,8 @@ _bfBtns.forEach(b => b.onclick = () => withBusy(b, async () => {
     await saveSources();
     $("bf-msg").textContent = src + " 重建索引中…（需時，請稍候）";
     await postJSON("/api/backfill/" + src);
-    flash($("bf-msg"), src + " 重建索引完成");
+    const last = await waitBackfill(180000);          // 等背景索引真的完成再報結果
+    flash($("bf-msg"), last || (src + " 重建索引完成"));
   } catch (e) { warn($("bf-msg"), src + " 重建索引失敗，請重試"); }
   finally { others.forEach(x => x.disabled = false); }
 }));

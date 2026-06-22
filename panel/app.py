@@ -487,6 +487,7 @@ def api_models_post():
 
 
 def _run_backfill(src):
+    botctl.log_event(f"🔄 重建索引 {src} 開始…")
     try:
         conn = get_conn()
         apply_schema(conn)
@@ -514,8 +515,10 @@ def _run_backfill(src):
             msg = f"github: 寫入 {n} chunks"
         conn.close()
         _backfill["last"] = msg
+        botctl.log_event(f"✅ 重建索引 {src}：{msg}")
     except Exception as e:
         _backfill["last"] = f"{src} 失敗: {e}"
+        botctl.log_event(f"⚠️ 重建索引 {src} 失敗：{e}")
     finally:
         _backfill["running"] = False
 
