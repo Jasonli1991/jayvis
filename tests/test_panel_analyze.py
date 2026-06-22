@@ -38,3 +38,27 @@ def test_analyze_error_not_500(monkeypatch):
 def test_analyze_empty_query():
     r = app.test_client().post("/api/analyze", json={"query": ""})
     assert r.status_code == 400
+
+
+def test_refine_generates_and_opens(monkeypatch):
+    monkeypatch.setattr(env_io, "read_models", lambda: {"code": "m", "general": "g", "threshold": 0.3})
+    monkeypatch.setattr(analysis, "refine_report",
+                        lambda instruction, model=None: {"ok": True, "path": "/x/r-v2.html", "filename": "r-v2.html"})
+    opened = {}
+    monkeypatch.setattr(webbrowser, "open", lambda u: opened.update(u=u))
+    r = app.test_client().post("/api/analyze/refine", json={"instruction": "改成長條圖"})
+    assert r.status_code == 200 and r.get_json()["ok"] is True
+    assert opened["u"] == "file:///x/r-v2.html"
+
+
+def test_refine_empty_instruction():
+    r = app.test_client().post("/api/analyze/refine", json={"instruction": ""})
+    assert r.status_code == 400
+
+
+def test_refine_error_not_500(monkeypatch):
+    monkeypatch.setattr(env_io, "read_models", lambda: {"code": "m", "general": "g", "threshold": 0.3})
+    monkeypatch.setattr(analysis, "refine_report",
+                        lambda instruction, model=None: {"ok": False, "error": "還沒有可修改的報告"})
+    r = app.test_client().post("/api/analyze/refine", json={"instruction": "改"})
+    assert r.status_code == 200 and r.get_json()["ok"] is False

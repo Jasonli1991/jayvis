@@ -559,3 +559,22 @@ def api_analyze():
     else:
         botctl.log_event(f"📊 分析失敗：{result.get('error', '')}")
     return jsonify(result)
+
+
+@app.post("/api/analyze/refine")
+def api_analyze_refine():
+    d = request.get_json(force=True)
+    instruction = (d.get("instruction") or "").strip()
+    if not instruction:
+        return jsonify({"error": "empty"}), 400
+    model = env_io.read_models()["code"]          # 即時讀 .env（程式高階模型）
+    result = analysis.refine_report(instruction, model=model)
+    if result.get("ok") and result.get("path"):
+        try:
+            webbrowser.open(Path(result["path"]).as_uri())   # 修改完自動用預設瀏覽器開啟
+        except Exception:
+            pass
+        botctl.log_event(f"📊 修改報告 → {result.get('filename')}")
+    else:
+        botctl.log_event(f"📊 修改失敗：{result.get('error', '')}")
+    return jsonify(result)
