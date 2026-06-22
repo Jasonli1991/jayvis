@@ -247,11 +247,21 @@ document.addEventListener("pointerdown", (e) => {
   if (!c.hidden && !c.contains(e.target) && !$("lv-range").contains(e.target)) c.hidden = true;
 });
 
+function _focusLeaveHint() {
+  // 本週重點文字提到請假、卻沒設日期區間 → 提醒：系統只認日期，不會從文字判定請假
+  const hasDates = !!(calState.start && calState.end);
+  if (/請假|休假|特休|年假/.test($("lv-focus").value) && !hasDates) {
+    warn($("lv-msg"), "提醒：本週重點提到請假，但沒設請假期間。請用上方日期選擇器設定，系統才會真的當你請假（觸發代理／彙整）。");
+  }
+}
+
 async function loadLeave() {
   const d = await getJSON("/api/leave");
   $("lv-status").value = d.status || ""; $("lv-focus").value = d.focus || "";
   calState.start = _parseISO(d.leave_start); calState.end = _parseISO(d.leave_end); _renderRangeText();
+  _focusLeaveHint();
 }
+$("lv-focus").addEventListener("blur", _focusLeaveHint);
 $("lv-save").onclick = () => withBusy($("lv-save"), async () => {
   try {
     await postJSON("/api/leave", {
