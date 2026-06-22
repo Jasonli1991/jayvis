@@ -16,6 +16,17 @@ def test_analyze_generates_and_opens(monkeypatch):
     assert opened["u"] == "file:///x/r.html"
 
 
+def test_analyze_open_url_encodes_spaces(monkeypatch):
+    # vault 路徑常含空格（如 iCloud「Mobile Documents」）→ file:// URL 必須編碼，否則瀏覽器打不開
+    monkeypatch.setattr(env_io, "read_models", lambda: {"code": "m", "general": "g", "threshold": 0.3})
+    monkeypatch.setattr(analysis, "generate_report",
+                        lambda q, model=None: {"ok": True, "path": "/Users/x/Mobile Documents/r.html", "filename": "r.html"})
+    opened = {}
+    monkeypatch.setattr(webbrowser, "open", lambda u: opened.update(u=u))
+    app.test_client().post("/api/analyze", json={"query": "分析"})
+    assert opened["u"] == "file:///Users/x/Mobile%20Documents/r.html"
+
+
 def test_analyze_error_not_500(monkeypatch):
     monkeypatch.setattr(env_io, "read_models", lambda: {"code": "m", "general": "g", "threshold": 0.3})
     monkeypatch.setattr(analysis, "generate_report",

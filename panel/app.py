@@ -17,6 +17,7 @@ import webview
 from flask import Flask, jsonify, request, send_from_directory
 
 import webbrowser
+from pathlib import Path
 
 import config
 import llm
@@ -547,7 +548,8 @@ def api_analyze():
     result = analysis.generate_report(q, model=model)
     if result.get("ok") and result.get("path"):
         try:
-            webbrowser.open("file://" + result["path"])    # 生完自動用瀏覽器開啟
+            # as_uri() 正確編碼路徑（vault 常含空格，如 iCloud「Mobile Documents」），否則瀏覽器打不開
+            webbrowser.open(Path(result["path"]).as_uri())   # 生完自動用預設瀏覽器開啟
         except Exception:
             pass
         botctl.log_event(f"📊 分析報告 → {result.get('filename')}")
