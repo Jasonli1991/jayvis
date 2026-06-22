@@ -263,6 +263,20 @@ $("lv-save").onclick = () => withBusy($("lv-save"), async () => {
   } catch (e) { warn($("lv-msg"), "儲存失敗，請重試"); }
 });
 
+$("lv-digest").onclick = () => withBusy($("lv-digest"), async () => {
+  $("lv-digest-msg").classList.remove("warn", "ok");
+  $("lv-digest-msg").textContent = "彙整中…（讀請假期間同事對話，可能數十秒）";
+  $("lv-digest-out").textContent = "";
+  try {
+    const r = await postJSON("/api/leave/digest", {});
+    if (r.ok) {
+      $("lv-digest-out").textContent = r.summary || "";
+      $("lv-digest-msg").classList.add("ok");
+      $("lv-digest-msg").textContent = "已彙整" + (r.tg_sent ? "，已發到 TG" : "");
+    } else { warn($("lv-digest-msg"), r.error || "彙整失敗，請重試"); }
+  } catch (e) { warn($("lv-digest-msg"), "彙整失敗，請重試"); }
+});
+
 // telegram：bot token（遮罩）+ owner id
 async function loadBotToken() {
   const t = await getJSON("/api/bot-token");
