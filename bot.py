@@ -370,7 +370,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             agent.remember_media(image_bytes, "photo.jpg")   # 無說明的照片也記住，供跟進指令
 
     if not text and image_bytes is None:
-        await msg.reply_text(f"我是 {config.ASSISTANT_NAME}，{config.OWNER_NAME} 請假中；有問題可以直接打給我～")
+        if env_io.is_on_leave():
+            await msg.reply_text(f"我是 {config.ASSISTANT_NAME}，{config.OWNER_NAME} 請假中；有問題可以直接打給我～")
+        else:
+            await msg.reply_text(f"我是 {config.ASSISTANT_NAME}，{config.OWNER_NAME} 的 AI 助理～有什麼需要可以直接問我 😊")
         return
 
     if text and guard.is_injection(text):
