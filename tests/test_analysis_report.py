@@ -86,3 +86,25 @@ def test_generate_report_no_candidates(tmp_path, monkeypatch):
     _patch_retrieval(monkeypatch, [])
     r = analysis.generate_report("X")
     assert r["ok"] is False and "找不到" in r["error"]
+
+
+def test_version_filename():
+    assert analysis._version_filename("2026-x-analysis-y", 1) == "2026-x-analysis-y.html"
+    assert analysis._version_filename("2026-x-analysis-y", 2) == "2026-x-analysis-y-v2.html"
+    assert analysis._version_filename("2026-x-analysis-y", 3) == "2026-x-analysis-y-v3.html"
+
+
+def test_generate_report_remembers_last(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "OBSIDIAN_PATH", str(tmp_path))
+    _patch_retrieval(monkeypatch, [_Cand()])
+    monkeypatch.setattr(analysis, "_CHARTJS", "/*CJS*/")
+    monkeypatch.setattr(analysis, "generate",
+                        lambda **k: "<html><head></head><body><canvas></canvas></body></html>")
+    analysis._last_report = None
+    r = analysis.generate_report("我的分析", now=datetime(2026, 6, 22, 15, 30))
+    assert r["ok"] is True
+    lr = analysis._last_report
+    assert lr["version"] == 1
+    assert "/*CJS*/" not in lr["clean_html"]      # 記的是注入 Chart.js 之前的乾淨 HTML
+    assert "<canvas>" in lr["clean_html"]
+    assert lr["stem"] == r["filename"][:-5]        # stem = 檔名去掉 .html

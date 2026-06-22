@@ -117,6 +117,13 @@ def _report_filename(query, now) -> str:
     return f"{now.strftime('%Y-%m-%d-%H%M')}-analysis-{inbox_capture._slug(query)}.html"
 
 
+_last_report = None        # 上一份報告（記憶體）：{"clean_html","stem","version"} 或 None
+
+
+def _version_filename(stem: str, version: int) -> str:
+    return f"{stem}.html" if version == 1 else f"{stem}-v{version}.html"
+
+
 def generate_report(query: str, model: str = None, now=None) -> dict:
     """撈 KB → 強模型生完整 HTML → 注入內嵌 Chart.js → 存 Inbox(.html)。回 {ok,path,filename} 或 {ok,error}。"""
     now = now or datetime.now()
@@ -161,12 +168,14 @@ def generate_report(query: str, model: str = None, now=None) -> dict:
     if not _looks_like_html(html):
         return {"ok": False, "error": "報告生成失敗（模型輸出非 HTML），請重試或在面板把「程式」模型換更強的 🙏"}
 
-    html = _inject_chartjs(html)
+    global _last_report
+    clean = html                                  # 注入 Chart.js 之前的乾淨 HTML（供接續修改餵回模型）
     fname = _report_filename(query, now)
     path = os.path.join(inbox, fname)
     try:
         with open(path, "w", encoding="utf-8") as f:
-            f.write(html)
+            f.write(_inject_chartjs(clean))
     except Exception:
         return {"ok": False, "error": "報告寫檔失敗，請稍後再試 🙏"}
+    _last_report = {"clean_html": clean, "stem": fname[:-5], "version": 1}
     return {"ok": True, "path": path, "filename": fname}
