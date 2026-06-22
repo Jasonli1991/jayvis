@@ -82,13 +82,13 @@
   </section>
 
   <section class="card" style="--d:1">
-    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-umbrella"></use></svg></span><h2>請假設定</h2></div>
+    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-umbrella"></use></svg></span><h2>請假與本週重點</h2></div>
     <div class="field"><label for="lv-status">狀態（自動判定）</label><input id="lv-status" readonly></div>
     <div class="field"><label>請假期間</label>
       <button id="lv-range" class="range-btn" type="button"><svg class="ic"><use href="#i-umbrella"></use></svg><span id="lv-range-txt">點選日期區間</span></button>
       <div id="cal" class="cal" hidden></div>
     </div>
-    <div class="field"><label for="lv-focus">本週重點</label><textarea id="lv-focus" rows="6"></textarea></div>
+    <div class="field"><label for="lv-focus">本週重點 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">這段會「一直」餵給助理當作目前重點／背景（不限請假時，平常同事問答也會參考）。若內含請假時程，也是助理判斷你是否請假、何時回來的依據。改後需重啟 bot。</span></span></label><textarea id="lv-focus" rows="6"></textarea></div>
     <div class="actions">
       <button id="lv-save" class="btn primary"><svg class="ic"><use href="#i-save"></use></svg>儲存請假設定</button>
       <span class="hint">儲存後需重啟 bot 生效</span>
