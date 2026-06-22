@@ -572,6 +572,17 @@ $("an-run").onclick = () => withBusy($("an-run"), async () => {
   } catch (e) { warn($("an-msg"), "分析失敗，請重試"); }
 });
 
+$("an-refine-run").onclick = () => withBusy($("an-refine-run"), async () => {
+  const ins = $("an-refine").value.trim(); if (!ins) return;
+  $("an-refine-msg").classList.remove("warn", "ok");
+  $("an-refine-msg").textContent = "修改中…（重生報告，可能 1–2 分鐘）";
+  try {
+    const r = await postJSON("/api/analyze/refine", {instruction: ins});
+    if (r.ok) { $("an-refine-msg").classList.add("ok"); $("an-refine-msg").textContent = "已產生新版並開啟：" + (r.filename || ""); }
+    else { warn($("an-refine-msg"), r.error || "修改失敗，請重試"); }
+  } catch (e) { warn($("an-refine-msg"), "修改失敗，請重試"); }
+});
+
 // 瀏覽白名單
 let _browseDomains = [];
 
