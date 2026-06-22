@@ -108,3 +108,50 @@ def test_generate_report_remembers_last(tmp_path, monkeypatch):
     assert "/*CJS*/" not in lr["clean_html"]      # 記的是注入 Chart.js 之前的乾淨 HTML
     assert "<canvas>" in lr["clean_html"]
     assert lr["stem"] == r["filename"][:-5]        # stem = 檔名去掉 .html
+
+
+def test_refine_no_last_report(monkeypatch):
+    analysis._last_report = None
+    gen = {"n": 0}
+    monkeypatch.setattr(analysis, "generate", lambda **k: gen.__setitem__("n", 1) or "<html></html>")
+    r = analysis.refine_report("改成長條圖")
+    assert r["ok"] is False and "先執行" in r["error"]
+    assert gen["n"] == 0
+
+
+def test_refine_failfast_no_vault(monkeypatch):
+    analysis._last_report = {"clean_html": "<html></html>", "stem": "x-analysis-y", "version": 1}
+    monkeypatch.setattr(config, "OBSIDIAN_PATH", "")
+    gen = {"n": 0}
+    monkeypatch.setattr(analysis, "generate", lambda **k: gen.__setitem__("n", 1) or "<html></html>")
+    r = analysis.refine_report("改")
+    assert r["ok"] is False and "路徑" in r["error"]
+    assert gen["n"] == 0
+
+
+def test_refine_writes_new_version(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "OBSIDIAN_PATH", str(tmp_path))
+    monkeypatch.setattr(analysis, "_CHARTJS", "/*CJS*/")
+    analysis._last_report = {"clean_html": "<html><body>原始內容</body></html>",
+                             "stem": "2026-x-analysis-y", "version": 1}
+    seen = {}
+    monkeypatch.setattr(analysis, "generate",
+                        lambda **k: seen.update(user=k["messages"][0]["content"])
+                        or "<html><body><canvas></canvas>改好了</body></html>")
+    r = analysis.refine_report("第二張圖改長條圖", now=datetime(2026, 6, 22, 16, 0))
+    assert r["ok"] is True
+    assert r["filename"] == "2026-x-analysis-y-v2.html"
+    assert "原始內容" in seen["user"] and "第二張圖改長條圖" in seen["user"]
+    assert analysis._last_report["version"] == 2
+    written = open(r["path"], encoding="utf-8").read()
+    assert "/*CJS*/" in written and "改好了" in written
+
+
+def test_refine_non_html_retries_then_fails(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "OBSIDIAN_PATH", str(tmp_path))
+    analysis._last_report = {"clean_html": "<html></html>", "stem": "s", "version": 1}
+    calls = {"n": 0}
+    monkeypatch.setattr(analysis, "generate",
+                        lambda **k: calls.__setitem__("n", calls["n"] + 1) or "這不是HTML")
+    r = analysis.refine_report("改")
+    assert r["ok"] is False and calls["n"] == 2

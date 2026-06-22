@@ -179,3 +179,54 @@ def generate_report(query: str, model: str = None, now=None) -> dict:
         return {"ok": False, "error": "報告寫檔失敗，請稍後再試 🙏"}
     _last_report = {"clean_html": clean, "stem": fname[:-5], "version": 1}
     return {"ok": True, "path": path, "filename": fname}
+
+
+_REFINE_SYSTEM = (
+    "你會收到一份既有的 HTML 分析報告，以及使用者的修改要求。\n"
+    "請依要求修改，輸出**完整、自包含的 HTML 文件**（從 <!DOCTYPE html> 到 </html>），"
+    "不要任何 HTML 以外的文字、不要 markdown 圍欄。\n"
+    "- 沒被要求改的部分務必保留原樣；圖表沿用 <canvas> + <script>new Chart(...)</script>，"
+    "**假設 Chart 這個全域變數已存在、不要自己加 Chart.js 的 <script src>**（系統會注入內嵌版）。\n"
+    "- 繁體中文、專業排版。"
+)
+
+
+def refine_report(instruction: str, model: str = None, now=None) -> dict:
+    """把上一份報告的乾淨 HTML + 修改指令餵給模型重生，存成新版本。回 {ok,path,filename} 或 {ok,error}。"""
+    global _last_report
+    now = now or datetime.now()
+    model = model or config.MODEL_CODE
+    lr = _last_report
+    if not lr:
+        return {"ok": False, "error": "還沒有可修改的報告，請先執行一次分析 🙏"}
+    inbox = _inbox_dir()                              # fail-fast：先驗路徑，不可用就別呼叫模型
+    if not inbox:
+        return {"ok": False, "error": "Obsidian 路徑沒設好或找不到，先去控制台設定，再執行分析 🙏"}
+    try:
+        os.makedirs(inbox, exist_ok=True)
+    except Exception:
+        return {"ok": False, "error": "Obsidian Inbox 資料夾建立失敗，請檢查控制台的 vault 路徑 🙏"}
+
+    user_msg = f"既有報告 HTML：\n{lr['clean_html']}\n\n修改要求：{instruction}"
+    html = ""
+    for _ in range(2):                               # 防破：最多兩次
+        raw = generate(model=model, system=_REFINE_SYSTEM,
+                       messages=[{"role": "user", "content": user_msg}],
+                       max_output_tokens=config.ANALYSIS_REPORT_MAX_TOKENS)
+        html = _clean_html(raw)
+        if _looks_like_html(html):
+            break
+    if not _looks_like_html(html):
+        return {"ok": False, "error": "修改生成失敗（模型輸出非 HTML），請重試或在面板把「程式」模型換更強的 🙏"}
+
+    clean = html
+    new_version = lr["version"] + 1
+    fname = _version_filename(lr["stem"], new_version)
+    path = os.path.join(inbox, fname)
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(_inject_chartjs(clean))
+    except Exception:
+        return {"ok": False, "error": "報告寫檔失敗，請稍後再試 🙏"}
+    _last_report = {"clean_html": clean, "stem": lr["stem"], "version": new_version}
+    return {"ok": True, "path": path, "filename": fname}
