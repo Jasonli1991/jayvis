@@ -287,6 +287,22 @@ $("lv-digest").onclick = () => withBusy($("lv-digest"), async () => {
   } catch (e) { warn($("lv-digest-msg"), "彙整失敗，請重試"); }
 });
 
+$("lv-focus-draft").onclick = () => withBusy($("lv-focus-draft"), async () => {
+  $("lv-focus-draft-msg").classList.remove("warn", "ok");
+  $("lv-focus-draft-msg").textContent = "擬稿中…（讀近期對話/筆記，可能數十秒）";
+  try {
+    const r = await postJSON("/api/leave/focus-draft", {brief: $("lv-focus-brief").value.trim()});
+    if (r.ok) {
+      if (!$("lv-focus").value.trim() || confirm("本週重點已有內容，要用 AI 草稿覆蓋嗎？")) {
+        $("lv-focus").value = r.draft || "";
+        _focusLeaveHint();
+        $("lv-focus-draft-msg").classList.add("ok");
+        $("lv-focus-draft-msg").textContent = "已產生草稿，請編修後按「儲存請假設定」";
+      } else { $("lv-focus-draft-msg").textContent = "已取消覆蓋"; }
+    } else { warn($("lv-focus-draft-msg"), r.error || "擬稿失敗，請重試"); }
+  } catch (e) { warn($("lv-focus-draft-msg"), "擬稿失敗，請重試"); }
+});
+
 // telegram：bot token（遮罩）+ owner id
 async function loadBotToken() {
   const t = await getJSON("/api/bot-token");

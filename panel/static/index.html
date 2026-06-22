@@ -88,6 +88,8 @@
       <button id="lv-range" class="range-btn" type="button"><svg class="ic"><use href="#i-umbrella"></use></svg><span id="lv-range-txt">點選日期區間</span></button>
       <div id="cal" class="cal" hidden></div>
     </div>
+    <div class="field"><input id="lv-focus-brief" class="mono" autocomplete="off" placeholder="（選填）給個方向，如：這週主推 X、請假時 Z 找 Alice"></div>
+    <div class="actions"><button id="lv-focus-draft" class="btn" type="button"><svg class="ic"><use href="#i-sparkles"></use></svg>幫我擬本週重點</button> <span id="lv-focus-draft-msg" class="msg"></span></div>
     <div class="field"><label for="lv-focus">本週重點 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">這段會「一直」餵給助理當作目前重點／背景（不限請假時，平常同事問答也會參考）。若內含請假時程，也是助理判斷你是否請假、何時回來的依據。改後需重啟 bot。</span></span></label><textarea id="lv-focus" rows="6"></textarea></div>
     <div class="actions">
       <button id="lv-save" class="btn primary"><svg class="ic"><use href="#i-save"></use></svg>儲存請假設定</button>
