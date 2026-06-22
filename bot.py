@@ -373,7 +373,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if env_io.is_on_leave():
             await msg.reply_text(f"我是 {config.ASSISTANT_NAME}，{config.OWNER_NAME} 請假中；有問題可以直接發訊息給我～")
         else:
-            await msg.reply_text(f"我是 {config.ASSISTANT_NAME}，{config.OWNER_NAME} 的 AI 助理～有什麼需要可以直接問我 😊")
+            await msg.reply_text(f"我是 {config.OWNER_NAME} 的 AI 助理～有什麼需要可以直接問我 😊")
         return
 
     if text and guard.is_injection(text):
