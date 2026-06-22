@@ -22,6 +22,7 @@ from pathlib import Path
 import config
 import llm
 import leave_digest
+import focus_draft
 import memory
 import user_profile
 from panel import botctl, env_io, libreoffice
@@ -137,6 +138,16 @@ def api_leave_digest():
         return jsonify(result)
     except Exception:
         return jsonify({"ok": False, "error": "彙整失敗，請稍後再試 🙏"})
+
+
+@app.post("/api/leave/focus-draft")
+def api_leave_focus_draft():
+    """用高階模型從近期素材擬一份本週重點草稿（填入欄位供編修）。容錯不 500。"""
+    try:
+        d = request.get_json(force=True) or {}
+        return jsonify(focus_draft.draft(d.get("brief", ""), model=env_io.read_models()["code"]))
+    except Exception:
+        return jsonify({"ok": False, "error": "擬稿失敗，請稍後再試 🙏"})
 
 
 @app.get("/api/allowlist")
