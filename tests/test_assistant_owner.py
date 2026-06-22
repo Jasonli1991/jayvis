@@ -149,6 +149,17 @@ def test_colleague_no_search(monkeypatch):
     assert called["n"] == 0
 
 
+def test_colleague_no_kb_realtime_guard(monkeypatch):
+    # 同事問時效性問題、KB 無、又不能搜尋 → system 帶「查不到即時、別硬給」守則，避免亂回答
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(True))
+    monkeypatch.setattr(assistant.memory, "recall", lambda *a, **k: "")
+    seen = {}
+    _patch_common(monkeypatch, seen)
+    assistant.compose_reply(999, "今天台積電股價多少")        # 非 owner
+    assert "查不到即時資訊" in seen["system"] and "硬給" in seen["system"]
+
+
 def test_owner_search_in_group_injects(monkeypatch):
     # owner 本人在群組（被 @）也能查；判斷脈絡用群組脈絡，不用私訊記憶。
     monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
