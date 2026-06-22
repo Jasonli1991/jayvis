@@ -201,8 +201,8 @@
   <section class="card" style="--d:6">
     <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-route"></use></svg></span><h2>模型路由 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">模型名開頭決定供應商：gemini-*→Google、claude-*→Anthropic、gpt-*/o*→OpenAI 金鑰所指端點。設了相容端點後，其他任意模型名（gemma4:12b、qwen3:8b 等）都走該端點；本地 Ollama 金鑰可留空。金鑰留空＝不變更，要清除請編輯 .env。</span></span> <span id="md-models-hint" class="hint head-hint"></span></h2></div>
     <div class="model-row">
-      <div class="field"><label for="md-general">一般</label><input id="md-general" class="mono" autocomplete="off" placeholder="gemini-2.5-flash 或點選本地"></div>
-      <div class="field"><label for="md-code">程式</label><input id="md-code" class="mono" autocomplete="off" placeholder="claude-opus-4-8 或點選本地"></div>
+      <div class="field"><label for="md-general">一般模型</label><input id="md-general" class="mono" autocomplete="off" placeholder="gemini-2.5-flash 或點選本地"></div>
+      <div class="field"><label for="md-code">高階模型</label><input id="md-code" class="mono" autocomplete="off" placeholder="claude-opus-4-8 或點選本地"></div>
       <button id="md-refresh-models" class="btn" type="button" title="重新整理可用模型（雲端＋本地）"><svg class="ic"><use href="#i-rotate"></use></svg>重新整理</button>
     </div>
     <div class="field">
@@ -228,7 +228,7 @@
   </section>
 
   <section class="card accent-card" style="--d:7">
-    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-sparkles"></use></svg></span><h2>分析模式 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">用你在「模型路由」設的「程式」高階模型，對知識庫做非常詳盡的分析，直接產出一份含圖表的 HTML 報告，存進 Obsidian 的 00_Raw/Inbox 並自動用瀏覽器開啟。報告產生後，可在下方輸入修改指令接續迭代（存成 v2、v3…）。注意：要先在「知識庫來源」按「重建索引 Obsidian」把筆記灌進庫，分析才看得到；報告品質取決於「程式」模型要夠強。</span></span></h2></div>
+    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-sparkles"></use></svg></span><h2>分析模式 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">用你在「模型路由」設的「高階模型」，對知識庫做非常詳盡的分析，直接產出一份含圖表的 HTML 報告，存進 Obsidian 的 00_Raw/Inbox 並自動用瀏覽器開啟。報告產生後，可在下方輸入修改指令接續迭代（存成 v2、v3…）。注意：要先在「知識庫來源」按「重建索引 Obsidian」把筆記灌進庫，分析才看得到；報告品質取決於「高階模型」要夠強。</span></span></h2></div>
     <p class="hint">對知識庫做詳盡分析，產出含圖表的 HTML 報告（存進 Obsidian Inbox、自動開啟）</p>
     <textarea id="an-q" rows="2" placeholder="例：幫我分析目前我的知識庫中，有哪些項目是可以應用在現階段專案上的？"></textarea>
     <div class="actions">
