@@ -18,6 +18,7 @@ import group_memory
 import guard
 import inbox_capture
 import llm
+import leave_digest
 import browse_agent
 import image_gen
 import browse_tool
@@ -562,10 +563,24 @@ async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
         await notify_owner_error(context.bot, err, where="處理更新")
 
 
+async def _leave_digest_loop():
+    """背景檢查：請假結束就自動把期間彙整 DM 給 owner（啟動先跑一次→涵蓋結束後才重啟，之後每 6 小時）。"""
+    while True:
+        try:
+            await asyncio.to_thread(leave_digest.check_and_send)
+        except Exception:
+            _log.exception("leave digest check failed")
+        await asyncio.sleep(6 * 3600)
+
+
+async def _post_init(application) -> None:
+    asyncio.create_task(_leave_digest_loop())
+
+
 def main() -> None:
     if not config.TG_BOT_TOKEN:
         raise SystemExit("TG_BOT_TOKEN 未設定（請先跟 @BotFather 建 bot 並放進 .env）")
-    app = Application.builder().token(config.TG_BOT_TOKEN).build()
+    app = Application.builder().token(config.TG_BOT_TOKEN).post_init(_post_init).build()
     app.add_handler(MessageHandler(
         (filters.TEXT | filters.CAPTION | filters.PHOTO | filters.Document.ALL) & ~filters.COMMAND,
         handle_message))
