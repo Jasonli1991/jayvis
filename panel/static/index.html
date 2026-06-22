@@ -228,20 +228,19 @@
   </section>
 
   <section class="card accent-card" style="--d:7">
-    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-sparkles"></use></svg></span><h2>分析模式</h2></div>
-    <p class="hint">廣撈知識庫 + 綜合摘要，做跨語料分析</p>
+    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-sparkles"></use></svg></span><h2>分析模式 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">用你在「模型路由」設的「程式」高階模型，對知識庫做非常詳盡的分析，直接產出一份含圖表的 HTML 報告，存進 Obsidian 的 00_Raw/Inbox 並自動用瀏覽器開啟。報告產生後，可在下方輸入修改指令接續迭代（存成 v2、v3…）。注意：要先在「知識庫來源」按「重建索引 Obsidian」把筆記灌進庫，分析才看得到；報告品質取決於「程式」模型要夠強。</span></span></h2></div>
+    <p class="hint">對知識庫做詳盡分析，產出含圖表的 HTML 報告（存進 Obsidian Inbox、自動開啟）</p>
     <textarea id="an-q" rows="2" placeholder="例：幫我分析目前我的知識庫中，有哪些項目是可以應用在現階段專案上的？"></textarea>
     <div class="actions">
       <button id="an-run" class="btn primary"><svg class="ic"><use href="#i-sparkles"></use></svg>執行分析</button>
       <span id="an-msg" class="msg"></span>
     </div>
-    <textarea id="an-refine" rows="2" placeholder="先執行分析後，這裡可輸入修改指令，如：第二張圖改長條圖、補一段風險分析"></textarea>
+    <div class="section-label">接續修改報告（先執行分析後可用・每次存成新版本）</div>
+    <textarea id="an-refine" rows="2" placeholder="輸入修改指令，如：第二張圖改長條圖、補一段風險分析"></textarea>
     <div class="actions">
       <button id="an-refine-run" class="btn"><svg class="ic"><use href="#i-rotate"></use></svg>修改報告</button>
       <span id="an-refine-msg" class="msg"></span>
     </div>
-    <div id="an-answer" class="answer"></div>
-    <div id="an-sources" class="sources"></div>
   </section>
 
   <section class="card" style="--d:8">

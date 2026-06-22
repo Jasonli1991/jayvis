@@ -564,7 +564,6 @@ $("md-save").onclick = () => withBusy($("md-save"), async () => {
 $("an-run").onclick = () => withBusy($("an-run"), async () => {
   const q = $("an-q").value.trim(); if (!q) return;
   $("an-msg").classList.remove("warn", "ok"); $("an-msg").textContent = "分析中…（產生報告，可能 1–2 分鐘）";
-  $("an-answer").textContent = ""; $("an-sources").textContent = "";
   try {
     const r = await postJSON("/api/analyze", {query: q});
     if (r.ok) { $("an-msg").classList.add("ok"); $("an-msg").textContent = "已產生報告並開啟：" + (r.filename || ""); }
