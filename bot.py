@@ -303,7 +303,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # owner 純文字媒體跟進：對「上一張傳來的圖」下指令（如剛傳圖、接著只打「去背」）。
     # 放在行事曆/收信前攔截，且需真的有記住的圖才接手，否則照常往下走（不綁架一般聊天）。
-    if (not is_group and config.MEDIA_ENABLED and is_owner(user.id)
+    # 群組亦可（owner 本人被 @ 才會到這；同事非 owner 不進）。
+    if (config.MEDIA_ENABLED and is_owner(user.id)
             and text and not msg.photo and msg.document is None
             and agent.looks_like_media_request(text) and agent.has_remembered_media()):
         result = await asyncio.to_thread(agent.handle_media_followup, text, datetime.now())
@@ -330,9 +331,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await msg.reply_text(action_reply)
             return
 
-    # owner 媒體工具（去背/轉檔/調尺寸）：私訊 + owner + 啟用 + 帶檔案才走。
+    # owner 媒體工具（去背/轉檔/調尺寸）：owner + 啟用 + 帶檔案才走（私訊或群組被 @）。
     # 文件一律進；照片需有說明（caption），讓無說明的照片仍走一般視覺對話。
-    if (not is_group and config.MEDIA_ENABLED and is_owner(user.id)
+    if (config.MEDIA_ENABLED and is_owner(user.id)
             and (msg.document is not None
                  or (msg.photo and text and agent.looks_like_media_request(text)))):
         try:
@@ -470,7 +471,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # 生圖：owner 私訊明確要圖時（bot 端關鍵字觸發，確定性；LLM 只負責把需求轉成 prompt）
     # 附圖/檔時跳過——這類訊息是「關於那張圖」，該走視覺問答；生圖看不到參考圖。
-    if (config.IMAGE_GEN_ENABLED and is_owner(user.id) and not is_group
+    if (config.IMAGE_GEN_ENABLED and is_owner(user.id)
             and not msg.photo and msg.document is None and _looks_like_image_request(text)):
         _log.info("🎨 生圖 %s：%s", _who(user), _preview(text))
         await msg.reply_text("好，幫你畫，稍等…")
