@@ -115,23 +115,33 @@ def test_looks_like_media_request():
 
 def test_remember_and_followup(monkeypatch):
     agent.reset()
-    assert agent.has_remembered_media() is False
-    agent.remember_media(b"IMG", "cat.png")
-    assert agent.has_remembered_media() is True
+    assert agent.has_remembered_media(1) is False
+    agent.remember_media(b"IMG", "cat.png", 1)
+    assert agent.has_remembered_media(1) is True
     monkeypatch.setattr(agent.llm, "generate", lambda **k: '{"action":"remove_bg"}')
     monkeypatch.setattr(image_tool, "remove_background",
                         lambda b: b"\x89PNGnobg" if b == b"IMG" else b"WRONG")
-    r = agent.handle_media_followup("去背", datetime(2026, 6, 12, 9, 0))
+    r = agent.handle_media_followup("去背", datetime(2026, 6, 12, 9, 0), 1)
     assert r.file == b"\x89PNGnobg" and r.filename == "cat-nobg.png"
 
 
 def test_followup_without_image():
     agent.reset()
-    r = agent.handle_media_followup("去背", datetime(2026, 6, 12, 9, 0))
+    r = agent.handle_media_followup("去背", datetime(2026, 6, 12, 9, 0), 1)
     assert r.file is None and "傳" in r.message
 
 
 def test_reset_clears_remembered_media():
-    agent.remember_media(b"X", "a.png")
+    agent.remember_media(b"X", "a.png", 1)
     agent.reset()
-    assert agent.has_remembered_media() is False
+    assert agent.has_remembered_media(1) is False
+
+
+def test_remembered_media_is_per_chat():
+    # 私訊記住的圖，不該在別的對話（群組）被套用 → 防私圖外流到群組
+    agent.reset()
+    agent.remember_media(b"PRIV", "secret.png", 111)        # 私訊 chat 111
+    assert agent.has_remembered_media(111) is True
+    assert agent.has_remembered_media(222) is False         # 群組 chat 222 看不到
+    r = agent.handle_media_followup("去背", datetime(2026, 6, 12, 9, 0), 222)
+    assert r.file is None and "傳" in r.message              # 群組裡沒有自己的圖 → 不處理

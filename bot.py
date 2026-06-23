@@ -306,8 +306,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # 群組亦可（owner 本人被 @ 才會到這；同事非 owner 不進）。
     if (config.MEDIA_ENABLED and is_owner(user.id)
             and text and not msg.photo and msg.document is None
-            and agent.looks_like_media_request(text) and agent.has_remembered_media()):
-        result = await asyncio.to_thread(agent.handle_media_followup, text, datetime.now())
+            and agent.looks_like_media_request(text) and agent.has_remembered_media(msg.chat_id)):
+        result = await asyncio.to_thread(agent.handle_media_followup, text, datetime.now(), msg.chat_id)
         if result.file is not None:
             _log.info("🖼 媒體（跟進上一張圖）→ %s", result.filename)
             await msg.reply_document(document=BytesIO(result.file), filename=result.filename, caption=result.note)
@@ -349,7 +349,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             _log.exception("media download failed for owner_id=%s", user.id)
             await msg.reply_text("檔案太大或下載失敗（Telegram 機器人下載上限約 20MB）。請傳小一點的檔案 🙏")
             return
-        agent.remember_media(raw, fname)   # 記住，供之後純文字跟進指令套用
+        agent.remember_media(raw, fname, msg.chat_id)   # 記住（綁該對話），供之後純文字跟進指令套用
         result = await asyncio.to_thread(agent.handle_media, text, raw, fname, datetime.now())
         if result.file is not None:
             _log.info("🖼 媒體 %s → %s", fname, result.filename)
@@ -367,7 +367,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         ba = await f.download_as_bytearray()
         image_bytes = bytes(ba)
         if config.MEDIA_ENABLED and is_owner(user.id):
-            agent.remember_media(image_bytes, "photo.jpg")   # 無說明的照片也記住，供跟進指令
+            agent.remember_media(image_bytes, "photo.jpg", msg.chat_id)   # 無說明的照片也記住（綁該對話）
 
     if not text and image_bytes is None:
         if env_io.is_on_leave():

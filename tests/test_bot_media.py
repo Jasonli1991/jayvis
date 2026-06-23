@@ -86,7 +86,7 @@ def test_upload_remembers_image(monkeypatch):
     msg, sent = _msg(document=_FakeDoc(b"rawbytes", "x.png"), caption="轉pdf")
     update, ctx = _update_ctx(msg)
     asyncio.run(bot.handle_message(update, ctx))
-    assert agent.has_remembered_media() is True
+    assert agent.has_remembered_media(1) is True       # _msg 的 chat_id=1
 
 
 def test_text_followup_applies_to_remembered_image(monkeypatch):
@@ -94,9 +94,9 @@ def test_text_followup_applies_to_remembered_image(monkeypatch):
     monkeypatch.setattr(config, "MEDIA_ENABLED", True)
     monkeypatch.setattr(config, "ALLOWLIST_USER_IDS", {777})
     agent.reset()
-    agent.remember_media(b"IMG", "cat.png")
+    agent.remember_media(b"IMG", "cat.png", 1)          # 綁 chat_id=1（與 _msg 一致）
     monkeypatch.setattr(agent, "handle_media_followup",
-                        lambda text, now: agent.MediaResult(file=b"PNG", filename="cat-nobg.png", note="去背完成"))
+                        lambda text, now, chat_id: agent.MediaResult(file=b"PNG", filename="cat-nobg.png", note="去背完成"))
     msg, sent = _msg(caption=None)        # 純文字、無附檔
     msg.text = "幫我去背"
     update, ctx = _update_ctx(msg)

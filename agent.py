@@ -165,14 +165,14 @@ def _handle_media_impl(text: str, file_bytes: bytes, filename: str, now) -> Medi
     return MediaResult(message="沒有可執行的動作。")
 
 
-def remember_media(file_bytes: bytes, filename: str) -> None:
-    """記住 owner 剛傳的圖/檔，供之後純文字跟進指令（如「去背」）套用。"""
-    _last_media["bytes"] = file_bytes
-    _last_media["filename"] = filename or "file.bin"
+def remember_media(file_bytes: bytes, filename: str, chat_id) -> None:
+    """記住 owner 剛在「該對話」傳的圖/檔，供之後純文字跟進指令套用。綁定 chat_id：
+    私訊記的只在私訊套用、群組的只在群組，避免私圖被帶到別的對話處理。"""
+    _last_media[chat_id] = {"bytes": file_bytes, "filename": filename or "file.bin"}
 
 
-def has_remembered_media() -> bool:
-    return bool(_last_media.get("bytes"))
+def has_remembered_media(chat_id) -> bool:
+    return bool(_last_media.get(chat_id, {}).get("bytes"))
 
 
 def looks_like_media_request(text: str) -> bool:
@@ -181,11 +181,12 @@ def looks_like_media_request(text: str) -> bool:
     return any(h.lower() in t for h in _MEDIA_HINTS)
 
 
-def handle_media_followup(text: str, now) -> MediaResult:
-    """純文字跟進：把指令套用到記住的上一張圖/檔。"""
-    if not has_remembered_media():
+def handle_media_followup(text: str, now, chat_id) -> MediaResult:
+    """純文字跟進：把指令套用到「該對話」記住的上一張圖/檔。"""
+    m = _last_media.get(chat_id)
+    if not m or not m.get("bytes"):
         return MediaResult(message="我手邊沒有圖片可以處理。請先用「檔案」傳一張圖給我，再說要做什麼（去背／轉檔／調尺寸）🙏")
-    return handle_media(text, _last_media["bytes"], _last_media["filename"], now)
+    return handle_media(text, m["bytes"], m["filename"], now)
 
 
 _WD = ["一", "二", "三", "四", "五", "六", "日"]
@@ -237,7 +238,7 @@ _pending = {}
 _calendars_cache = []
 _mail_accts_cache = []
 _last_list = []          # 上次 list_email 的結果，供「刪第 N 封」對應
-_last_media = {}         # owner 上次傳的圖/檔（bytes+檔名），供純文字跟進指令套用
+_last_media = {}         # {chat_id: {"bytes","filename"}}：各對話各自記住上次的圖/檔，供跟進指令套用
 _AFFIRM = {"yes", "y", "ok", "好", "對", "確認", "可以", "嗯"}
 
 
