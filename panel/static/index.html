@@ -199,7 +199,7 @@
         </div>
         <div class="field">
           <div class="field-head">
-            <label for="src-repos">GitHub repos（每行一個 owner/repo，可留空）</label>
+            <label for="src-repos">GitHub repos <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">每行一個 owner/repo（如 Jasonli1991/Another_Me_Architecture）；留空＝不追蹤 GitHub。需先 gh auth login，可按右側「從 GitHub 帶入」直接選你帳號的 repo。改後按「重建索引 GitHub」。</span></span></label>
             <button id="src-repos-pick" class="btn sm" type="button"><svg class="ic"><use href="#i-plus"></use></svg>從 GitHub 帶入…</button>
           </div>
           <textarea id="src-repos" rows="3" class="mono"></textarea>
