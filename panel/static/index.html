@@ -146,7 +146,7 @@
       <ul id="allowlist" class="chips"></ul>
       <div class="inline">
         <input id="allow-new-alias" placeholder="別名（誰）">
-        <input id="allow-new-id" inputmode="numeric" class="mono" placeholder="user_id（5–15 位數字）">
+        <input id="allow-new-id" inputmode="numeric" class="mono" placeholder="user_id">
         <button id="allow-add" class="btn"><svg class="ic"><use href="#i-plus"></use></svg>新增</button>
       </div>
       <span id="allow-msg" class="msg"></span>
@@ -197,12 +197,13 @@
             <button id="src-browse" class="btn" type="button" title="開啟資料夾選擇視窗"><svg class="ic"><use href="#i-folder"></use></svg>瀏覽…</button>
           </div>
         </div>
-        <div class="field"><label for="src-repos">GitHub repos（每行一個 owner/repo，可留空）</label>
-          <textarea id="src-repos" rows="3" class="mono"></textarea>
-          <div class="inline" style="margin-top:6px">
+        <div class="field">
+          <div class="field-head">
+            <label for="src-repos">GitHub repos（每行一個 owner/repo，可留空）</label>
             <button id="src-repos-pick" class="btn sm" type="button"><svg class="ic"><use href="#i-plus"></use></svg>從 GitHub 帶入…</button>
-            <span id="src-repos-msg" class="msg"></span>
           </div>
+          <textarea id="src-repos" rows="3" class="mono"></textarea>
+          <span id="src-repos-msg" class="msg" style="display:block;margin-top:4px"></span>
           <div id="src-repos-menu" class="model-menu" hidden></div>
         </div>
         <div class="actions wrap">
