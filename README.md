@@ -48,7 +48,7 @@ JAYVIS 是給「希望請假/離線時，同事仍能問到事情」的人用的
 
 | 功能 | 說明 |
 |------|------|
-| **知識庫問答（RAG）** | 對 Obsidian＋GitHub commits＋Telegram 對話做混合檢索（dense 向量＋FTS5＋RRF 融合＋rerank）；信心不足時**誠實說資料不足**並附來源，而不是硬掰。 |
+| **知識庫問答（RAG）** | 對 Obsidian＋GitHub commits 做混合檢索（dense 向量＋FTS5＋RRF 融合＋rerank），並帶入過往對話記憶（recall）；信心不足時**誠實說資料不足**並附來源，而不是硬掰。 |
 | **JAYVIS 自己的人設** | 它是**有鮮明個性的助理**（幽默風趣、台灣味、有人情味），會表明「我是你的助理」、**絕不冒充你本人**、不編造你的私事。 |
 | **本人 / 同事 / 群組三種模式** | 本人＝坦白的私人助理；同事＝同上人設、只依知識庫誠實作答；群組＝被 @ 才回、帶群組脈絡。 |
 | **請假自動回覆** | 依你設定的「請假日期區間」自動判定狀態，告訴同事你是否請假、何時回來。 |
@@ -74,7 +74,7 @@ JAYVIS 是給「希望請假/離線時，同事仍能問到事情」的人用的
 | **Embedding / rerank** | sentence-transformers（如 `BAAI/bge-m3`、`bge-reranker-v2-m3`） |
 | **LLM 閘道** | google-genai（Gemini）· Anthropic · OpenAI · 本地 Ollama（OpenAI 相容）；依模型名前綴分流 |
 | **控制台** | Flask（127.0.0.1:8765）＋ pywebview 原生視窗 |
-| **知識來源** | Obsidian vault · GitHub commits · Telegram 對話 |
+| **知識來源** | Obsidian vault · GitHub commits（灌入 KB）· 私訊／群組對話記憶（回覆時 recall） |
 | **選用能力** | Tavily（時事）· Pollinations.AI（生圖）· Playwright Chromium（瀏覽）· rembg/Pillow（媒體）· AppleScript（行事曆/信，macOS） |
 
 > 註：`python-telegram-bot` 的 JobQueue 需要 apscheduler（本專案未安裝），所有排程（如請假結束自動彙整）改用 **asyncio 背景任務**達成。
@@ -166,7 +166,6 @@ cp .env.example .env          # 之後填金鑰（見「設定詳解」）
 | `CODE_ASK_BUDGET_USD` / `CODE_APPLY_BUDGET_USD` | 程式問答/計畫、改碼+PR 的花費上限（美元）。 | `2` / `15` |
 | `TAVILY_API_KEY` | 時事搜尋金鑰（tavily.com）。 | 空 |
 | `KB_PATH` | SQLite 知識庫路徑。 | `~/.n/kb.sqlite` |
-| `TG_API_ID` / `TG_API_HASH` | 僅離線灌 Telegram 歷史（MTProto）時用，一般免。 | 空 |
 
 **功能開關**（建議用控制台「動作工具／網站瀏覽」卡開關；以下為 `.env` 對應，預設全關）：
 
@@ -260,15 +259,14 @@ cp .env.example .env          # 之後填金鑰（見「設定詳解」）
 
 ```mermaid
 flowchart TB
-    subgraph SRC["知識來源"]
+    subgraph SRC["知識來源（重建索引灌入 KB）"]
         OB["Obsidian vault"]
         GH["GitHub commits"]
-        TGH["Telegram 歷史"]
     end
     OB --> ING["backfill.py / 重建索引"]
     GH --> ING
-    TGH --> ING
     ING --> KB[("SQLite 知識庫<br/>~/.n/kb.sqlite · chunks + FTS5")]
+    MEM["私訊／群組對話記憶<br/>memories · group_memory"] -->|"回覆時 recall"| ASST
 
     USER["同事 / 你本人"] -->|"私訊 / 群組 @"| BOT["bot.py<br/>Telegram long polling · 白名單過濾"]
     BOT --> ASST["assistant.py<br/>compose_reply（人設＋本週重點＋脈絡）"]
@@ -305,7 +303,7 @@ flowchart TD
     L -->|"一般問題"| O["本人模式回覆<br/>查知識庫＋可搜尋"]
 ```
 
-**知識庫與檢索**：知識庫是單一檔 `~/.n/kb.sqlite`（`chunks` 表＋FTS5）。檢索＝dense 向量（numpy 餘弦）＋FTS5 全文＋RRF 融合＋rerank，低於門檻就傾向誠實說資料不足。來源：Obsidian（`ingest/obsidian.py`，依 frontmatter 日期/mtime 補 `event_time` 以支援「近期筆記」）、GitHub commits（`github_sync.py`）、Telegram 歷史。用 `backfill.py` 或面板「重建索引」重建。
+**知識庫與檢索**：知識庫是單一檔 `~/.n/kb.sqlite`（`chunks` 表＋FTS5）。檢索＝dense 向量（numpy 餘弦）＋FTS5 全文＋RRF 融合＋rerank，低於門檻就傾向誠實說資料不足。**KB 灌檔來源**：Obsidian（`ingest/obsidian.py`，依 frontmatter 日期/mtime 補 `event_time` 以支援「近期筆記」）、GitHub commits（`github_sync.py`），用 `backfill.py` 或面板「重建索引」重建。**Telegram 對話**則走另一條：每個人的私訊歷史與群組對話存成「對話記憶」，回覆時 `recall` 取用（不進 KB）。
 
 ---
 

@@ -9,14 +9,8 @@ load_dotenv()
 APP_NAME = "JAYVIS"
 APP_VERSION = "1.0.0"
 
-# Telegram MTProto credentials (from https://my.telegram.org)
-TG_API_ID = int(os.getenv("TG_API_ID", "0"))
-TG_API_HASH = os.getenv("TG_API_HASH", "")
-TG_SESSION_NAME = os.getenv("TG_SESSION_NAME", "jayvis_session")
-
 # Anthropic
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-CLAUDE_MODEL = "claude-haiku-4-5"
 
 # Obsidian vault path（在 .env 設 OBSIDIAN_PATH 指向自己的 vault；留空＝不用 Obsidian）
 OBSIDIAN_PATH = os.getenv("OBSIDIAN_PATH", "")
@@ -25,11 +19,8 @@ ANALYSIS_REPORT_MAX_TOKENS = int(os.getenv("ANALYSIS_REPORT_MAX_TOKENS", "16000"
 ANALYSIS_REPORT_K = int(os.getenv("ANALYSIS_REPORT_K", "60"))
 ANALYSIS_REPORT_MAX_CONTEXT = int(os.getenv("ANALYSIS_REPORT_MAX_CONTEXT", "40000"))
 
-# 本地資料目錄（對話記憶、白名單、legacy chroma 等可攜檔）
+# 本地資料目錄（對話記憶、白名單等可攜檔）
 DATA_DIR = os.path.expanduser("~/.n")
-
-# ChromaDB 本地儲存位置（legacy，未用於 live 檢索）
-CHROMA_PATH = os.path.join(DATA_DIR, "chroma_db")
 
 # SQLite 知識庫（取代 Postgres；單檔、零伺服器）
 KB_PATH = os.getenv("KB_PATH", os.path.join(DATA_DIR, "kb.sqlite"))
@@ -52,28 +43,6 @@ CODE_MODEL = os.getenv("CODE_MODEL", "claude-opus-4-8")    # 委派用 claude CL
 CODE_ASK_BUDGET_USD = float(os.getenv("CODE_ASK_BUDGET_USD", "2.0"))      # A/B 問答/計畫預算（Opus 較貴，給足）
 CODE_APPLY_BUDGET_USD = float(os.getenv("CODE_APPLY_BUDGET_USD", "15.0")) # C1 改碼+測試+開 PR 預算（Opus 思考較吃）
 
-# TG 訊息同步設定
-TG_SYNC_DAYS = 7  # 抓幾天以內的訊息
-
-# 要同步的群組標題（依你的 Telegram 群組名稱填寫）
-TG_SYNC_GROUPS = [
-    # "Your Team Group",
-]
-
-# 要同步的聯絡人顯示名稱（依你的 Telegram 聯絡人填寫）
-TG_SYNC_CONTACTS = [
-    # "Teammate Name",
-]
-
-# 私訊白名單：只回覆 TG_SYNC_CONTACTS 名單內的人，其他人不回
-REPLY_WHITELIST_ONLY = True
-
-# 請假模式：True 才會自動回覆
-VACATION_MODE = False
-
-# 回覆前隨機延遲秒數（模擬真人打字）
-REPLY_DELAY_MIN = 2
-REPLY_DELAY_MAX = 6
 
 # ── 擁有者身份檔（多租戶化）──────────────────────────────────────────
 # 使用者透過控制台寫入 owner_profile.json；未設定時退回 .example 範本。

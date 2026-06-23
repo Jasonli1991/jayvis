@@ -30,7 +30,6 @@ def main():
     apply_schema(conn)
     print("Obsidian:", backfill_obsidian(conn), "chunks")
     print("GitHub:", backfill_github(conn), "chunks")
-    print("（TG chat 由 tg_history_sync 升級後另跑）")
 
 
 if __name__ == "__main__":
