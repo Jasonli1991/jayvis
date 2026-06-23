@@ -171,7 +171,7 @@ cp .env.example .env          # 之後填金鑰（見「設定詳解」）
 
 | 變數 | 功能 |
 |------|------|
-| `MEDIA_ENABLED` | 媒體工具（圖片去背/轉檔/調尺寸；需 `rembg`，文件轉檔另需 LibreOffice）。 |
+| `MEDIA_ENABLED` | 媒體工具（圖片去背/轉檔/調尺寸；去背需 `pip install "rembg[cpu]"`，文件轉檔另需 LibreOffice）。 |
 | `SEARCH_ENABLED` | 時事搜尋（需 `TAVILY_API_KEY`）。 |
 | `IMAGE_GEN_ENABLED` | 自動配圖（Pollinations.AI，免金鑰）。 |
 | `BROWSE_ENABLED` | 網站瀏覽（Playwright Chromium，CDP `localhost:9222`）。 |

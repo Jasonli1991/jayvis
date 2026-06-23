@@ -85,5 +85,11 @@ def resize_image(in_bytes: bytes, src_ext: str, *, width=None, height=None,
 
 def remove_background(in_bytes: bytes) -> bytes:
     """去背，回傳含透明通道的 PNG。rembg 不限作業系統；首次會下載模型。"""
-    from rembg import remove          # 延遲匯入：未啟用時不付 import 成本
+    try:
+        from rembg import remove      # 延遲匯入：未啟用時不付 import 成本
+    except (ImportError, SystemExit) as e:
+        # rembg 2.x 缺 onnxruntime 後端時 raise 的是 SystemExit（非 Exception），
+        # 不在此攔截會穿過呼叫端的 `except Exception` 把整個 bot 進程帶掉。
+        # 轉成普通 RuntimeError，交給呼叫端回友善訊息。
+        raise RuntimeError('去背需要 rembg 的 onnxruntime 後端，請執行：pip install "rembg[cpu]"') from e
     return remove(in_bytes)

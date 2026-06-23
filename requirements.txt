@@ -8,7 +8,9 @@ google-genai==2.8.0
 openai
 flask==3.1.0
 pywebview==5.3.2
-rembg
 Pillow
 pillow-heif
 playwright>=1.40
+
+# 選用（圖片去背）：rembg 需 onnxruntime 後端，裸裝 rembg 不可用；要去背再執行：
+#   pip install "rembg[cpu]"

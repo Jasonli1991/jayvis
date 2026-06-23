@@ -84,9 +84,24 @@ def test_heic_input_converts():
 
 
 def test_remove_background_outputs_png_with_alpha():
+    # onnxruntime 要先 check：缺後端時 import rembg 會 raise SystemExit（importorskip 攔不到），
+    # 先 importorskip onnxruntime 才能在碰 rembg 前安全略過。
+    pytest.importorskip("onnxruntime")
     pytest.importorskip("rembg")
     if not os.path.exists(os.path.expanduser("~/.u2net/u2net.onnx")):
         pytest.skip("rembg 模型未下載，略過（避免 CI 拉 170MB）")
     out = image_tool.remove_background(_png())
     assert _kind(out) == "png"
     assert out[25] == 6        # IHDR color type 6 = truecolor + alpha
+
+
+def test_remove_background_without_backend_raises_runtimeerror():
+    """缺 onnxruntime 後端時，去背應轉成普通 RuntimeError，而非 SystemExit
+    （SystemExit 會穿過呼叫端 except Exception 把 bot 進程帶掉）。後端正常的環境則略過。"""
+    try:
+        import onnxruntime  # noqa: F401
+    except ImportError:
+        with pytest.raises(RuntimeError):
+            image_tool.remove_background(_png())
+    else:
+        pytest.skip("onnxruntime 已裝，rembg 後端正常，無從重現缺後端情境")
