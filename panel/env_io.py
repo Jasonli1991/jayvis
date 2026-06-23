@@ -1,8 +1,13 @@
 import json
+import logging
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from dotenv import get_key, set_key
+
+# python-dotenv 對「.env 缺某 key」會記 warning；本模組每個讀取都以預設值兜底，
+# 缺 key 是預期行為（全新 .env、尚未開啟的功能），故關掉這條 warning，避免控制台洗版。
+logging.getLogger("dotenv").setLevel(logging.ERROR)
 
 ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = str(ROOT / ".env")
