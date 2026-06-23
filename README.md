@@ -255,18 +255,53 @@ cp .env.example .env          # 之後填金鑰（見「設定詳解」）
 
 ## 運作原理
 
+### 整體架構與資料流
+
+```mermaid
+flowchart TB
+    subgraph SRC["知識來源"]
+        OB["Obsidian vault"]
+        GH["GitHub commits"]
+        TGH["Telegram 歷史"]
+    end
+    OB --> ING["backfill.py / 重建索引"]
+    GH --> ING
+    TGH --> ING
+    ING --> KB[("SQLite 知識庫<br/>~/.n/kb.sqlite · chunks + FTS5")]
+
+    USER["同事 / 你本人"] -->|"私訊 / 群組 @"| BOT["bot.py<br/>Telegram long polling · 白名單過濾"]
+    BOT --> ASST["assistant.py<br/>compose_reply（人設＋本週重點＋脈絡）"]
+    KB -->|"混合檢索<br/>dense + FTS5 + RRF + rerank"| ASST
+    ASST <-->|"依模型名前綴路由"| LLM{{"LLM 閘道<br/>Gemini / Claude / OpenAI / Ollama"}}
+    ASST -.->|"時事問題"| TAV["Tavily 搜尋"]
+    TAV -.-> ASST
+    ASST -->|"回覆＋來源"| BOT
+    BOT --> USER
+
+    PANEL["控制台<br/>Flask + pywebview :8765"] -.->|"設定 / 金鑰"| CFG[(".env · owner_profile.json")]
+    CFG -.-> BOT
+    PANEL -.->|"啟動 / 停止 / 重啟 · 重建索引"| BOT
 ```
-同事私訊 / 群組 @ 提及
-        ↓
-Telegram bot（bot.py · long polling · 白名單過濾 · 群組需被 @）
-        ↓
-混合檢索：Obsidian + GitHub + Telegram → SQLite（dense + FTS5 + RRF）+ rerank
-        ↓（信心不足 → 誠實說資料不足；群組改帶群組脈絡）
-System prompt = 人設(owner_profile) + 本週重點 + 檢索片段 + 近期群組對話 (+ 時事搜尋結果)
-        ↓
-LLM（Gemini / Claude / OpenAI / Ollama，依模型名前綴路由）
-        ↓
-以「<你>的助理」口吻回覆（附來源）
+
+### 訊息路由決策流程
+
+```mermaid
+flowchart TD
+    A["收到訊息"] --> B{"群組？"}
+    B -->|"是"| C["記錄到 group_memory"]
+    C --> D{"有 @ 到 bot？"}
+    D -->|"否"| E["不回應（只記錄脈絡）"]
+    D -->|"是"| F{"白名單 / owner？"}
+    B -->|"否（私訊）"| F
+    F -->|"非白名單"| G["婉拒"]
+    F -->|"是"| H{"是 owner 本人？"}
+    H -->|"同事"| I{"高頻＋低優先？"}
+    I -->|"是"| J["冷卻鎖 60 分"]
+    I -->|"否"| K["同事模式回覆<br/>誠實・不編造・無即時就說查不到"]
+    H -->|"owner"| L{"動作關鍵字？"}
+    L -->|"分析：/ 存 / 瀏覽 / 行事曆 / 委派<br/>（私訊限定）"| M["執行；在群組則說要私訊"]
+    L -->|"生圖 / 媒體 / 時事搜尋<br/>（私訊＋群組）"| N["執行動作"]
+    L -->|"一般問題"| O["本人模式回覆<br/>查知識庫＋可搜尋"]
 ```
 
 **知識庫與檢索**：知識庫是單一檔 `~/.n/kb.sqlite`（`chunks` 表＋FTS5）。檢索＝dense 向量（numpy 餘弦）＋FTS5 全文＋RRF 融合＋rerank，低於門檻就傾向誠實說資料不足。來源：Obsidian（`ingest/obsidian.py`，依 frontmatter 日期/mtime 補 `event_time` 以支援「近期筆記」）、GitHub commits（`github_sync.py`）、Telegram 歷史。用 `backfill.py` 或面板「重建索引」重建。
