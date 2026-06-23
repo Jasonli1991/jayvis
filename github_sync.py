@@ -19,12 +19,11 @@ def gh_ready() -> tuple[bool, str]:
     return True, ""
 
 
-def list_repos(limit: int = 200) -> list[str]:
-    """列出 gh 帳號可存取的 repo（owner/repo），供面板「從 GitHub 帶入」選用。
-    需先 gh_ready()；失敗回 []。"""
+def _gh_repo_lines(owner_args: list[str], limit: int) -> list[str]:
+    """gh repo list [owner] → owner/repo 清單。owner_args 空＝個人 repo；給組織名＝該組織 repo。"""
     try:
         r = subprocess.run(
-            ["gh", "repo", "list", "--limit", str(limit),
+            ["gh", "repo", "list", *owner_args, "--limit", str(limit),
              "--json", "nameWithOwner", "--jq", ".[].nameWithOwner"],
             capture_output=True, text=True, timeout=20)
         if r.returncode != 0:
@@ -32,6 +31,34 @@ def list_repos(limit: int = 200) -> list[str]:
         return [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
     except Exception:
         return []
+
+
+def _gh_orgs() -> list[str]:
+    """gh 帳號所屬的組織登入名（如 DashU-7UP）。"""
+    try:
+        r = subprocess.run(["gh", "api", "user/orgs", "--jq", ".[].login"],
+                           capture_output=True, text=True, timeout=15)
+        if r.returncode != 0:
+            return []
+        return [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
+    except Exception:
+        return []
+
+
+def list_repos(limit: int = 200) -> list[str]:
+    """列出 gh 帳號可存取的 repo（owner/repo）＝個人 repo ＋ 所屬各組織的 repo（去重、保序）。
+    供面板「從 GitHub 帶入」選用。需先 gh_ready()；失敗回 []。"""
+    seen, out = set(), []
+    for repo in _gh_repo_lines([], limit):          # 個人 repo
+        if repo not in seen:
+            seen.add(repo)
+            out.append(repo)
+    for org in _gh_orgs():                           # 各組織 repo（如 DashU-7UP）
+        for repo in _gh_repo_lines([org], limit):
+            if repo not in seen:
+                seen.add(repo)
+                out.append(repo)
+    return out
 
 
 def _fetch_commits(repo: str) -> list[dict]:

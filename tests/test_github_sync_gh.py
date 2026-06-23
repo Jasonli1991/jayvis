@@ -42,3 +42,31 @@ def test_list_repos_parses_owner_repo_lines(monkeypatch):
 def test_list_repos_empty_on_error(monkeypatch):
     monkeypatch.setattr(github_sync.subprocess, "run", lambda *a, **k: _RunOut(1, ""))
     assert github_sync.list_repos() == []
+
+
+def test_list_repos_includes_org_repos(monkeypatch):
+    """個人 0 repo、但所屬組織有 repo → 清單要包含組織 repo（DashU-7UP 情境）"""
+    def fake_run(cmd, **k):
+        if cmd[:3] == ["gh", "api", "user/orgs"]:
+            return _RunOut(0, "DashU-7UP\n")
+        if cmd[:3] == ["gh", "repo", "list"]:
+            if cmd[3] == "--limit":                 # 個人（沒帶 owner 參數）
+                return _RunOut(0, "")
+            return _RunOut(0, "DashU-7UP/ka2ka\nDashU-7UP/e2b-demo\n")   # 組織
+        return _RunOut(1, "")
+    monkeypatch.setattr(github_sync.subprocess, "run", fake_run)
+    assert github_sync.list_repos() == ["DashU-7UP/ka2ka", "DashU-7UP/e2b-demo"]
+
+
+def test_list_repos_dedupes_personal_and_org(monkeypatch):
+    """同一 repo 同時出現在個人與組織清單 → 只留一份、保序"""
+    def fake_run(cmd, **k):
+        if cmd[:3] == ["gh", "api", "user/orgs"]:
+            return _RunOut(0, "Org\n")
+        if cmd[:3] == ["gh", "repo", "list"]:
+            if cmd[3] == "--limit":
+                return _RunOut(0, "me/x\n")
+            return _RunOut(0, "me/x\nOrg/y\n")
+        return _RunOut(1, "")
+    monkeypatch.setattr(github_sync.subprocess, "run", fake_run)
+    assert github_sync.list_repos() == ["me/x", "Org/y"]
