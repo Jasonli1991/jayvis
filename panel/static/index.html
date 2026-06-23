@@ -35,7 +35,19 @@
 <header class="topbar">
   <div class="topbar-row">
     <div class="brand">
-      <span class="brand-mark">J</span>
+      <span class="brand-mark" aria-hidden="true" title="JAYVIS">
+        <svg class="bm-bot" viewBox="0 0 36 46">
+          <line class="bm-ant" x1="15" y1="11" x2="12.6" y2="6"/>
+          <circle class="bm-spark" cx="12.4" cy="5" r="2.1"/>
+          <line class="bm-ant" x1="21" y1="11" x2="23.4" y2="6"/>
+          <circle class="bm-spark bm-spark-2" cx="23.6" cy="5" r="2.1"/>
+          <g class="bm-eyes">
+            <circle class="bm-eye" cx="13" cy="26" r="3"/>
+            <circle class="bm-eye" cx="23" cy="26" r="3"/>
+          </g>
+          <path class="bm-smile" d="M13.5 31.5Q18 36.5 22.5 31.5"/>
+        </svg>
+      </span>
       <div class="brand-txt">
         <span class="brand-name">JAYVIS</span>
         <span class="brand-sub"><span class="jv">J</span>ason's <span class="jv">A</span>I — <span class="jv">Y</span>our <span class="jv">V</span>irtual <span class="jv">I</span>ntelligent <span class="jv">S</span>idekick</span>
@@ -60,20 +72,21 @@
       <span class="badge"><svg class="ic"><use href="#i-database"></use></svg><span class="badge-k">記憶</span><span id="mem" class="badge-v mono">—</span></span>
       <span class="badge"><svg class="ic"><use href="#i-users"></use></svg><span class="badge-k">白名單</span><span id="allowcount" class="badge-v mono">—</span></span>
     </div>
+    <div id="start-alert" class="start-alert" hidden></div>
   </div>
 </header>
 
 <main>
   <section class="card" style="--d:0">
     <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-id"></use></svg></span><h2>身份設定</h2></div>
-    <div class="grid-3">
-      <div class="field"><label for="pf-name">名字</label><input id="pf-name"></div>
-      <div class="field"><label for="pf-title">職稱</label><input id="pf-title"></div>
-      <div class="field"><label for="pf-company">公司</label><input id="pf-company"></div>
+    <div class="grid-3 eq">
+      <div class="field"><label for="pf-name">名字</label><input id="pf-name" placeholder="如：Jason"></div>
+      <div class="field"><label for="pf-title">職稱</label><input id="pf-title" placeholder="如：產品經理"></div>
+      <div class="field"><label for="pf-company">公司</label><input id="pf-company" placeholder="如：Dash-U"></div>
     </div>
-    <div class="field"><label for="pf-projects">專案（每行一筆：名稱｜說明）</label><textarea id="pf-projects" rows="4"></textarea></div>
-    <div class="field"><label for="pf-team">團隊（每行一筆：名稱｜分工）</label><textarea id="pf-team" rows="4"></textarea></div>
-    <div class="field"><label for="pf-bosses">老闆（每行一筆：名稱｜備註）</label><textarea id="pf-bosses" rows="2"></textarea></div>
+    <div class="field"><label for="pf-projects">專案（每行一筆：名稱｜說明）</label><textarea id="pf-projects" rows="4" placeholder="例：JAYVIS｜個人 AI 助理&#10;知識庫重構｜把筆記接進 RAG"></textarea></div>
+    <div class="field"><label for="pf-team">團隊（每行一筆：名稱｜分工）</label><textarea id="pf-team" rows="4" placeholder="例：David｜前端&#10;Matt｜後端 API"></textarea></div>
+    <div class="field"><label for="pf-bosses">老闆（每行一筆：名稱｜備註）</label><textarea id="pf-bosses" rows="2" placeholder="例：Stanley｜重要訊息優先回報"></textarea></div>
     <div class="field"><label>轉介規則（領域 → 負責人）</label>
       <div id="pf-routing-rows" class="routing-rows"></div>
       <button id="pf-routing-add" class="btn sm" type="button"><svg class="ic"><use href="#i-plus"></use></svg>新增規則</button>

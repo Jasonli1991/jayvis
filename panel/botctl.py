@@ -35,6 +35,43 @@ def _bot_env() -> dict:
     return env
 
 
+def _model_ready(model: str, g) -> tuple[bool, str]:
+    """比照 llm._provider_of 的路由，判斷『一般模型』對應供應商是否備齊金鑰/端點。
+    g 為現讀 .env 的取值器。回 (是否可用, 缺什麼的說明)。"""
+    m = (model or "").lower()
+    if m.startswith("claude"):
+        return bool(g("ANTHROPIC_API_KEY")), "一般模型是 claude-*，需要 Anthropic 金鑰（ANTHROPIC_API_KEY）"
+    if m.startswith("gpt") or m.startswith("o"):
+        return (bool(g("OPENAI_API_KEY") or g("OPENAI_BASE_URL")),
+                "一般模型是 gpt-*/o*，需要 OpenAI 金鑰（OPENAI_API_KEY）或相容端點（OPENAI_BASE_URL）")
+    if m.startswith("gemini"):
+        return (bool(g("GEMINI_API_KEY") or g("GCP_PROJECT")),
+                "一般模型是 gemini-*，需要 Google 金鑰（GEMINI_API_KEY）或 GCP 專案（GCP_PROJECT）")
+    if g("OPENAI_BASE_URL"):
+        return True, ""        # 未知前綴 + 有相容端點（本地 Ollama 等）→ 免金鑰
+    return (bool(g("GEMINI_API_KEY") or g("GCP_PROJECT")),
+            f"一般模型「{model}」未設 OPENAI_BASE_URL 會走 Google，"
+            "需要 GEMINI_API_KEY 或 GCP_PROJECT，或設 OPENAI_BASE_URL 走本地/相容端點")
+
+
+def preflight_errors(env_path: str | None = None) -> list[str]:
+    """啟動前檢查最低必要設定。現讀 .env（與 _bot_env 同步），不用面板可能過時的 config.*。
+    回人類可讀的問題清單；空清單＝可啟動。"""
+    env = dotenv_values(env_path or str(ROOT / ".env"))
+
+    def g(k):
+        return (env.get(k) or "").strip()
+
+    problems = []
+    if not g("TG_BOT_TOKEN"):
+        problems.append("缺 Telegram Bot Token —— 請在「Telegram」卡填入（向 @BotFather 建 bot 取得）")
+    model = g("MODEL_GENERAL") or "gemini-2.5-flash"   # 與 config 預設一致
+    ok, why = _model_ready(model, g)
+    if not ok:
+        problems.append(why + " —— 請在「模型」卡設定")
+    return problems
+
+
 def start() -> None:
     if is_running():
         return

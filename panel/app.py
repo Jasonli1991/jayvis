@@ -111,9 +111,14 @@ def api_bot(action):
     _label = {"start": "▶️ 控制台啟動 bot", "stop": "🛑 控制台停止 bot", "restart": "🔄 控制台重啟 bot"}
     if action not in _label:
         return jsonify({"error": "bad action"}), 400
+    if action in ("start", "restart"):       # 啟動前 pre-flight：缺必要設定就擋下，回原因給前端提示
+        problems = botctl.preflight_errors()
+        if problems:
+            botctl.log_event("⛔ 啟動被擋（缺設定）：" + "；".join(problems))
+            return jsonify({"ok": False, "running": botctl.is_running(), "problems": problems})
     botctl.log_event(_label[action])      # 寫進 bot.log，即時 Log 看得到是誰按的
     {"start": botctl.start, "stop": botctl.stop, "restart": botctl.restart}[action]()
-    return jsonify({"running": botctl.is_running()})
+    return jsonify({"ok": True, "running": botctl.is_running()})
 
 
 @app.get("/api/leave")

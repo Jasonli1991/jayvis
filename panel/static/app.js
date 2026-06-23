@@ -173,13 +173,29 @@ async function refreshLog() {
 }
 
 // bot controls：點擊時鎖全部 + 轉圈 + 狀態文字，POST 後立即刷新；失敗有提示
+function showStartAlert(problems) {
+  const el = $("start-alert");
+  el.innerHTML = '<div class="sa-box"><div class="sa-head">⛔ 無法啟動，請先補上：</div><ul>'
+    + problems.map(p => "<li>" + esc(p) + "</li>").join("") + "</ul></div>";
+  el.hidden = false;
+}
+function hideStartAlert() { const el = $("start-alert"); if (el) { el.hidden = true; el.innerHTML = ""; } }
+
 document.querySelectorAll(".botbtns button").forEach(b =>
   b.onclick = async () => {
     const act = b.dataset.act, btns = [...document.querySelectorAll(".botbtns button")];
     btns.forEach(x => x.disabled = true);
     const ic = b.querySelector(".ic"); if (ic) ic.classList.add("spin");
     $("botstate").textContent = {start: "啟動中…", stop: "停止中…", restart: "重啟中…"}[act] || "處理中…";
-    try { await postJSON("/api/bot/" + act); }
+    try {
+      const r = await postJSON("/api/bot/" + act);
+      if (r && r.ok === false && r.problems && r.problems.length) {
+        showStartAlert(r.problems);                 // pre-flight 擋下：列出缺什麼
+        $("botstate").textContent = "未啟動：缺設定";
+      } else {
+        hideStartAlert();
+      }
+    }
     catch (e) { $("botstate").textContent = "操作失敗，請看 Log"; }
     finally { if (ic) ic.classList.remove("spin"); await refreshStatus(); }
   });
