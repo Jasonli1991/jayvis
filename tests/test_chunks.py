@@ -51,5 +51,34 @@ def test_upsert_updates_on_change(conn):
     assert row["raw_text"] == "新內容"
 
 
+def test_upsert_backfills_event_time_when_unchanged(tmp_path, monkeypatch):
+    # 內容沒變的 chunk 重建索引時，仍要補上 event_time（否則「近期筆記」永遠抓不到）
+    monkeypatch.setattr(chunks_mod, "embed_texts", lambda ts: [[0.1] * 1024 for _ in ts])
+    conn = get_conn(str(tmp_path / "kb.sqlite")); apply_schema(conn)
+    rec = ChunkRecord(id="o::d::0", source_type="obsidian", raw_text="同樣內容", doc_path="x.md")
+    assert upsert_chunk(conn, rec) is True                              # 首次寫入，event_time=None
+    assert conn.execute("SELECT event_time FROM chunks").fetchone()["event_time"] is None
+    from datetime import datetime
+    rec2 = ChunkRecord(id="o::d::0", source_type="obsidian", raw_text="同樣內容",
+                       doc_path="x.md", event_time=datetime(2026, 6, 10))
+    assert upsert_chunk(conn, rec2) is False                            # 內容沒變仍回 False
+    got = conn.execute("SELECT event_time FROM chunks").fetchone()["event_time"]
+    assert got == "2026-06-10T00:00:00"                                 # 但 event_time 已被回填
+    conn.close()
+
+
+def test_upsert_unchanged_does_not_clear_event_time(tmp_path, monkeypatch):
+    # 沒帶 event_time 的重建，不可把既有 event_time 清成 None
+    monkeypatch.setattr(chunks_mod, "embed_texts", lambda ts: [[0.1] * 1024 for _ in ts])
+    conn = get_conn(str(tmp_path / "kb.sqlite")); apply_schema(conn)
+    from datetime import datetime
+    upsert_chunk(conn, ChunkRecord(id="o::d::0", source_type="obsidian", raw_text="x",
+                                   doc_path="x.md", event_time=datetime(2026, 6, 10)))
+    upsert_chunk(conn, ChunkRecord(id="o::d::0", source_type="obsidian", raw_text="x", doc_path="x.md"))
+    got = conn.execute("SELECT event_time FROM chunks").fetchone()["event_time"]
+    assert got == "2026-06-10T00:00:00"                                 # 未被 None 清掉
+    conn.close()
+
+
 def test_citation_of_obsidian():
     assert "projy.md" in citation_of(_rec())

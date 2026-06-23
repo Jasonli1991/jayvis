@@ -49,6 +49,10 @@ def upsert_chunk(conn, rec: ChunkRecord) -> bool:
         "SELECT content_hash FROM chunks WHERE id=:id", {"id": rec.id}
     ).fetchone()
     if existing and existing["content_hash"] == h:
+        if rec.event_time is not None:           # 內容沒變仍便宜補/更新 event_time（不重新 embed、不清空既有）
+            conn.execute(
+                "UPDATE chunks SET event_time=:ev WHERE id=:id AND IFNULL(event_time,'') != :ev",
+                {"ev": rec.event_time.isoformat(), "id": rec.id})
         return False
     emb = embed_texts([rec.raw_text])[0]
     params = {
