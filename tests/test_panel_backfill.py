@@ -63,9 +63,36 @@ def test_pick_folder_returns_selected_path(monkeypatch):
 
 
 def test_backfill_github_empty_env_disables(tmp_path, monkeypatch):
-    """.env GITHUB_REPOS= 空字串 → 重灌 GitHub no-op，不該去 fetch"""
+    """.env GITHUB_REPOS= 空字串 → 重灌 GitHub no-op，不該去 fetch，且明確提示尚未設定"""
     _setup(tmp_path, monkeypatch, "GITHUB_REPOS=\n")
     monkeypatch.setattr(app_mod, "_fetch_commits",
                         lambda repo: (_ for _ in ()).throw(AssertionError("should not fetch")))
     app_mod._run_backfill("github")
-    assert "0" in app_mod._backfill["last"]
+    assert "尚未設定" in app_mod._backfill["last"]
+
+
+def test_backfill_github_warns_when_gh_not_ready(tmp_path, monkeypatch):
+    """有設 repo 但 gh 未裝/未登入 → 明確警示原因、不靜默回 0、也不硬抓"""
+    _setup(tmp_path, monkeypatch, "GITHUB_REPOS=owner/repo\n")
+    monkeypatch.setattr(app_mod, "gh_ready", lambda: (False, "gh 尚未登入；請執行 gh auth login。"))
+    monkeypatch.setattr(app_mod, "_fetch_commits",
+                        lambda repo: (_ for _ in ()).throw(AssertionError("should not fetch when gh not ready")))
+    app_mod._run_backfill("github")
+    assert "⚠️" in app_mod._backfill["last"] and "登入" in app_mod._backfill["last"]
+
+
+def test_available_repos_blocked_when_gh_not_ready(monkeypatch):
+    """gh 未登入 → /api/github/available-repos 回 ok:false + 原因，不嘗試列 repo"""
+    monkeypatch.setattr(app_mod, "gh_ready", lambda: (False, "gh 尚未登入。"))
+    r = app_mod.app.test_client().get("/api/github/available-repos")
+    j = r.get_json()
+    assert j["ok"] is False and "登入" in j["error"]
+
+
+def test_available_repos_returns_list_when_ready(monkeypatch):
+    """gh 就緒 → 回帳號可存取的 repo 清單供面板帶入"""
+    monkeypatch.setattr(app_mod, "gh_ready", lambda: (True, ""))
+    monkeypatch.setattr(app_mod, "list_repos", lambda: ["o/a", "o/b"])
+    r = app_mod.app.test_client().get("/api/github/available-repos")
+    j = r.get_json()
+    assert j["ok"] is True and j["repos"] == ["o/a", "o/b"]

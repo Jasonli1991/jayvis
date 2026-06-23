@@ -32,7 +32,7 @@ import browse_launch
 from db.connection import get_conn, apply_schema
 from ingest.obsidian import ingest_dir, count_md_files
 from ingest.github import commit_to_chunk
-from github_sync import _fetch_commits
+from github_sync import _fetch_commits, gh_ready, list_repos
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 
@@ -533,15 +533,30 @@ def _run_backfill(src):
                 msg = f"obsidian: 已是最新（掃描 {scanned} 檔，內容無變化）"
         else:
             repos = config._parse_repos(get_key(env_io.ENV_PATH, "GITHUB_REPOS"))
-            n = 0
-            for repo in repos:
-                for c in _fetch_commits(repo):
-                    rec = commit_to_chunk(conn, repo=repo, sha=c.get("sha", ""),
-                                          author=c.get("author", ""),
-                                          date=c.get("date", "")[:10], msg=c.get("msg", ""))
-                    if rec.raw_text:
-                        n += 1
-            msg = f"github: 寫入 {n} chunks"
+            if not repos:
+                msg = "⚠️ github: 尚未設定任何 repo（每行一個 owner/repo）"
+            else:
+                ready, why = gh_ready()           # 只在有設 repo 時才檢查 gh（免跑多餘子行程）
+                if not ready:                     # gh 沒裝/沒登入 → 明確說原因，別靜默回 0
+                    msg = f"⚠️ github: {why}"
+                else:
+                    n, failed = 0, []
+                    for repo in repos:
+                        commits = _fetch_commits(repo)
+                        if not commits:
+                            failed.append(repo)
+                        for c in commits:
+                            rec = commit_to_chunk(conn, repo=repo, sha=c.get("sha", ""),
+                                                  author=c.get("author", ""),
+                                                  date=c.get("date", "")[:10], msg=c.get("msg", ""))
+                            if rec.raw_text:
+                                n += 1
+                    if n == 0:
+                        msg = "⚠️ github: 取不到任何 commit，請確認 repo 名稱(owner/repo)與 gh 帳號權限"
+                    elif failed:
+                        msg = f"github: 寫入 {n} chunks（這些 repo 取不到：{', '.join(failed)}）"
+                    else:
+                        msg = f"github: 寫入 {n} chunks"
         conn.close()
         _backfill["last"] = msg
         botctl.log_event(f"✅ 重建索引 {src}：{msg}")
@@ -562,6 +577,15 @@ def api_backfill(src):
     _backfill["last"] = f"{src} 執行中…"
     threading.Thread(target=_run_backfill, args=(src,), daemon=True).start()
     return jsonify({"started": True})
+
+
+@app.get("/api/github/available-repos")
+def api_github_available_repos():
+    """gh 登入後列出帳號可存取的 repo，供面板「從 GitHub 帶入」勾選。未就緒回原因。"""
+    ready, why = gh_ready()
+    if not ready:
+        return jsonify({"ok": False, "error": why})
+    return jsonify({"ok": True, "repos": list_repos()})
 
 
 @app.get("/api/logs")

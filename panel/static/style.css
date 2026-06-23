@@ -78,29 +78,16 @@ body,.topbar,.statusbar,.card,.btn,.badge,input,textarea,.log,.answer,.icon-btn,
 .topbar-row{display:flex;align-items:center;justify-content:space-between;gap:14px;
   max-width:960px;margin:0 auto;padding:12px 20px}
 .brand{display:flex;align-items:center;gap:11px}
-.brand-mark{position:relative;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;overflow:visible;
-  background:radial-gradient(130% 130% at 30% 16%, var(--accent-2), var(--accent) 72%);
-  box-shadow:0 4px 16px rgba(243,181,74,.40), 0 1px 2px rgba(0,0,0,.16),
-    inset 0 1px 0 rgba(255,255,255,.55), inset 0 0 0 1px rgba(255,255,255,.16);
-  transition:transform .2s ease, box-shadow .2s ease}
-.brand-mark::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;   /* 對角玻璃光澤（圓角裁切） */
-  background:linear-gradient(148deg, rgba(255,255,255,.42), rgba(255,255,255,0) 48%)}
-/* 可愛小機器人吉祥物（眨眼 + 頭頂天線火花 + 浮動）；天線伸出方塊上方故用金色，深/亮主題皆可見 */
-.bm-bot{position:absolute;left:0;top:-10px;z-index:1;width:36px;height:46px;overflow:visible;
-  animation:bm-bob 4s ease-in-out infinite}
+/* logo：單一自含 SVG（金頭 rect + 冒出上方的天線 + 臉）。動畫用 SVG 內 SMIL（見 index.html）。
+   不用 CSS 動畫/絕對定位/溢出 —— 機器人反覆消失之真因是 SVG 以 top:-10px 溢出 .brand-mark，
+   WebKit 在 sticky 頂欄捲動重繪時會把溢出邊界的圖層丟掉。整個 logo 收進一個「不溢出」的 SVG 即根治。 */
+.brand-logo{flex:none;width:32px;height:40px;overflow:visible;
+  filter:drop-shadow(0 3px 9px rgba(243,181,74,.30));transition:transform .2s ease}
 .bm-eye{fill:var(--accent-ink)}
-.bm-eyes{transform-box:fill-box;transform-origin:center;animation:bm-blink 4.6s infinite}
-.bm-smile{fill:none;stroke:var(--accent-ink);stroke-width:1.7;stroke-linecap:round}
-.bm-ant{stroke:var(--accent);stroke-width:1.7;stroke-linecap:round}
-.bm-spark{fill:var(--accent-2);filter:drop-shadow(0 0 3px var(--accent));
-  transform-box:fill-box;transform-origin:center;animation:bm-spark 2.2s ease-in-out infinite}
-.bm-spark-2{animation-delay:1.1s}   /* 左右天線交錯閃爍 */
-.brand:hover .brand-mark{transform:translateY(-1px) scale(1.05);
-  box-shadow:0 7px 22px rgba(243,181,74,.5), inset 0 1px 0 rgba(255,255,255,.6), inset 0 0 0 1px rgba(255,255,255,.2)}
-.brand:hover .bm-bot{animation-duration:.9s}    /* hover → 更開心地彈 */
-@keyframes bm-bob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-1.5px) rotate(-4deg)}}
-@keyframes bm-blink{0%,90%,100%{transform:scaleY(1)}95%{transform:scaleY(.12)}}
-@keyframes bm-spark{0%,100%{opacity:.55;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+.bm-smile{fill:none;stroke:var(--accent-ink);stroke-width:1.9;stroke-linecap:round}
+.bm-ant{stroke:var(--accent);stroke-width:1.9;stroke-linecap:round}
+.bm-spark{fill:var(--accent-2)}
+.brand:hover .brand-logo{transform:translateY(-1px) scale(1.06)}
 @media (prefers-reduced-motion:reduce){.bm-bot,.bm-eyes,.bm-spark{animation:none}}
 .brand-name{font-weight:600;font-size:15px;letter-spacing:.01em}
 .brand-sub{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.02em;
@@ -218,9 +205,11 @@ input.mono{font-family:var(--mono)}
 .routing-row .r-arrow{flex:0 0 auto;color:var(--text-faint);font-weight:700}
 .routing-row .r-person-wrap{position:relative;flex:1;min-width:0}
 .routing-row .r-person{width:100%}
-.r-del{flex:0 0 auto;width:32px;height:32px;border:1px solid var(--border);border-radius:8px;
-  background:transparent;color:var(--text-faint);cursor:pointer;line-height:1}
-.r-del:hover{border-color:var(--danger);color:var(--danger)}
+.r-del{flex:0 0 auto;display:grid;place-items:center;width:28px;height:28px;border-radius:7px;
+  background:transparent;border:1px solid transparent;color:var(--text-faint);cursor:pointer;
+  transition:color .15s, background-color .15s, border-color .15s}
+.r-del:hover{color:var(--danger);background:var(--danger-soft);border-color:var(--danger-line,transparent)}
+.r-del .ic{width:15px;height:15px}
 .btn.sm{padding:5px 11px;font-size:12px}
 
 /* 本地模型自繪下拉（貼欄位下方） */

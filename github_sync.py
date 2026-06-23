@@ -1,7 +1,37 @@
+import shutil
 import subprocess
 import json
 from datetime import datetime
 from config import GITHUB_REPOS, COMMITS_PER_REPO
+
+
+def gh_ready() -> tuple[bool, str]:
+    """檢查抓 commit 用的 GitHub CLI 是否可用且已登入。回 (就緒?, 缺什麼的說明)。
+    全新使用者最常漏這步：抓 commit 是呼叫 gh，不是 .env token。"""
+    if not shutil.which("gh"):
+        return False, "找不到 gh CLI；請先安裝（brew install gh）並執行 gh auth login。"
+    try:
+        r = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True, timeout=10)
+    except Exception as e:
+        return False, f"無法確認 gh 登入狀態：{e}"
+    if r.returncode != 0:
+        return False, "gh 尚未登入；請執行 gh auth login（選 GitHub.com → HTTPS → 瀏覽器登入）。"
+    return True, ""
+
+
+def list_repos(limit: int = 200) -> list[str]:
+    """列出 gh 帳號可存取的 repo（owner/repo），供面板「從 GitHub 帶入」選用。
+    需先 gh_ready()；失敗回 []。"""
+    try:
+        r = subprocess.run(
+            ["gh", "repo", "list", "--limit", str(limit),
+             "--json", "nameWithOwner", "--jq", ".[].nameWithOwner"],
+            capture_output=True, text=True, timeout=20)
+        if r.returncode != 0:
+            return []
+        return [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
+    except Exception:
+        return []
 
 
 def _fetch_commits(repo: str) -> list[dict]:

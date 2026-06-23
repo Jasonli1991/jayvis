@@ -127,6 +127,8 @@ cp .env.example .env          # 之後填金鑰（見「設定詳解」）
 
 或在控制台「重建索引」卡按一下（有即時進度 log）。沒設 Obsidian/GitHub 也能跑，只是沒有 RAG 來源。
 
+> **GitHub commits 來源需先裝並登入 GitHub CLI**：`brew install gh` → `gh auth login`（選 GitHub.com → HTTPS → 瀏覽器登入）。抓 commit 是呼叫 `gh`、不是放 token；沒裝/沒登入會抓不到（重建索引會明確提示原因）。`gh` 帳號的權限決定能讀哪些 repo（公開皆可、私有需有權限）。Obsidian 來源不需要 `gh`。repos 在控制台「記憶管理」卡填，每行一個 `owner/repo`。
+
 ### 步驟 4｜啟動
 
 ```bash
@@ -161,7 +163,7 @@ cp .env.example .env          # 之後填金鑰（見「設定詳解」）
 | `MODEL_GENERAL` / `MODEL_CODE` | 一般模型／高階模型名稱；**供應商由名稱前綴自動判定**。 | `gemini-2.5-flash` / `gemini-2.5-pro` |
 | `RETRIEVAL_THRESHOLD` | 檢索信心門檻（低於就傾向誠實說資料不足）。 | `0.3` |
 | `OBSIDIAN_PATH` | Obsidian vault 路徑（留空＝跳過 Obsidian）。 | 空 |
-| `GITHUB_REPOS` | 逗號分隔 `owner/repo`，追蹤 commit（空＝不追）。 | 空 |
+| `GITHUB_REPOS` | 逗號分隔 `owner/repo`，追蹤 commit（空＝不追；需先 `brew install gh` + `gh auth login`）。 | 空 |
 | `CODE_ROOT` | 本機專案母資料夾（子資料夾＝一個專案），供 owner 程式委派。 | 空 |
 | `CODE_ASK_BUDGET_USD` / `CODE_APPLY_BUDGET_USD` | 程式問答/計畫、改碼+PR 的花費上限（美元）。 | `2` / `15` |
 | `TAVILY_API_KEY` | 時事搜尋金鑰（tavily.com）。 | 空 |

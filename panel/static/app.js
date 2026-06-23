@@ -83,7 +83,7 @@ function _routingRow(area = "", person = "") {
   row.innerHTML = '<input class="r-area" placeholder="領域（如：爬蟲）">' +
     '<span class="r-arrow">→</span>' +
     '<span class="r-person-wrap"><input class="r-person" placeholder="負責人" autocomplete="off"></span>' +
-    '<button class="r-del" type="button" title="刪除">✕</button>';
+    '<button class="r-del" type="button" title="移除"><svg class="ic"><use href="#i-trash"></use></svg></button>';
   row.querySelector(".r-area").value = area;
   row.querySelector(".r-person").value = person;
   row.querySelector(".r-del").onclick = () => row.remove();
@@ -526,7 +526,8 @@ _bfBtns.forEach(b => b.onclick = () => withBusy(b, async () => {
     $("bf-msg").textContent = src + " 重建索引中…（需時，請稍候）";
     await postJSON("/api/backfill/" + src);
     const last = await waitBackfill(180000);          // 等背景索引真的完成再報結果
-    flash($("bf-msg"), last || (src + " 重建索引完成"));
+    const txt = last || (src + " 重建索引完成");
+    if (/^⚠️/.test(txt)) warn($("bf-msg"), txt); else flash($("bf-msg"), txt);   // ⚠️ 開頭＝有狀況（如 gh 未登入），用警示樣式
   } catch (e) { warn($("bf-msg"), src + " 重建索引失敗，請重試"); }
   finally { others.forEach(x => x.disabled = false); }
 }));
@@ -649,7 +650,7 @@ function renderBrowse() {
     li.className = "chip";
     li.textContent = d;
     const x = document.createElement("button");
-    x.type = "button"; x.className = "r-del"; x.title = "刪除"; x.textContent = "✕";
+    x.type = "button"; x.className = "r-del"; x.title = "移除"; x.innerHTML = '<svg class="ic"><use href="#i-trash"></use></svg>';
     x.onclick = () => { _browseDomains.splice(i, 1); renderBrowse(); };
     li.appendChild(x);
     ul.appendChild(li);
@@ -749,6 +750,38 @@ function wireBrowse() {
     } catch (e) { warn($("browse-msg"), "儲存失敗，請重試"); }
   }));
 }
+
+// GitHub repos picker：gh 登入後從帳號帶入 repo（點選加入欄位、自動去重）
+(function () {
+  const btn = $("src-repos-pick"), menu = $("src-repos-menu"), msg = $("src-repos-msg"), ta = $("src-repos");
+  if (!btn) return;
+  const curRepos = () => ta.value.split("\n").map(x => x.trim()).filter(Boolean);
+  btn.onclick = async () => {
+    msg.classList.remove("warn", "ok"); msg.textContent = "讀取中…";
+    let r;
+    try { r = await getJSON("/api/github/available-repos"); }
+    catch (e) { warn(msg, "讀取失敗"); menu.hidden = true; return; }
+    if (!r.ok) { warn(msg, r.error || "無法取得 repo 清單"); menu.hidden = true; return; }   // gh 未登入等
+    if (!r.repos || !r.repos.length) { warn(msg, "找不到任何 repo"); menu.hidden = true; return; }
+    msg.textContent = "";
+    const have = new Set(curRepos());
+    menu.innerHTML = "";
+    r.repos.forEach(repo => {
+      const o = document.createElement("button");
+      o.type = "button"; o.className = "model-opt";
+      o.textContent = have.has(repo) ? repo + "  ✓" : repo;
+      o.onclick = () => {
+        if (!curRepos().includes(repo)) ta.value = [...curRepos(), repo].join("\n");
+        o.textContent = repo + "  ✓";
+      };
+      menu.appendChild(o);
+    });
+    menu.hidden = false;
+  };
+  document.addEventListener("pointerdown", (e) => {
+    if (!menu.hidden && !menu.contains(e.target) && !btn.contains(e.target)) menu.hidden = true;
+  });
+})();
 
 loadProfile(); loadLeave(); loadBotToken(); loadAllow(); loadModels(); loadLlmKeys(); loadOllamaModels(); loadSources(); loadActions(); loadLibre(); loadMemPersons(); loadBrowse(); wireBrowse(); wireImageGen(); refreshStatus(); refreshLog();
 setInterval(refreshStatus, 5000);

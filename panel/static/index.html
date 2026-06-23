@@ -35,19 +35,36 @@
 <header class="topbar">
   <div class="topbar-row">
     <div class="brand">
-      <span class="brand-mark" aria-hidden="true" title="JAYVIS">
-        <svg class="bm-bot" viewBox="0 0 36 46">
-          <line class="bm-ant" x1="15" y1="11" x2="12.6" y2="6"/>
-          <circle class="bm-spark" cx="12.4" cy="5" r="2.1"/>
-          <line class="bm-ant" x1="21" y1="11" x2="23.4" y2="6"/>
-          <circle class="bm-spark bm-spark-2" cx="23.6" cy="5" r="2.1"/>
-          <g class="bm-eyes">
-            <circle class="bm-eye" cx="13" cy="26" r="3"/>
-            <circle class="bm-eye" cx="23" cy="26" r="3"/>
-          </g>
-          <path class="bm-smile" d="M13.5 31.5Q18 36.5 22.5 31.5"/>
-        </svg>
-      </span>
+      <svg class="brand-logo" viewBox="0 0 40 50" width="32" height="40" aria-hidden="true">
+        <defs>
+          <radialGradient id="jvGold" cx="30%" cy="18%" r="115%">
+            <stop offset="0" stop-color="#ffd585"/>
+            <stop offset="0.62" stop-color="#f3b54a"/>
+            <stop offset="1" stop-color="#e0972c"/>
+          </radialGradient>
+        </defs>
+        <!-- 金色方塊（頭）：靜態，在 SVG 下半 -->
+        <rect class="bl-head" x="2" y="14" width="36" height="36" rx="11" fill="url(#jvGold)"/>
+        <!-- 臉＋天線：在 SVG 上半（天線視覺在頭頂上方，但都在 SVG 內、不溢出容器）。動畫用 SMIL -->
+        <g>
+          <animateTransform attributeName="transform" type="translate" values="0 0; 0 -1.6; 0 0" keyTimes="0;0.5;1" dur="4s" repeatCount="indefinite"/>
+          <line class="bm-ant" x1="17" y1="15.5" x2="14" y2="9"/>
+          <circle class="bm-spark" cx="13.7" cy="8" r="2.2">
+            <animate attributeName="opacity" values="0.5;1;0.5" keyTimes="0;0.5;1" dur="2.2s" repeatCount="indefinite"/>
+          </circle>
+          <line class="bm-ant" x1="23" y1="15.5" x2="26" y2="9"/>
+          <circle class="bm-spark" cx="26.3" cy="8" r="2.2">
+            <animate attributeName="opacity" values="0.5;1;0.5" keyTimes="0;0.5;1" dur="2.2s" begin="-1.1s" repeatCount="indefinite"/>
+          </circle>
+          <ellipse class="bm-eye" cx="15" cy="30" rx="3.2" ry="3.2">
+            <animate attributeName="ry" values="3.2;3.2;0.4;3.2" keyTimes="0;0.9;0.96;1" dur="4.6s" repeatCount="indefinite"/>
+          </ellipse>
+          <ellipse class="bm-eye" cx="25" cy="30" rx="3.2" ry="3.2">
+            <animate attributeName="ry" values="3.2;3.2;0.4;3.2" keyTimes="0;0.9;0.96;1" dur="4.6s" repeatCount="indefinite"/>
+          </ellipse>
+          <path class="bm-smile" d="M15 36Q20 41 25 36"/>
+        </g>
+      </svg>
       <div class="brand-txt">
         <span class="brand-name">JAYVIS</span>
         <span class="brand-sub"><span class="jv">J</span>ason's <span class="jv">A</span>I — <span class="jv">Y</span>our <span class="jv">V</span>irtual <span class="jv">I</span>ntelligent <span class="jv">S</span>idekick</span>
@@ -78,7 +95,7 @@
 
 <main>
   <section class="card" style="--d:0">
-    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-id"></use></svg></span><h2>身份設定</h2></div>
+    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-id"></use></svg></span><h2>個人身份設定</h2></div>
     <div class="grid-3 eq">
       <div class="field"><label for="pf-name">名字</label><input id="pf-name" placeholder="如：Jason"></div>
       <div class="field"><label for="pf-title">職稱</label><input id="pf-title" placeholder="如：產品經理"></div>
@@ -86,7 +103,7 @@
     </div>
     <div class="field"><label for="pf-projects">專案（每行一筆：名稱｜說明）</label><textarea id="pf-projects" rows="4" placeholder="例：JAYVIS｜個人 AI 助理&#10;知識庫重構｜把筆記接進 RAG"></textarea></div>
     <div class="field"><label for="pf-team">團隊（每行一筆：名稱｜分工）</label><textarea id="pf-team" rows="4" placeholder="例：David｜前端&#10;Matt｜後端 API"></textarea></div>
-    <div class="field"><label for="pf-bosses">老闆（每行一筆：名稱｜備註）</label><textarea id="pf-bosses" rows="2" placeholder="例：Stanley｜重要訊息優先回報"></textarea></div>
+    <div class="field"><label for="pf-bosses">Boss（每行一筆：名稱｜備註）</label><textarea id="pf-bosses" rows="2" placeholder="例：Stanley｜重要訊息優先回報"></textarea></div>
     <div class="field"><label>轉介規則（領域 → 負責人）</label>
       <div id="pf-routing-rows" class="routing-rows"></div>
       <button id="pf-routing-add" class="btn sm" type="button"><svg class="ic"><use href="#i-plus"></use></svg>新增規則</button>
@@ -128,8 +145,8 @@
       <label class="section-label">白名單同事 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">只有名單內的 TG 使用者，bot 才會回應（私訊、或群組裡 @ bot）。用 @userinfobot 取得對方的數字 id；別名僅顯示用，bot 回覆時可自然稱呼對方。改後即時生效，不必重啟。你本人（owner，上方那欄）免加進名單 —— bot 自動回應你。</span></span></label>
       <ul id="allowlist" class="chips"></ul>
       <div class="inline">
-        <input id="allow-new-id" inputmode="numeric" class="mono" placeholder="user_id">
         <input id="allow-new-alias" placeholder="別名（誰）">
+        <input id="allow-new-id" inputmode="numeric" class="mono" placeholder="user_id（5–15 位數字）">
         <button id="allow-add" class="btn"><svg class="ic"><use href="#i-plus"></use></svg>新增</button>
       </div>
       <span id="allow-msg" class="msg"></span>
@@ -180,7 +197,14 @@
             <button id="src-browse" class="btn" type="button" title="開啟資料夾選擇視窗"><svg class="ic"><use href="#i-folder"></use></svg>瀏覽…</button>
           </div>
         </div>
-        <div class="field"><label for="src-repos">GitHub repos（每行一個 owner/repo，可留空）</label><textarea id="src-repos" rows="3" class="mono"></textarea></div>
+        <div class="field"><label for="src-repos">GitHub repos（每行一個 owner/repo，可留空）</label>
+          <textarea id="src-repos" rows="3" class="mono"></textarea>
+          <div class="inline" style="margin-top:6px">
+            <button id="src-repos-pick" class="btn sm" type="button"><svg class="ic"><use href="#i-plus"></use></svg>從 GitHub 帶入…</button>
+            <span id="src-repos-msg" class="msg"></span>
+          </div>
+          <div id="src-repos-menu" class="model-menu" hidden></div>
+        </div>
         <div class="actions wrap">
           <button data-bf="obsidian" class="btn"><svg class="ic"><use href="#i-rotate"></use></svg>重建索引 Obsidian</button>
           <button data-bf="github" class="btn"><svg class="ic"><use href="#i-rotate"></use></svg>重建索引 GitHub</button>
