@@ -1,4 +1,4 @@
-# JAYVIS
+# JAYVIS──個人 AI 搭檔
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.11-3776AB" />
@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/license-MIT-success" />
 </p>
 
-> **JAYVIS** 是一個自架的個人 Telegram AI 助理。當你不在線（或請假）時，同事可以**私訊它**或在工作群組**「@ 它」**，它會用**自己的助理人設**（幽默、有台灣味、會表明「我是你的助理」、**不冒充你本人**）、根據**你自己的知識庫**（Obsidian 筆記、GitHub commits、Telegram 對話）誠實回答 —— 沒把握就老實說、不編造。附帶一個桌面**控制台**把所有設定點一點就好，**全部跑在本機**（單一檔 SQLite，不需要任何資料庫伺服器），也很容易換個人就變成「他的」助理。
+> **JAYVIS** 是一個自架的個人 Telegram AI 助理。當你不在線（或請假）時，同事可以**私訊它**或在工作群組**「@ 它」**，它會用**自己的助理人設**（幽默、有台灣味、會表明「我是你的助理」、**不冒充你本人**）、根據**Jason Obsidian 筆記知識庫** ([請參考 Another_Me_Architecture](#https://github.com/Jasonli1991/Another_Me_Architecture))、GitHub commits、Telegram 對話）誠實回答 —— 沒把握就老實說、不編造。附帶一個桌面**控制台**把所有設定點一點就好，**全部跑在本機**（單一檔 SQLite，不需要任何資料庫伺服器）。
 
 ---
 
@@ -18,7 +18,7 @@
 - [這是什麼、適合誰](#這是什麼適合誰)
 - [功能總覽](#功能總覽)
 - [技術架構](#技術架構)
-- [快速開始（手把手教學）](#快速開始手把手教學)
+- [快速開始](#快速開始手把手教學)
 - [設定詳解](#設定詳解)
 - [控制台逐卡說明](#控制台逐卡說明)
 - [怎麼用：你本人 / 同事 / 群組](#怎麼用你本人--同事--群組)
@@ -55,7 +55,7 @@ JAYVIS 是給「希望請假/離線時，同事仍能問到事情」的人用的
 | **LLM 代擬本週重點** | 面板一鍵，從近期對話／commits／近期筆記／一句方向，幫你擬一份「本週重點／交接重點」草稿，編修後再儲存。 |
 | **請假期間彙整** | 把請假區間內同事與助理的對話整理成「已處理項目＋待辦」，面板顯示並發到你的 TG；請假結束自動 DM 你一次。 |
 | **多供應商模型路由** | 依模型名稱前綴自動分流 **Gemini / Claude / OpenAI / 本地 Ollama**；面板金鑰一律遮罩。 |
-| **時事搜尋（Tavily）** | 你本人問股價/天氣/新聞等時效性問題時，先搜尋再帶來源回答（owner 限定，可開放群組）。 |
+| **時事搜尋（Tavily）** | owner 限定：你本人問股價/天氣/新聞等時效性問題時，先搜尋再帶來源回答。 |
 | **生圖、媒體工具、網站瀏覽** | owner 限定：自動配圖（Pollinations.AI）、圖片去背/轉檔/調尺寸、借用 Chromium 看網頁並操作。 |
 | **行事曆 / 收發信（macOS）** | owner 限定，預設關閉、寫入前先問你確認，透過 AppleScript 驅動 Calendar.app / Mail.app。 |
 | **程式委派** | owner 限定：把本機專案的程式問題交給 headless Coding Agent 問答／擬修復計畫／改碼開 PR。 |
@@ -71,17 +71,17 @@ JAYVIS 是給「希望請假/離線時，同事仍能問到事情」的人用的
 |----|------|
 | **live 入口** | Python 3.11 · `python-telegram-bot` 21.9（Bot API，long polling） |
 | **知識庫** | SQLite（FTS5）＋ numpy 餘弦相似度 ＋ Python RRF 融合（零伺服器） |
-| **Embedding / rerank** | sentence-transformers（如 `BAAI/bge-m3`、`bge-reranker-v2-m3`） |
+| **Embedding / rerank** | sentence-transformers（`BAAI/bge-m3`、`bge-reranker-v2-m3`） |
 | **LLM 閘道** | google-genai（Gemini）· Anthropic · OpenAI · 本地 Ollama（OpenAI 相容）；依模型名前綴分流 |
 | **控制台** | Flask（127.0.0.1:8765）＋ pywebview 原生視窗 |
-| **知識來源** | Obsidian vault · GitHub commits（灌入 KB）· 私訊／群組對話記憶（回覆時 recall） |
+| **知識來源** | Jason Obsidian vault · GitHub commits（灌入 KB）· 私訊／群組對話記憶（回覆時 recall） |
 | **選用能力** | Tavily（時事）· Pollinations.AI（生圖）· Playwright Chromium（瀏覽）· rembg/Pillow（媒體）· AppleScript（行事曆/信，macOS） |
 
 > 註：`python-telegram-bot` 的 JobQueue 需要 apscheduler（本專案未安裝），所有排程（如請假結束自動彙整）改用 **asyncio 背景任務**達成。
 
 ---
 
-## 快速開始（手把手教學）
+## 快速開始
 
 ### 步驟 0｜先準備
 
@@ -119,7 +119,7 @@ cp .env.example .env          # 之後填金鑰（見「設定詳解」）
 
 > 這些個人檔**都不會進版控**；若不存在，JAYVIS 會自動退回 `.example` 範本，所以一裝好就能跑。
 
-### 步驟 3｜建知識庫（選用，但建議）
+### 步驟 3｜綁定 [Jason 的第二大腦知識庫](#https://github.com/Jasonli1991/Another_Me_Architecture)（選用，但建議）
 
 ```bash
 .venv/bin/python backfill.py     # 首次會下載 embedding 模型，建立 ~/.n/kb.sqlite
@@ -363,7 +363,7 @@ jayvis/
 
 ---
 
-## 換人使用（多租戶）
+## 多租戶
 
 身份不寫死。要把 JAYVIS 給別人變成「他的」助理：
 
