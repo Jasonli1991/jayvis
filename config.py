@@ -23,6 +23,13 @@ def _float_env(key: str, default: float) -> float:
     return float(raw) if raw else default
 
 
+def _str_env(key: str, default: str) -> str:
+    """同 _int_env，字串版：未設定或留空一律退回 default。
+    用於不該為空的值（如模型名——面板存模型卡時欄位空白會寫成 KEY=，空模型會讓 bot 挑不到模型）。"""
+    raw = (os.getenv(key) or "").strip()
+    return raw if raw else default
+
+
 APP_NAME = "JAYVIS"
 APP_VERSION = "1.0.0"
 
@@ -132,8 +139,8 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 # OpenAI 相容第三方端點（如 siraya）：設了之後，非 gemini-*/claude-* 模型一律走此端點
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "")
-MODEL_GENERAL = os.getenv("MODEL_GENERAL", "gemini-2.5-flash")
-MODEL_CODE = os.getenv("MODEL_CODE", "gemini-2.5-pro")
+MODEL_GENERAL = _str_env("MODEL_GENERAL", "gemini-2.5-flash")   # 空值（面板存空欄位）退回預設，避免 bot 挑不到模型
+MODEL_CODE = _str_env("MODEL_CODE", "gemini-2.5-pro")
 # 記憶層：近期歷史輪數、語意回想筆數、進語意庫的最短字數
 MEMORY_RECENT_TURNS = _int_env("MEMORY_RECENT_TURNS", 10)
 MEMORY_RECALL_N = _int_env("MEMORY_RECALL_N", 6)
@@ -162,3 +169,27 @@ IMAGE_GEN_MODEL = os.getenv("IMAGE_GEN_MODEL", "flux")
 IMAGE_GEN_SIZE = _int_env("IMAGE_GEN_SIZE", 1024)
 IMAGE_GEN_TIMEOUT_S = _int_env("IMAGE_GEN_TIMEOUT_S", 45)
 IMAGE_GEN_FONT = os.getenv("IMAGE_GEN_FONT", "")    # 梗圖字幕字型（空＝自動找系統中文字型）
+
+
+def reload_runtime_keys(env_path: str | None = None) -> None:
+    """面板存檔/重啟後免關掉整個面板即生效：重新從 .env 刷新「面板會即時用到」的設定到 config
+    —— LLM 金鑰/端點 + 一般/高階模型名（這些值在啟動時載入，之後 load_dotenv 不重讀）。
+    不動其他啟動期設定（那些由 bot 子行程重啟時經 _bot_env 取得新值）。"""
+    from dotenv import dotenv_values
+    env = dotenv_values(env_path or os.path.join(os.path.dirname(__file__), ".env"))
+
+    def g(k, default=""):
+        v = (env.get(k) or "").strip()
+        return v if v else default
+
+    global GEMINI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENAI_BASE_URL
+    global GCP_PROJECT, GCP_LOCATION, TAVILY_API_KEY, MODEL_GENERAL, MODEL_CODE
+    GEMINI_API_KEY = g("GEMINI_API_KEY")
+    ANTHROPIC_API_KEY = g("ANTHROPIC_API_KEY")
+    OPENAI_API_KEY = g("OPENAI_API_KEY")
+    OPENAI_BASE_URL = g("OPENAI_BASE_URL")
+    GCP_PROJECT = g("GCP_PROJECT")
+    GCP_LOCATION = g("GCP_LOCATION", "global")
+    TAVILY_API_KEY = g("TAVILY_API_KEY")
+    MODEL_GENERAL = g("MODEL_GENERAL", "gemini-2.5-flash")   # 空值退回預設（同 _str_env）
+    MODEL_CODE = g("MODEL_CODE", "gemini-2.5-pro")

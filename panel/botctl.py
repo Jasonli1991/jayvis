@@ -82,20 +82,36 @@ def start() -> None:
 
 
 def stop() -> None:
-    if PID_FILE.exists():
+    if not PID_FILE.exists():
+        return
+    try:
+        pid = int(PID_FILE.read_text().strip())
+    except Exception:
+        PID_FILE.unlink(missing_ok=True)
+        return
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except Exception:
+        PID_FILE.unlink(missing_ok=True)
+        return
+    # 等舊 bot 真的結束再回（最多 ~8s）。否則重啟時新舊兩隻會搶 Telegram long-poll（409 衝突）
+    # → bot 看似沒套用新設定，使用者只好整個關掉面板重開。
+    for _ in range(40):
         try:
-            os.kill(int(PID_FILE.read_text().strip()), signal.SIGTERM)
+            os.kill(pid, 0)            # 0 號訊號＝只探測是否還活著
+        except OSError:
+            break                      # 已結束
+        time.sleep(0.2)
+    else:
+        try:
+            os.kill(pid, signal.SIGKILL)   # 逾時仍沒死 → 強制結束
         except Exception:
             pass
-        try:
-            PID_FILE.unlink()
-        except Exception:
-            pass
+    PID_FILE.unlink(missing_ok=True)
 
 
 def restart() -> None:
-    stop()
-    time.sleep(1)
+    stop()                # stop() 已等舊行程結束，不必再固定 sleep
     start()
 
 

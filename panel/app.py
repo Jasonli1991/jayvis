@@ -118,6 +118,11 @@ def api_bot(action):
             return jsonify({"ok": False, "running": botctl.is_running(), "problems": problems})
     botctl.log_event(_label[action])      # 寫進 bot.log，即時 Log 看得到是誰按的
     {"start": botctl.start, "stop": botctl.stop, "restart": botctl.restart}[action]()
+    if action in ("start", "restart"):
+        # 同步刷新「面板自己」的 config（金鑰/模型）—— 面板的 config 是開機時載入的、不會自動重讀；
+        # 不刷的話狀態列/列模型仍顯示舊值，使用者只好整個關掉面板重開。
+        config.reload_runtime_keys()
+        llm.reset_clients()
     return jsonify({"ok": True, "running": botctl.is_running()})
 
 
@@ -319,8 +324,11 @@ def api_llm_models_get():
 
 @app.get("/api/provider-models")
 def api_provider_models():
-    """列出有設金鑰之供應商的對話模型（Google/Anthropic/OpenAI），供模型路由 picker。容錯不 500。"""
+    """列出有設金鑰之供應商的對話模型（Google/Anthropic/OpenAI），供模型路由 picker。容錯不 500。
+    先即時從 .env 刷新金鑰並清 client 快取 → 面板剛存的金鑰免重啟面板即生效。"""
     try:
+        config.reload_runtime_keys()   # config 在面板啟動時載入、不會自動重讀；存金鑰後在此即時刷新
+        llm.reset_clients()            # 清快取 client，改用新金鑰/端點重建
         return jsonify(llm.list_available_models())
     except Exception:
         return jsonify({"models": [], "providers": {}})

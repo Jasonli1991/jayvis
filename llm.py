@@ -12,6 +12,12 @@ _log = logging.getLogger("llm")
 _clients: dict = {}
 _lock = threading.Lock()
 
+
+def reset_clients() -> None:
+    """清掉已快取的供應商 client（金鑰/端點變更後需用新值重建）。"""
+    with _lock:
+        _clients.clear()
+
 QUOTA_MSG = "⚠️ 模型額度用完了（429 配額耗盡）。請到控制台「模型路由」把模型切到本地 Ollama 或等免費額度重置後再試。"
 
 
