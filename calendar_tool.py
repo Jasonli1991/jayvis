@@ -125,9 +125,15 @@ end tell'''
 
 
 def list_calendars() -> list:
-    """回可寫入的日曆名清單。列舉遠端日曆慢（實測 ~22s）→ 放寬逾時，避免誤判讀不到。"""
+    """回可寫入的日曆名清單（去重；Calendar 可能回同名重複）。列舉遠端日曆慢（~22s）→ 放寬逾時。"""
     raw = _run(_script_list_calendars(), timeout=45)
-    return [ln.strip() for ln in (raw or "").splitlines() if ln.strip()]
+    seen, out = set(), []
+    for ln in (raw or "").splitlines():
+        name = ln.strip()
+        if name and name not in seen:
+            seen.add(name)
+            out.append(name)
+    return out
 
 
 # ── 執行 + 公開介面 ───────────────────────────────────────────

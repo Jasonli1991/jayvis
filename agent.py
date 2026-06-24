@@ -2,6 +2,7 @@
 import json
 import logging
 import sys
+import threading
 from dataclasses import dataclass
 
 import calendar_tool as cal
@@ -197,7 +198,9 @@ def build_system(now, calendars=None, accounts=None, calendar_on=True, email_on=
     blocks = []
     if calendar_on:
         cal_line = ("\n  新增時：使用者有明確指定日曆才把名字放進 calendar 欄；"
-                    "沒指定就省略 calendar 欄，不要自己編日曆名（例如不要填 default）。")
+                    "沒指定就省略 calendar 欄，不要自己編日曆名（例如不要填 default）。"
+                    "\n  notes 只放使用者明確要的備註；別自己編造會議連結"
+                    "（如 https://meet.google.com/new 這種通用連結）—— 真正的 Google Meet 連結由 Google 日曆自動產生，你不必也不該自己塞。")
         if calendars:
             cal_line += "\n  可用日曆：" + "、".join(calendars) + "（指定時請用清單裡的名字）。"
         blocks.append(
@@ -236,6 +239,7 @@ from datetime import datetime, timedelta
 
 _pending = {}
 _calendars_cache = []
+_cal_lock = threading.Lock()     # 防止「開機預熱」與「訊息處理」並發各抓一次日曆 → 清單重複
 _mail_accts_cache = []
 _last_list = []          # 上次 list_email 的結果，供「刪第 N 封」對應
 _last_media = {}         # {chat_id: {"bytes","filename"}}：各對話各自記住上次的圖/檔，供跟進指令套用
@@ -252,10 +256,16 @@ def reset():
 
 def _writable_calendars():
     if not _calendars_cache:
-        try:
-            _calendars_cache.extend(cal.list_calendars())
-        except Exception:
-            pass
+        with _cal_lock:                          # 鎖＋雙重檢查：只填一次，避免並發各抓一次→清單重複
+            if not _calendars_cache:
+                try:
+                    seen = set()
+                    for name in cal.list_calendars():
+                        if name and name not in seen:    # 去重（防 Calendar 回同名重複）
+                            seen.add(name)
+                            _calendars_cache.append(name)
+                except Exception:
+                    pass
     return _calendars_cache
 
 
