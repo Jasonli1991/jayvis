@@ -90,7 +90,7 @@ OWNER_NAME = _PROFILE.get("owner_name") or os.getenv("OWNER_NAME", "Owner")
 # 純內部 DB 分區鍵，不對外顯示。
 OWNER_KEY = "owner"
 
-# ── Bot API 助理（Phase 2）─────────────────────────────────────────────
+# ── Bot API 搭檔（Phase 2）─────────────────────────────────────────────
 TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN", "")
 ASSISTANT_NAME = _PROFILE.get("assistant_name") or os.getenv("ASSISTANT_NAME", APP_NAME)
 
@@ -149,7 +149,7 @@ MEMORY_MIN_CHARS = _int_env("MEMORY_MIN_CHARS", 6)
 SEARCH_ENABLED = os.getenv("SEARCH_ENABLED", "false").lower() == "true"
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
 
-# ── 助理瀏覽網頁（借用已登入 Chrome）──────────────────────────
+# ── 搭檔瀏覽網頁（借用已登入 Chrome）──────────────────────────
 BROWSE_ENABLED = os.getenv("BROWSE_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
 BROWSE_CDP_URL = os.getenv("BROWSE_CDP_URL", "http://localhost:9222")
 BROWSE_MAX_STEPS = _int_env("BROWSE_MAX_STEPS", 12)
@@ -163,7 +163,7 @@ BROWSE_SETTLE_MS = _int_env("BROWSE_SETTLE_MS", 1000)
 # 專用瀏覽設定檔（獨立 Chrome instance，與個人 Chrome 隔離；第一次需在該視窗登入要用的站）
 BROWSE_PROFILE_DIR = os.getenv("BROWSE_PROFILE_DIR", os.path.expanduser("~/.n/chrome-browse-profile"))
 
-# ── 助理自動配圖（Pollinations.AI）──────────────────────────
+# ── 搭檔自動配圖（Pollinations.AI）──────────────────────────
 IMAGE_GEN_ENABLED = os.getenv("IMAGE_GEN_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
 IMAGE_GEN_MODEL = os.getenv("IMAGE_GEN_MODEL", "flux")
 IMAGE_GEN_SIZE = _int_env("IMAGE_GEN_SIZE", 1024)

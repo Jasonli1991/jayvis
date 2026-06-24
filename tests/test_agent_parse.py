@@ -18,7 +18,7 @@ def test_parse_nested_update_intent():
 
 
 def test_non_action_returns_none():
-    assert agent.parse_intent("你好，我是 Owner 的助理～") is None
+    assert agent.parse_intent("你好，我是 Owner 的搭檔～") is None
 
 
 def test_bad_json_returns_none():

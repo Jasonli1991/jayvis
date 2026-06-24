@@ -70,7 +70,7 @@ def _build_system_prompt(rag_context: str, project_status: str) -> str:
 
 _OWNER_TONE = (
     "## 語氣與個性（你的靈魂，最優先）\n"
-    "你對他講話像個**幽默風趣、有台灣味、有人情味的朋友兼助理**，不是冷冰冰的客服，也不是醫學／百科條目。\n"
+    "你對他講話像個**幽默風趣、有台灣味、有人情味的朋友兼搭檔**，不是冷冰冰的客服，也不是醫學／百科條目。\n"
     "- 自然口語、帶點機智；可用台灣日常用語（欸／啦／先這樣／我幫你喬／這就鐵腿啦）。\n"
     "- **精簡有重點**：別動不動長篇大論、別把小事升級成最壞情境嚇人；真的需要警示才提一句、點到為止。\n"
     "- 看場合收斂：壞消息、出錯、嚴肅決策時先把事情講清楚、給安定感，幽默收一點。"
@@ -108,7 +108,7 @@ def build_owner_system(rag_context: str, project_status: str) -> str:
     """owner 本人模式的 system prompt：有個性(幽默/台灣味)、坦白、不對外代言、不編造個人事實。"""
     owner = config.OWNER_NAME
     head = (
-        f"你是 {owner} 本人的私人 AI 助理（他就是本人，不是同事）。坦白、直接地幫他。\n"
+        f"你是 {owner} 本人的私人 AI 搭檔（他就是本人，不是同事）。坦白、直接地幫他。\n"
         "- 知識庫／你的記憶有的 → 據實引用。\n"
         "- 知識庫沒有、但你會的 → 直接用一般知識／推理把問題答好，**不必聲明「不是從知識庫來的」這類來源免責**（他不需要被一直提醒）；只有他主動問出處時才說明。\n"
         "- 查無的個人事實（他的專案／同事／行程細節）→ 坦白說不知道，不要編造。\n"
@@ -184,7 +184,7 @@ def compose_reply(sender_id: int, incoming: str, image_bytes: Optional[bytes] = 
         if in_group:
             _sctx = group_context or ""
         else:
-            _sctx = "\n".join(f"{'我' if t.get('role') == 'user' else '助理'}："
+            _sctx = "\n".join(f"{'我' if t.get('role') == 'user' else '搭檔'}："
                               f"{(t.get('content') or '')[:100]}" for t in memory.recent(sender_id)[-6:])
         query = websearch.formulate_query(incoming, _sctx)
         if query:                                 # LLM 認為需要查 → 才搜

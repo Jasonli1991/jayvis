@@ -38,7 +38,7 @@ CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON chunks BEGIN
     INSERT INTO chunks_fts(rowid, raw_text) VALUES (new.rowid, new.raw_text);
 END;
 
--- 助理記憶：時間軸日誌（對談/動作/媒體），每筆強制時間戳
+-- 搭檔記憶：時間軸日誌（對談/動作/媒體），每筆強制時間戳
 CREATE TABLE IF NOT EXISTS memories (
     id           TEXT PRIMARY KEY,
     ts           TEXT NOT NULL DEFAULT (datetime('now','localtime')),

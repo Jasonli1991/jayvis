@@ -5,7 +5,7 @@ import persona
 
 def _profile(tmp_path):
     p = {
-        "owner_name": "Amy", "assistant_name": "Amy 的助理", "owner_key": "amy",
+        "owner_name": "Amy", "assistant_name": "Amy 的搭檔", "owner_key": "amy",
         "title": "後端工程師", "company": "ACME",
         "projects": [{"name": "proj1", "desc": "說明一"}],
         "team": [{"name": "Bob", "role": "前端"}],
@@ -20,7 +20,7 @@ def _profile(tmp_path):
 def test_render_substitutes_owner_name(tmp_path, monkeypatch):
     pf = _profile(tmp_path)
     tmpl = tmp_path / "persona_template.md"
-    tmpl.write_text("我是 {{owner_name}} 的助理。\n## 身份\n{{identity}}\n轉介：{{routing}}", encoding="utf-8")
+    tmpl.write_text("我是 {{owner_name}} 的搭檔。\n## 身份\n{{identity}}\n轉介：{{routing}}", encoding="utf-8")
     monkeypatch.setattr(persona, "PROFILE_PATH", pf)
     monkeypatch.setattr(persona, "TEMPLATE_PATH", tmpl)
     out = persona.render_persona()

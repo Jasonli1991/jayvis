@@ -1,8 +1,15 @@
 import asyncio
 import logging
 import re
+import sys
 import time
 from io import BytesIO
+from pathlib import Path
+
+try:
+    import fcntl              # Unix（macOS/Linux）：單一實例用 flock 檔案鎖
+except ImportError:
+    fcntl = None              # Windows 無 fcntl，改綁 localhost 埠當互斥鎖（見 acquire_single_instance_lock）
 
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
@@ -29,7 +36,8 @@ import persona
 from assistant import compose_reply
 from panel import env_io
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s｜%(levelname)s:%(name)s:%(message)s",
+                    datefmt="%m-%d %H:%M:%S")     # 每行帶時間，即時 Log 看得到何時發生
 # 第三方 INFO 噪音：httpx 每次 long-poll 都印一行（且 URL 內含 bot token！）、
 # telegram.ext 的 Application started/stopping/stop() complete 生命週期、apscheduler 排程、
 # google-genai 每次呼叫印「AFC is enabled…」（我們沒用 function calling、純噪音）。
@@ -39,6 +47,37 @@ _QUIET_LOGGERS = ("httpx", "httpcore", "telegram", "apscheduler",
 for _n in _QUIET_LOGGERS:
     logging.getLogger(_n).setLevel(logging.WARNING)
 _log = logging.getLogger("jayvis")
+
+# 單一實例鎖：保證同一時間只有一個 bot 在對 Telegram 輪詢。
+# 根因——面板的 start() 只靠單一 .bot.pid 判定，無 OS 鎖、Flask 多執行緒下無互斥，
+# 競態時會 spawn 兩隻 bot.py，兩隻都 long-poll 同一 token → telegram.error.Conflict 無限噴。
+# 在 bot 自己這層上鎖最可靠：任何多餘實例一啟動就拿不到鎖、立即結束，從源頭杜絕 Conflict。
+# Unix（macOS/Linux）用 flock 檔案鎖；Windows（無 fcntl）改綁 localhost 固定埠當互斥鎖——兩者皆隨程序結束自動釋放。
+_LOCK_FILE = Path(__file__).resolve().parent / ".bot.lock"
+_LOCK_PORT = 47923   # Windows 用：綁這個 127.0.0.1 埠當單一實例鎖（綁不到＝已有實例）
+_lock_fp = None      # 持有到程序結束以維持鎖（Unix 為檔案物件、Windows 為 socket）；務必保留參考勿讓 GC 收掉
+
+
+def acquire_single_instance_lock(lock_path=None):
+    """取得單一實例鎖。回 (True, holder)＝成功（呼叫端須保留 holder 直到程序結束）；
+    回 (False, None)＝已有實例持鎖（呼叫端應立即結束，避免 getUpdates Conflict）。
+    holder 隨程序結束自動釋放，不會像 .bot.pid 留下髒狀態（殺不掉的孤兒）。"""
+    if fcntl is not None:                                   # macOS/Linux：flock 檔案鎖（行為與原本完全一致）
+        fp = open(lock_path or _LOCK_FILE, "w")
+        try:
+            fcntl.flock(fp.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (BlockingIOError, OSError):
+            fp.close()
+            return False, None
+        return True, fp
+    import socket                                           # Windows：綁 127.0.0.1 固定埠，綁不到代表已有實例
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.bind(("127.0.0.1", _LOCK_PORT))
+    except OSError:
+        s.close()
+        return False, None
+    return True, s
 
 _pending_browse = {}                  # owner_id -> {"pending": dict, "ts": float}
 _BROWSE_PENDING_TTL_S = 300           # 確認請求過期時間（秒）
@@ -91,7 +130,7 @@ def _recent_context(uid: int, n: int = 4) -> str:
     """最近 n 輪對話的精簡文字，供生圖解析『三大天王』之類的指涉。"""
     try:
         turns = memory.recent(uid)[-n * 2:]
-        return "\n".join(f"{'我' if t.get('role') == 'user' else '助理'}："
+        return "\n".join(f"{'我' if t.get('role') == 'user' else '搭檔'}："
                          f"{(t.get('content') or '')[:120]}" for t in turns)
     except Exception:
         return ""
@@ -373,7 +412,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if env_io.is_on_leave():
             await msg.reply_text(f"我是 {config.ASSISTANT_NAME}，{config.OWNER_NAME} 請假中；有問題可以直接發訊息給我～")
         else:
-            await msg.reply_text(f"我是 {config.OWNER_NAME} 的 AI 助理～有什麼需要可以直接問我 😊")
+            await msg.reply_text(f"我是 {config.OWNER_NAME} 的 AI 搭檔～有什麼需要可以直接問我 😊")
         return
 
     if text and guard.is_injection(text):
@@ -417,7 +456,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             origin_chat=(None if is_owner(user.id) else msg.chat_id))
         return
 
-    # 助理瀏覽網頁（借用已登入 Chrome）：僅 owner 私訊。
+    # 搭檔瀏覽網頁（借用已登入 Chrome）：僅 owner 私訊。
     # 放在程式委派 gate 之前——明確的「瀏覽」意圖優先，避免網域名（如 ka2ka.com）撞到同名專案被委派攔走。
     if config.BROWSE_ENABLED and is_owner(user.id) and not is_group:
         # 加白名單指令（優先於 _looks_like_browse 判斷）
@@ -550,6 +589,15 @@ async def notify_owner_error(tg_bot, err, where="") -> None:
         await tg_bot.send_message(chat_id=config.OWNER_CHAT_ID, text=text)
     except Exception:
         _log.warning("通知 owner 失敗（%s）", type(err).__name__)
+    # 接著用「本部署設定的 LLM」自我診斷，再補一則可轉給作者的回報（best-effort、不阻塞迴圈、診斷失敗就算了）
+    try:
+        import diagnose
+        report = await asyncio.to_thread(diagnose.diagnosis_report,
+                                         f"{type(err).__name__}: {str(err)[:300]}", where)
+        if report:
+            await tg_bot.send_message(chat_id=config.OWNER_CHAT_ID, text=report)
+    except Exception:
+        pass
 
 
 def reset_alerts():                   # 測試用
@@ -577,14 +625,34 @@ async def _leave_digest_loop():
         await asyncio.sleep(6 * 3600)
 
 
+_digest_task = None
+
+
 async def _post_init(application) -> None:
-    asyncio.create_task(_leave_digest_loop())
+    global _digest_task
+    _digest_task = asyncio.create_task(_leave_digest_loop())
+
+
+async def _post_shutdown(application) -> None:
+    """關閉（重啟/停止）時優雅取消背景任務，避免 asyncio『Task was destroyed but it is pending』。"""
+    global _digest_task
+    if _digest_task and not _digest_task.done():
+        _digest_task.cancel()
+        try:
+            await _digest_task
+        except (asyncio.CancelledError, Exception):
+            pass
 
 
 def main() -> None:
     if not config.TG_BOT_TOKEN:
         raise SystemExit("TG_BOT_TOKEN 未設定（請先跟 @BotFather 建 bot 並放進 .env）")
-    app = Application.builder().token(config.TG_BOT_TOKEN).post_init(_post_init).build()
+    global _lock_fp
+    ok, _lock_fp = acquire_single_instance_lock()
+    if not ok:
+        _log.warning("偵測到已有 JAYVIS 實例在執行，這個多餘實例直接結束（避免 Telegram getUpdates Conflict）")
+        sys.exit(0)
+    app = Application.builder().token(config.TG_BOT_TOKEN).post_init(_post_init).post_shutdown(_post_shutdown).build()
     app.add_handler(MessageHandler(
         (filters.TEXT | filters.CAPTION | filters.PHOTO | filters.Document.ALL) & ~filters.COMMAND,
         handle_message))

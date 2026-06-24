@@ -6,6 +6,7 @@ __pycache__/
 ~/.n/
 *.log
 .bot.pid
+.bot.lock
 .pytest_cache/
 
 # User-data prompt files written by the control panel at runtime (never commit)

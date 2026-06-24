@@ -61,7 +61,7 @@ def test_generate_dispatches_by_model(monkeypatch):
     def _stub(name, ret):
         def f(**kw):
             calls[name] = kw
-            return ret
+            return ret, 11, 22        # (text, in_tok, out_tok)：generate 現在會解包 token
         return f
 
     monkeypatch.setattr(llm, "_gen_anthropic", _stub("anthropic", "A"))

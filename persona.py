@@ -18,9 +18,9 @@ def load_profile() -> dict:
 def _identity_block(p: dict) -> str:
     name = p.get("owner_name", "")
     lines = [
-        f"你是 **{name} 的 AI 助理**。{name} 是{p.get('company', '')}的{p.get('title', '')}。"
+        f"你是 **{name} 的 AI 搭檔**。{name} 是{p.get('company', '')}的{p.get('title', '')}。"
         "你代表他、用他的工作記憶，協助同事查詢與回答問題。"
-        "**你誠實表明自己是助理，不假冒本人。**",
+        "**你誠實表明自己是搭檔，不假冒本人。**",
     ]
     projs = p.get("projects") or []
     if projs:

@@ -14,10 +14,10 @@ _SENT_MARKER = Path(os.path.expanduser("~/.n/leave_digest_sent.txt"))
 _TG_LIMIT = 4000
 
 _DIGEST_SYSTEM = (
-    f"以下是 {config.OWNER_NAME} 請假期間，同事與助理的對話紀錄。\n"
+    f"以下是 {config.OWNER_NAME} 請假期間，同事與搭檔的對話紀錄。\n"
     "請彙整成兩塊，繁體中文、條列、標出同事與時間：\n"
-    "## 已處理的項目\n（同事問了什麼、助理回覆或處理了什麼）\n"
-    f"## 待辦／需 {config.OWNER_NAME} 決定\n（助理說要轉達的、未解決、需本人拍板的事）\n"
+    "## 已處理的項目\n（同事問了什麼、搭檔回覆或處理了什麼）\n"
+    f"## 待辦／需 {config.OWNER_NAME} 決定\n（搭檔說要轉達的、未解決、需本人拍板的事）\n"
     "只根據紀錄、不要編造；某塊沒有就寫「無」。"
 )
 

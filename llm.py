@@ -188,7 +188,11 @@ def _gen_google(model, system, messages, image_bytes, max_output_tokens):
         contents=_to_contents(messages, image_bytes),
         config=cfg,
     )
-    return (resp.text or "").strip()
+    um = getattr(resp, "usage_metadata", None)
+    in_t = getattr(um, "prompt_token_count", 0) or 0
+    total = getattr(um, "total_token_count", 0) or 0
+    out_t = (total - in_t) if total else (getattr(um, "candidates_token_count", 0) or 0)   # 含思考 token
+    return (resp.text or "").strip(), in_t, out_t
 
 
 # ── Anthropic ────────────────────────────────────────────────
@@ -212,7 +216,10 @@ def _gen_anthropic(model, system, messages, image_bytes, max_output_tokens):
     resp = _get_client("anthropic").messages.create(
         model=model, max_tokens=max_output_tokens, system=system,
         messages=_to_anthropic_messages(messages, image_bytes))
-    return "".join(b.text for b in resp.content if b.type == "text").strip()
+    u = getattr(resp, "usage", None)
+    in_t = getattr(u, "input_tokens", 0) or 0
+    out_t = getattr(u, "output_tokens", 0) or 0
+    return "".join(b.text for b in resp.content if b.type == "text").strip(), in_t, out_t
 
 
 # ── OpenAI ───────────────────────────────────────────────────
@@ -236,7 +243,10 @@ def _gen_openai(model, system, messages, image_bytes, max_output_tokens):
         model=model,
         messages=_to_openai_messages(system, messages, image_bytes),
         max_completion_tokens=max_output_tokens)
-    return (resp.choices[0].message.content or "").strip()
+    u = getattr(resp, "usage", None)
+    in_t = getattr(u, "prompt_tokens", 0) or 0
+    out_t = getattr(u, "completion_tokens", 0) or 0
+    return (resp.choices[0].message.content or "").strip(), in_t, out_t
 
 
 # ── 公開介面（供應商無關，呼叫端不變） ─────────────────────────
@@ -246,10 +256,13 @@ def generate(model: str, system: str, messages: list[dict],
     endpoint = config.OPENAI_BASE_URL if (provider == "openai" and config.OPENAI_BASE_URL) else provider
     _log.info("LLM call: model=%s provider=%s endpoint=%s", model, provider, endpoint)
     if provider == "anthropic":
-        return _gen_anthropic(model=model, system=system, messages=messages,
-                              image_bytes=image_bytes, max_output_tokens=max_output_tokens)
-    if provider == "openai":
-        return _gen_openai(model=model, system=system, messages=messages,
-                           image_bytes=image_bytes, max_output_tokens=max_output_tokens)
-    return _gen_google(model=model, system=system, messages=messages,
-                       image_bytes=image_bytes, max_output_tokens=max_output_tokens)
+        text, in_t, out_t = _gen_anthropic(model=model, system=system, messages=messages,
+                                           image_bytes=image_bytes, max_output_tokens=max_output_tokens)
+    elif provider == "openai":
+        text, in_t, out_t = _gen_openai(model=model, system=system, messages=messages,
+                                        image_bytes=image_bytes, max_output_tokens=max_output_tokens)
+    else:
+        text, in_t, out_t = _gen_google(model=model, system=system, messages=messages,
+                                        image_bytes=image_bytes, max_output_tokens=max_output_tokens)
+    _log.info("📊 LLM %s｜token in %d / out %d / 共 %d", model, in_t, out_t, in_t + out_t)
+    return text

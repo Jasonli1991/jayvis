@@ -227,7 +227,7 @@ def build_system(now, calendars=None, accounts=None, calendar_on=True, email_on=
     if email_on and last_list_n:
         hint = (f"\n注意：使用者剛列出 {last_list_n} 封信（編號 1–{last_list_n}）。"
                 f"他說「第幾封」「把N…刪除」「讀第N封」時，多半指這些信，請用 read_email／delete_email 的 ref。")
-    return f'''你是個人助理。今天是 {today}（週{_WD[now.weekday()]}）。
+    return f'''你是個人搭檔。今天是 {today}（週{_WD[now.weekday()]}）。
 **只有當使用者『明確要你動手』操作以下項目時**（查／排／改／刪某筆行程、或收發信），才**只輸出一個 JSON 物件**、不要多餘文字：
 {body}
 時間用 24 小時制、當地時間；相對日期（明天 / 週四 / 下午三點）依今天換算。{body_date}{hint}

@@ -19,6 +19,15 @@ def _isolate_kb(tmp_path, monkeypatch):
     memory._schema_ready.clear()
 
 
+@pytest.fixture(autouse=True)
+def _no_real_diagnosis_llm(monkeypatch):
+    """預設 stub 掉自我診斷的 LLM 呼叫：notify_owner_error 出錯時會 diagnose（呼叫真模型），
+    測試機可能有真金鑰 → 會打真 API、變慢、有成本。test_diagnose 自行覆寫 diagnose.generate。"""
+    import diagnose
+    monkeypatch.setattr(diagnose, "generate", lambda *a, **k: "")
+    yield
+
+
 @pytest.fixture()
 def conn(tmp_path):
     c = get_conn(str(tmp_path / "kb.sqlite"))

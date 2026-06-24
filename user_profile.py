@@ -12,6 +12,8 @@ _log = logging.getLogger("jayvis")
 PROFILE_EVERY_N = 6
 PROFILE_MAX_CHARS = 1500
 PROFILE_RECENT_TURNS = 12
+REBUILD_MAX_TURNS = 400      # 匯入後重建：最多取最近這麼多輪（有界，避免大批匯入打爆模型呼叫）
+REBUILD_WINDOW = 16          # 每窗送模型的輪數（逐窗合併進畫像）
 
 _turn_counts = {}        # person_id -> int（in-memory，重啟清零）
 _schema_ready = set()
@@ -80,17 +82,13 @@ def note_turn(person_id) -> bool:
 def _fmt_turns(turns) -> str:
     out = []
     for t in turns:
-        who = config.OWNER_NAME if t.get("role") == "user" else "助理"
+        who = config.OWNER_NAME if t.get("role") == "user" else "搭檔"
         out.append(f"{who}：{t.get('content', '')}")
     return "\n".join(out)
 
 
-def update_now(person_id):
-    """抽取近 N 輪的耐久資訊、與現有畫像合併、寫回 DB。任何失敗 → 不動。"""
-    turns = memory.recent(person_id, k=PROFILE_RECENT_TURNS)
-    if not turns:
-        return
-    current = get(person_id)
+def _extract_merge(current, turns) -> str:
+    """用模型從一批對話抽取耐久資訊、與現有畫像合併。失敗或空 → 回原畫像（不遺失）。"""
     sys = ("從以下對話抽取關於使用者的『耐久』資訊（偏好、工作風格、長期專案/角色、慣用做法）。"
            "忽略一次性瑣事、時事、寒暄。把新資訊與『現有畫像』合併成精簡條列、去重、"
            f"矛盾以新的為準、總長不超過 {PROFILE_MAX_CHARS} 字。只輸出更新後的畫像，不要多餘文字。")
@@ -100,10 +98,37 @@ def update_now(person_id):
                        messages=[{"role": "user", "content": user}], max_output_tokens=600)
     except Exception:
         _log.info("👤 畫像抽取失敗 → 保留舊畫像")
-        return
+        return current
     prof = (out or "").strip()[:PROFILE_MAX_CHARS]
-    if prof:
+    return prof or current
+
+
+def update_now(person_id):
+    """抽取近 N 輪的耐久資訊、與現有畫像合併、寫回 DB。任何失敗 → 不動。"""
+    turns = memory.recent(person_id, k=PROFILE_RECENT_TURNS)
+    if not turns:
+        return
+    prof = _extract_merge(get(person_id), turns)
+    if prof and prof != get(person_id):
         _write(person_id, prof)
+
+
+def rebuild_from_memory(person_id, max_turns=REBUILD_MAX_TURNS, window=REBUILD_WINDOW, progress=None) -> str:
+    """從某人完整對話史「重建」長期認識：分窗逐步抽取＋合併、寫回 DB。用於聊天記憶匯入後，
+    讓搭檔一開始就認識使用者。有界（最多最近 max_turns 輪）、可回報進度。回最終畫像。"""
+    turns = memory.export_person(person_id)          # [{ts, role, content}] 升冪
+    if not turns:
+        return ""
+    turns = turns[-max_turns:]                       # 有界：只取最近 max_turns 輪
+    current = get(person_id)
+    total = len(turns)
+    for i in range(0, total, window):
+        current = _extract_merge(current, turns[i:i + window])    # 逐窗合併（turns 帶 role/content，_fmt_turns 可用）
+        if progress:
+            progress(min(i + window, total), total)
+    if current:
+        _write(person_id, current)
+    return current
 
 
 def _spawn(person_id):

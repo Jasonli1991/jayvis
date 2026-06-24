@@ -11,7 +11,7 @@ from chunks import citation_of
 from llm import generate
 
 _SYSTEM = (
-    f"你是 {config.OWNER_NAME} 的分析助理。根據提供的『筆記/commit 片段』綜合回答問題，"
+    f"你是 {config.OWNER_NAME} 的分析搭檔。根據提供的『筆記/commit 片段』綜合回答問題，"
     "可做合理推論與彙整，但**必須明確標註依據**，並說明資料不足或不確定之處；"
     "**不要編造超出所給資料的事實**。用繁體中文、結構化（重點條列）。"
 )
@@ -94,7 +94,7 @@ def analyze(query: str, owner: str = None, model: str = None,
 
 
 _REPORT_SYSTEM = (
-    f"你是 {config.OWNER_NAME} 的分析助理。根據提供的『筆記/commit 片段』做一份非常詳盡的分析報告。\n"
+    f"你是 {config.OWNER_NAME} 的分析搭檔。根據提供的『筆記/commit 片段』做一份非常詳盡的分析報告。\n"
     "輸出一份**完整、自包含的 HTML 文件**（從 <!DOCTYPE html> 到 </html>），"
     "不要任何 HTML 以外的文字、不要 markdown 圍欄。\n"
     "內容要求：\n"

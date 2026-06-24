@@ -34,7 +34,7 @@ def test_handle_truncated_action_not_abstain(monkeypatch):
 
 
 def test_handle_non_action_still_none(monkeypatch):
-    monkeypatch.setattr(agent.llm, "generate", lambda **k: "你好，我是助理～")
+    monkeypatch.setattr(agent.llm, "generate", lambda **k: "你好，我是搭檔～")
     assert agent.handle("你好", _now(), email_on=True) is None   # 真非動作 → 交回 bot
 
 

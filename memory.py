@@ -1,4 +1,4 @@
-"""助理記憶：DB-backed 時間軸日誌（取代舊 JSON）。對談/動作/媒體連同時間戳寫入 memories，
+"""搭檔記憶：DB-backed 時間軸日誌（取代舊 JSON）。對談/動作/媒體連同時間戳寫入 memories，
 有意義者同步進 chunks（語意回想用）。每人隔離；owner 全看。"""
 import json
 import uuid
@@ -30,7 +30,7 @@ def _with_conn(conn):
     return c, True
 
 
-def append(person_id, kind, content, alias=None, meta=None, ts=None, conn=None):
+def append(person_id, kind, content, alias=None, meta=None, ts=None, conn=None, consolidate=True):
     content = (content or "").strip()
     if not content:
         return None
@@ -51,13 +51,85 @@ def append(person_id, kind, content, alias=None, meta=None, ts=None, conn=None):
             {"id": mid, "ts": ts, "pid": str(person_id), "alias": alias, "kind": kind,
              "content": content, "meta": json.dumps(meta, ensure_ascii=False) if meta else None,
              "cid": chunk_id})
-        if kind in ("user", "assistant"):
+        if kind in ("user", "assistant") and consolidate:   # 批次匯入時關掉逐則整併、最後整併一次（見 import_turns）
             try:
                 import memory_consolidate
                 memory_consolidate.maybe_consolidate(person_id)
             except Exception:
                 pass                               # 整併失敗不可影響 append
         return mid
+    finally:
+        if own:
+            c.close()
+
+
+# ── owner 聊天記憶 匯入／匯出（限定 JAYVIS JSON 格式，可來回） ──
+MEMORY_FORMAT_VERSION = 1
+
+
+def export_person(person_id, conn=None):
+    """匯出某人的聊天記憶（user/assistant 對話），依時間升冪回 [{ts, role, content}]。"""
+    c, own = _with_conn(conn)
+    try:
+        rows = c.execute(
+            "SELECT ts, kind, content FROM memories WHERE person_id=:p AND kind IN ('user','assistant') "
+            "ORDER BY rowid", {"p": str(person_id)}).fetchall()
+        return [{"ts": r["ts"], "role": r["kind"], "content": r["content"]} for r in rows]
+    finally:
+        if own:
+            c.close()
+
+
+def build_export(person_id, conn=None) -> dict:
+    """包成 JAYVIS 記憶檔格式（匯出產生、匯入只收這個）。"""
+    return {"jayvis_memory_version": MEMORY_FORMAT_VERSION, "exported_at": _now(),
+            "person": "owner", "turns": export_person(person_id, conn=conn)}
+
+
+def validate_import(data) -> tuple:
+    """嚴格驗證是否為 JAYVIS 記憶格式。回 (clean_turns, error)；error 非 None＝格式不符（限定格式）。"""
+    if not isinstance(data, dict):
+        return None, "不是有效的 JAYVIS 記憶檔（應為 JSON 物件）"
+    if data.get("jayvis_memory_version") != MEMORY_FORMAT_VERSION:
+        return None, f"缺 jayvis_memory_version 或版本不符（需 {MEMORY_FORMAT_VERSION}）"
+    turns = data.get("turns")
+    if not isinstance(turns, list):
+        return None, "缺 turns 陣列"
+    clean = []
+    for t in turns:
+        if not isinstance(t, dict):
+            continue
+        role, content = t.get("role"), t.get("content")
+        if role in ("user", "assistant") and isinstance(content, str) and content.strip():
+            clean.append({"role": role, "content": content, "ts": t.get("ts")})
+    if not clean:
+        return None, "turns 內沒有有效對話（role 需 user/assistant、content 為非空字串）"
+    return clean, None
+
+
+def import_turns(person_id, turns, alias=None, clear_first=False, progress=None, conn=None) -> int:
+    """把外部聊天記憶逐則灌進 person 的記憶，走完整管線（embedding）；最後整併一次。回匯入筆數。
+    turns 須已通過 validate_import。progress(done, total) 選填，供面板顯示進度。"""
+    c, own = _with_conn(conn)
+    n = 0
+    try:
+        if clear_first:
+            clear(str(person_id), conn=c)
+        total = len(turns)
+        for i, t in enumerate(turns):
+            mid = append(str(person_id), t["role"], t["content"], alias=alias, ts=t.get("ts"),
+                         meta={"imported": True}, conn=c, consolidate=False)  # 批次：不逐則整併
+            if mid:
+                n += 1
+            if progress and (i % 20 == 0 or i == total - 1):
+                progress(i + 1, total)
+        if n:                                       # 最後整併一次（建立長期認識）
+            try:
+                import memory_consolidate
+                memory_consolidate.maybe_consolidate(str(person_id))
+            except Exception:
+                pass
+        return n
     finally:
         if own:
             c.close()
