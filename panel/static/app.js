@@ -123,7 +123,7 @@ $("pf-save").onclick = () => withBusy($("pf-save"), async () => {
   try {
     const p = await getJSON("/api/profile");
     Object.assign(p, {
-      owner_name: name, title, company, assistant_name: (name || "") + " 的助理",
+      owner_name: name, title, company, assistant_name: (name || "") + " 的搭檔",
       projects, team, bosses, routing,
     });
     const res = await postJSON("/api/profile", p);
@@ -135,19 +135,58 @@ $("pf-save").onclick = () => withBusy($("pf-save"), async () => {
   } catch (e) { warn($("pf-msg"), "儲存失敗，請重試"); }
 });
 
+// logo 狀態：面板開場先醒著 ~3.5 秒（打招呼），之後依 bot 是否運作切「醒 / 睡(😴)」
+const _brandLogo = document.querySelector("svg.brand-logo");
+let _logoIntro = true;          // true＝開場期間，輪詢不可動臉
+let _restartTookOver = false;   // 重啟時設 true，讓開場收手
+let _opBusy = false;            // 啟動/停止/重啟進行中：輪詢別動臉，讓「進行中」動畫獨佔到操作完成
+const _reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+function _wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// 醒/睡切換：純切 .asleep class，過場交給 CSS 的 opacity 交叉淡入（兩張臉同位淡入淡出）。冪等、開場與 5 秒輪詢共用。
+function swapFace(toAsleep) {
+  if (!_brandLogo) return;
+  if (_brandLogo.classList.contains("restarting")) return;             // dizzy 擁有臉，別搶
+  _brandLogo.classList.toggle("asleep", toAsleep);                     // 已是該狀態則不變、不會閃
+}
+
+// 開場：登場淡入落下 → 打招呼（既有 SMIL 轉頭/眨眼）→（若 bot 停止）打哈欠微沉後柔順淡入 😴。
+async function _playLogoIntro() {
+  if (!_brandLogo) { _logoIntro = false; return; }
+  requestAnimationFrame(() => requestAnimationFrame(() => _brandLogo.classList.remove("logo-arming")));  // 首幀畫預備姿勢，下一幀才落下
+  let s; try { s = await getJSON("/api/status"); } catch (e) { s = { running: true }; }
+  if (_reduce) { _brandLogo.classList.toggle("asleep", !s.running); _logoIntro = false; refreshStatus(); return; }
+  await _wait(6500);                                            // 落下＋打招呼：停留久一點，看得到轉頭幾次才想睡（原本 2s 太快）
+  if (_restartTookOver) { _logoIntro = false; return; }         // 重啟中途接管 → 收手
+  if (!s.running) {
+    _brandLogo.classList.add("yawning"); await _wait(450);      // 打哈欠微沉
+    _brandLogo.classList.add("asleep");                         // 柔順交叉淡入 → 😴（CSS .7s）
+    await _wait(900);
+    _brandLogo.classList.remove("yawning");
+  }
+  _logoIntro = false;
+  refreshStatus();                                              // 對帳徽章/按鈕（臉已正確）
+}
+_playLogoIntro();
+
 async function refreshStatus() {
   const s = await getJSON("/api/status");
-  $("dot").className = "dot " + (s.running ? "on" : "off");
-  $("botstate").textContent = s.running ? "運行中" : "已停止";
-  // 運行中 → 停用「啟動」；停止 → 停用「停止/重啟」
-  document.querySelectorAll(".botbtns button").forEach(x => { x.disabled = x.dataset.act === "start" ? s.running : !s.running; });
+  // 操作進行中（_opBusy）：狀態列文字／燈號／按鈕／臉一律交給按鈕 handler，輪詢別插手——
+  // 否則 5 秒輪詢會在「停止中…」途中讀到 running=true，把文字洗成「運行中」，等真的關掉才變「已停止」。
+  if (!_opBusy) {
+    $("dot").className = "dot " + (s.running ? "on" : "off");
+    $("botstate").textContent = s.running ? "運行中" : "已停止";
+    if (_brandLogo && !_logoIntro && !_brandLogo.classList.contains("restarting")) swapFace(!s.running);   // 醒/睡(😴) 隨 bot 狀態：交叉淡入、冪等不閃
+    // 運行中 → 停用「啟動」；停止 → 停用「停止/重啟」
+    document.querySelectorAll(".botbtns button").forEach(x => { x.disabled = x.dataset.act === "start" ? s.running : !s.running; });
+  }
   $("models").textContent = (s.models.general || "?").split("-").pop() + " / " + (s.models.code || "?").split("-").pop();
   const _memLabel = {conversation: "對話索引", action: "動作", git: "git", obsidian: "obsidian"};
   $("mem").textContent = Object.entries(s.memory || {}).map(([k, v]) => `${_memLabel[k] || k} ${v}`).join("、") || "—";
   $("allowcount").textContent = s.allowlist;
   if (s.owner_name) {
-    document.querySelector(".brand-mark").textContent = s.owner_name.trim().charAt(0).toUpperCase();
-    document.querySelector(".brand-name").textContent = s.owner_name + " 的個人 AI 助理";
+    document.querySelector(".brand-name").textContent = s.owner_name + " 的個人 AI 搭檔";
   }
   if (s.version) $("ver").textContent = "v" + s.version;
   if (s.backfill && s.backfill.last) $("bf-msg").textContent = s.backfill.last;
@@ -187,6 +226,12 @@ document.querySelectorAll(".botbtns button").forEach(b =>
     btns.forEach(x => x.disabled = true);
     const ic = b.querySelector(".ic"); if (ic) ic.classList.add("spin");
     $("botstate").textContent = {start: "啟動中…", stop: "停止中…", restart: "重啟中…"}[act] || "處理中…";
+    _opBusy = true;                                 // 操作進行中：logo 動畫獨佔、輪詢不插手（直到 finally）
+    if (_brandLogo) {                               // 進行中一律暈眩(😵‍💫)「處理中」：迴圈動畫自動撐滿任何時長，與狀態文字／轉圈同生命週期
+      _restartTookOver = true;                      // 讓開場收手
+      _brandLogo.classList.remove("asleep", "yawning");
+      _brandLogo.classList.add("restarting");
+    }
     try {
       const r = await postJSON("/api/bot/" + act);
       if (r && r.ok === false && r.problems && r.problems.length) {
@@ -195,9 +240,15 @@ document.querySelectorAll(".botbtns button").forEach(b =>
       } else {
         hideStartAlert();
       }
+      if (_brandLogo) _brandLogo.classList.toggle("asleep", !(r && r.running));   // 在暈眩底下先設好最終臉，撤暈眩時直接露出、不閃中間態
     }
     catch (e) { $("botstate").textContent = "操作失敗，請看 Log"; }
-    finally { if (ic) ic.classList.remove("spin"); await refreshStatus(); }
+    finally {
+      if (ic) ic.classList.remove("spin");          // 轉圈、暈眩、狀態文字 三者同時結束＝時間一致
+      if (_brandLogo) { _brandLogo.classList.remove("restarting"); _restartTookOver = false; }   // 撤暈眩 → 交叉淡入到已設好的 醒/睡臉
+      _opBusy = false;
+      await refreshStatus();                        // 對帳徽章/按鈕（臉已正確）
+    }
   });
 
 // leave — custom date-range calendar
@@ -401,6 +452,28 @@ $("mem-clear-all").onclick = async () => {
   await postJSON("/api/memory/clear", {all: true});
   flash($("mem-msg"), "已全部清除"); loadMemPersons();
 };
+// 聊天記憶 匯出（原生另存）
+$("mem-export").onclick = () => withBusy($("mem-export"), async () => {
+  const m = $("mem-iexp-msg");
+  let r; try { r = await postJSON("/api/memory/export", {}); } catch (e) { warn(m, "匯出失敗"); return; }
+  if (r.ok) flash(m, `已匯出 ${r.count} 則 → ${r.path}`); else warn(m, r.error || "匯出失敗");
+});
+// 聊天記憶 匯入（原生選 .json → 背景灌入 → 輪詢進度）
+$("mem-import").onclick = () => withBusy($("mem-import"), async () => {
+  const m = $("mem-iexp-msg");
+  let pick; try { pick = await postJSON("/api/memory/import-pick", {}); } catch (e) { warn(m, "無法開啟選檔視窗"); return; }
+  if (!pick.path) { m.textContent = ""; return; }                       // 取消
+  if ($("mem-import-clear").checked && !confirm("會先清空你（owner）現有的對談記憶再匯入，確定？")) return;
+  let r; try { r = await postJSON("/api/memory/import", {path: pick.path, clearFirst: $("mem-import-clear").checked, rebuild: $("mem-import-rebuild").checked}); }
+  catch (e) { warn(m, "匯入失敗"); return; }
+  if (!r.ok) { warn(m, r.error || "匯入失敗"); return; }
+  m.classList.remove("warn", "ok"); m.textContent = `開始匯入 ${r.count} 則…（embedding 較慢，請稍候）`;
+  const poll = setInterval(async () => {                                // 輪詢背景進度
+    let s; try { s = await getJSON("/api/memory/import-status"); } catch (e) { return; }
+    m.textContent = s.last || "";
+    if (!s.running) { clearInterval(poll); loadMemPersons(); loadLearnedProfile(); refreshStatus(); }
+  }, 1000);
+});
 $("lo-install").onclick = async () => {
   $("lo-status").textContent = "開始安裝…";
   await postJSON("/api/libreoffice/install", {});
@@ -787,7 +860,7 @@ loadProfile(); loadLeave(); loadBotToken(); loadAllow(); loadModels(); loadLlmKe
 setInterval(refreshStatus, 5000);
 setInterval(refreshLog, 4000);
 
-// 助理對 owner 的長期認識（自動畫像）：唯讀檢視 + 清除
+// 搭檔對 owner 的長期認識（自動畫像）：唯讀檢視 + 清除
 // 註：函式名不可叫 loadProfile —— 會蓋掉上面載入「身份設定」的同名函式（/api/profile）。
 async function loadLearnedProfile() {
   try {
@@ -797,7 +870,7 @@ async function loadLearnedProfile() {
   } catch (e) { /* 面板非關鍵，靜默 */ }
 }
 document.getElementById("mem-profile-clear")?.addEventListener("click", async () => {
-  if (!confirm("確定清除助理對你的長期認識？")) return;
+  if (!confirm("確定清除 JAYVIS 對你的長期認識？")) return;
   await fetch("/api/memory/profile/clear", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
   document.getElementById("mem-profile-msg").textContent = "已清除";
   loadLearnedProfile();
@@ -826,3 +899,83 @@ document.querySelectorAll(".info-tip").forEach(t => {
   t.addEventListener("mouseenter", () => _clampInfoTip(t));
   t.addEventListener("focusin", () => _clampInfoTip(t));
 });
+
+// 解除安裝：掃描→勾選（JAYVIS 裝的預設勾、來源不明的需自行勾）→輸入「移除」二次確認→執行（後端要求先停 bot）
+(function () {
+  const scanBtn = $("uninst-scan");
+  if (!scanBtn) return;
+  const body = $("uninst-body"), runBtn = $("uninst-run"),
+        confirmTxt = $("uninst-confirm-txt"), result = $("uninst-result");
+  const KIND = {model: "模型", chromium: "Chromium 瀏覽器", libreoffice: "LibreOffice"};
+
+  function mkRow(it, checked) {                       // 用 DOM 建構（路徑當 textContent/dataset，免跳脫風險）
+    const lab = document.createElement("label"); lab.className = "uninst-row";
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = checked; cb.dataset.path = it.path;
+    const nm = document.createElement("span"); nm.className = "uninst-name";
+    nm.textContent = (KIND[it.kind] || it.kind) + (it.name ? ` (${it.name})` : "");
+    const sz = document.createElement("span"); sz.className = "uninst-size"; sz.textContent = it.size_h;
+    const pa = document.createElement("span"); pa.className = "uninst-path"; pa.textContent = it.path;
+    lab.append(cb, nm, sz, pa);
+    cb.addEventListener("change", refreshRun);
+    return lab;
+  }
+  function refreshRun() {
+    const any = [...body.querySelectorAll("input[type=checkbox]")].some(c => c.checked);
+    runBtn.disabled = !(any && confirmTxt.value.trim() === "移除JAYVIS");
+  }
+  async function scan() {
+    scanBtn.disabled = true; scanBtn.textContent = "掃描中…";
+    let s;
+    try { s = await getJSON("/api/uninstall/scan"); }
+    catch (e) { scanBtn.textContent = "掃描失敗，重試"; scanBtn.disabled = false; return; }
+    scanBtn.textContent = "重新掃描"; scanBtn.disabled = false;
+    const tc = $("uninst-tracked"); tc.innerHTML = "";
+    (s.tracked || []).filter(it => it.exists).forEach(it => tc.append(mkRow(it, true)));
+    $("uninst-tracked-wrap").hidden = tc.children.length === 0;
+    const lc = $("uninst-legacy"); lc.innerHTML = "";
+    (s.legacy || []).forEach(it => lc.append(mkRow(it, false)));
+    $("uninst-legacy-wrap").hidden = (s.legacy || []).length === 0;
+    $("uninst-data-size").textContent = s.data.size_h;
+    $("uninst-data-wrap").hidden = s.data.count === 0;
+    $("uninst-cleardata").addEventListener("change", refreshRun);
+    body.hidden = false; refreshRun();
+  }
+  async function run() {
+    const paths = [...body.querySelectorAll("#uninst-tracked input:checked, #uninst-legacy input:checked")].map(c => c.dataset.path);
+    const clearData = $("uninst-cleardata").checked;
+    if (!paths.length && !clearData) return;
+    runBtn.disabled = true; runBtn.textContent = "移除中…";
+    let r;
+    try { r = await postJSON("/api/uninstall/remove", {paths, clearData}); }
+    catch (e) { r = {ok: false, error: String(e)}; }
+    runBtn.textContent = "執行移除所選";
+    result.hidden = false;
+    result.textContent = r.ok === false
+      ? "⚠️ " + (r.error || "失敗")
+      : ((r.results || []).map(x => (x.ok ? "✓ " : "✗ ") + x.path + " — " + x.msg).join("\n") || "（無項目）");
+    confirmTxt.value = "";
+    refreshStatus();
+    const allOk = r.ok !== false && (r.results || []).length > 0 && (r.results || []).every(x => x.ok);
+    if (allOk && $("uninst-close-after").checked) { startCountdown(); return; }   // 全部成功＋勾選 → 倒數關閉，不重掃
+    setTimeout(scan, 400);                            // 否則重掃更新清單與容量
+  }
+  function startCountdown() {                         // 5 秒可取消倒數後關閉整個 JAYVIS
+    const el = $("uninst-countdown"); el.hidden = false; el.innerHTML = "";
+    const txt = document.createElement("span");
+    const cancel = document.createElement("button"); cancel.className = "uninst-btn"; cancel.textContent = "取消";
+    el.append(txt, cancel);
+    let n = 5;
+    const tick = () => { txt.textContent = `✅ 完成。JAYVIS 將在 ${n} 秒後關閉…　`; };
+    tick();
+    const id = setInterval(() => {
+      n--;
+      if (n <= 0) { clearInterval(id); txt.textContent = "關閉中…"; cancel.remove(); postJSON("/api/quit", {}).catch(() => {}); }
+      else tick();
+    }, 1000);
+    cancel.onclick = () => { clearInterval(id); el.hidden = true; setTimeout(scan, 100); };
+  }
+  scanBtn.addEventListener("click", scan);
+  confirmTxt.addEventListener("input", refreshRun);
+  runBtn.addEventListener("click", run);
+  $("uninst-cleardata").addEventListener("change", e => { if (e.target.checked) $("uninst-close-after").checked = true; });  // 清資料＝完整離場 → 順手預勾關閉（仍可取消勾選）
+})();

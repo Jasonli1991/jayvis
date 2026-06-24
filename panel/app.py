@@ -25,7 +25,7 @@ import leave_digest
 import focus_draft
 import memory
 import user_profile
-from panel import botctl, env_io, libreoffice
+from panel import botctl, env_io, libreoffice, uninstall
 import analysis
 import browse_allowlist
 import browse_launch
@@ -103,6 +103,7 @@ def api_profile_post():
     if _profile_is_empty(p):                       # 防呆：整份空白不覆蓋，避免誤清既有身份
         return jsonify({"ok": False, "reason": "整份身份是空的，未覆蓋（避免誤清）"}), 409
     env_io.write_profile(p)
+    botctl.log_event("💾 已儲存身份設定")
     return jsonify({"ok": True})
 
 
@@ -135,6 +136,7 @@ def api_leave_get():
 def api_leave_post():
     d = request.get_json(force=True)
     env_io.write_leave(d.get("leave_start", ""), d.get("leave_end", ""), d.get("focus", ""))
+    botctl.log_event("💾 已儲存請假／本週重點")
     return jsonify({"ok": True})
 
 
@@ -145,8 +147,10 @@ def api_leave_digest():
         result = leave_digest.compile_digest(model=env_io.read_models()["code"])
         if result.get("ok") and result.get("summary"):
             result["tg_sent"] = leave_digest.send_to_owner("📋 請假期間彙整：\n\n" + result["summary"])
+            botctl.log_event("📋 請假彙整已產生" + ("並發送至 TG" if result.get("tg_sent") else "（未發送）"))
         return jsonify(result)
     except Exception:
+        botctl.log_event("⚠️ 請假彙整失敗")
         return jsonify({"ok": False, "error": "彙整失敗，請稍後再試 🙏"})
 
 
@@ -168,7 +172,9 @@ def api_allow_get():
 @app.post("/api/allowlist")
 def api_allow_post():
     d = request.get_json(force=True)
-    env_io.write_allowlist(d.get("entries", []))
+    entries = d.get("entries", [])
+    env_io.write_allowlist(entries)
+    botctl.log_event(f"👥 白名單更新（{len(entries)} 人）")
     return jsonify({"ok": True})
 
 
@@ -184,6 +190,7 @@ def api_browse_allow_post():
     if not isinstance(domains, list):
         return jsonify({"error": "domains must be a list"}), 400
     browse_allowlist.save(domains)
+    botctl.log_event(f"🌐 瀏覽網域白名單更新（{len(domains)} 個）")
     return jsonify({"ok": True})
 
 
@@ -201,7 +208,10 @@ def api_browse_ready_get():
 @app.post("/api/browse/install")
 def api_browse_install_post():
     # 背景下載瀏覽器元件（~150MB），非阻塞。前端先跳確認、確定才打這支，再輪詢 ready。
-    return jsonify(browse_launch.start_install())
+    r = browse_launch.start_install()
+    if r.get("started"):
+        botctl.log_event("⬇️ 開始安裝瀏覽元件（Chromium ~150MB，背景）")
+    return jsonify(r)
 
 
 @app.post("/api/browse/enabled")
@@ -209,6 +219,7 @@ def api_browse_enabled_post():
     d = request.get_json(force=True) or {}
     enabled = bool(d.get("enabled"))
     env_io.write_browse_enabled(enabled)
+    botctl.log_event(f"🌐 網站瀏覽：{'ON' if enabled else 'OFF'}")
     result = {"ok": True, "enabled": enabled}
     try:
         if enabled:                              # 啟用時順手開專用 Chromium（帶遠端偵錯）
@@ -269,6 +280,7 @@ def api_sources_get():
 def api_sources_post():
     d = request.get_json(force=True)
     env_io.write_sources(d.get("obsidian_path", ""), d.get("github_repos", []), d.get("code_root", ""))
+    botctl.log_event("💾 已儲存知識來源（Obsidian / GitHub repos / 程式碼母資料夾）")
     return jsonify({"ok": True})
 
 
@@ -342,9 +354,11 @@ def api_actions_get():
 @app.post("/api/actions")
 def api_actions_post():
     d = request.get_json(force=True) or {}
-    env_io.write_actions(bool(d.get("enabled")), d.get("calendar_name", ""),
-                         bool(d.get("email_enabled")), d.get("mail_account", ""),
-                         bool(d.get("media_enabled")), bool(d.get("search_enabled")))
+    a_on, e_on, m_on, s_on = (bool(d.get("enabled")), bool(d.get("email_enabled")),
+                              bool(d.get("media_enabled")), bool(d.get("search_enabled")))
+    env_io.write_actions(a_on, d.get("calendar_name", ""), e_on, d.get("mail_account", ""), m_on, s_on)
+    _ss = lambda b: "ON" if b else "OFF"
+    botctl.log_event(f"⚙️ 動作工具：行事曆 {_ss(a_on)}・收發信 {_ss(e_on)}・媒體 {_ss(m_on)}・時事搜尋 {_ss(s_on)}")
     return jsonify({"ok": True})
 
 
@@ -356,7 +370,9 @@ def api_image_gen_get():
 @app.post("/api/image-gen/enabled")
 def api_image_gen_post():
     d = request.get_json(force=True) or {}
-    env_io.write_image_gen_enabled(bool(d.get("enabled")))
+    en = bool(d.get("enabled"))
+    env_io.write_image_gen_enabled(en)
+    botctl.log_event(f"🖼️ 自動配圖：{'ON' if en else 'OFF'}")
     return jsonify({"ok": True})
 
 
@@ -367,7 +383,53 @@ def api_libreoffice_get():
 
 @app.post("/api/libreoffice/install")
 def api_libreoffice_install():
-    return jsonify(libreoffice.start_install())
+    r = libreoffice.start_install()
+    if r.get("started"):
+        botctl.log_event("⬇️ 開始安裝 LibreOffice（背景）")
+    return jsonify(r)
+
+
+@app.get("/api/uninstall/scan")
+def api_uninstall_scan():
+    return jsonify(uninstall.scan())
+
+
+@app.post("/api/uninstall/remove")
+def api_uninstall_remove():
+    if botctl.is_running():        # 模型/檔案可能還在使用、檔案鎖佔用 → 先停 bot 才安全
+        return jsonify({"ok": False, "error": "請先停止 bot 再卸載（模型/檔案可能還在使用中）"})
+    body = request.get_json(silent=True) or {}
+    paths = body.get("paths") or []
+    clear_data = bool(body.get("clearData"))
+    botctl.log_event(f"🗑️ 解除安裝：移除 {len(paths)} 項元件" + ("＋清除 JAYVIS 資料" if clear_data else ""))
+    r = uninstall.remove(paths, clear_data)
+    return jsonify({"ok": True, **r})
+
+
+@app.post("/api/quit")
+def api_quit():
+    """關閉整個 JAYVIS 應用（pywebview 視窗）。供解除安裝後選擇性關閉用；bot 已要求先停止。"""
+    botctl.log_event("👋 關閉 JAYVIS（解除安裝後）")
+
+    def _close():
+        try:
+            import browse_launch                 # 順手收掉面板自己拉起的專屬 Chromium，避免孤兒
+            browse_launch.suspend_watchdog()
+            browse_launch.shutdown()
+        except Exception:
+            pass
+        try:
+            import webview
+            for w in list(getattr(webview, "windows", [])):
+                try:
+                    w.destroy()                  # 關窗 → webview.start() 返回 → 程序結束
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    threading.Timer(0.3, _close).start()         # 先把 HTTP 回應送出再關窗，避免前端 fetch 中斷
+    return jsonify({"ok": True})
 
 
 _name_cache = {}     # person_id → 解析出的名字（避免重複打 getChat）
@@ -426,9 +488,102 @@ def api_memory_clear():
     d = request.get_json(force=True) or {}
     if d.get("all"):
         memory.clear_all()
+        botctl.log_event("🗑️ 清除對談記憶：全部")
     elif d.get("person_id"):
         memory.clear(str(d["person_id"]))
+        botctl.log_event(f"🗑️ 清除對談記憶：{d['person_id']}")
     return jsonify({"ok": True})
+
+
+_mem_import = {"running": False, "last": ""}      # owner 聊天記憶匯入的背景進度
+
+
+@app.post("/api/memory/export")
+def api_memory_export():
+    """匯出 owner 聊天記憶為 JAYVIS 格式 .json（原生另存對話框寫檔）。"""
+    if not config.OWNER_CHAT_ID:
+        return jsonify({"ok": False, "error": "尚未設定 OWNER_CHAT_ID（你的 TG id），無法匯出 owner 記憶"})
+    if not webview.windows:
+        return jsonify({"ok": False, "error": "需在桌面面板操作（無原生視窗）"}), 501
+    data = memory.build_export(config.OWNER_CHAT_ID)
+    if not data["turns"]:
+        return jsonify({"ok": False, "error": "目前沒有可匯出的 owner 聊天記憶"})
+    try:
+        picked = webview.windows[0].create_file_dialog(
+            webview.SAVE_DIALOG, save_filename="jayvis-memory.json",
+            file_types=("JAYVIS 記憶 (*.json)",))
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 501
+    path = picked if isinstance(picked, str) else (picked[0] if picked else "")
+    if not path:
+        return jsonify({"ok": False, "error": "已取消"})
+    if not path.lower().endswith(".json"):
+        path += ".json"
+    Path(path).write_text(_json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    botctl.log_event(f"💾 匯出 owner 聊天記憶（{len(data['turns'])} 則）")
+    return jsonify({"ok": True, "path": path, "count": len(data["turns"])})
+
+
+@app.post("/api/memory/import-pick")
+def api_memory_import_pick():
+    """原生檔案選擇器，限定 .json（JAYVIS 記憶檔）。回選到的路徑。"""
+    if not webview.windows:
+        return jsonify({"error": "需在桌面面板操作（無原生視窗）"}), 501
+    try:
+        result = webview.windows[0].create_file_dialog(
+            webview.OPEN_DIALOG, file_types=("JAYVIS 記憶 (*.json)",))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 501
+    return jsonify({"path": result[0] if result else ""})
+
+
+@app.post("/api/memory/import")
+def api_memory_import():
+    """讀選到的 .json → 嚴格驗證 JAYVIS 格式 → 背景逐則灌進 owner 記憶（走完整管線）。"""
+    if not config.OWNER_CHAT_ID:
+        return jsonify({"ok": False, "error": "尚未設定 OWNER_CHAT_ID（你的 TG id），無法匯入 owner 記憶"})
+    if _mem_import["running"]:
+        return jsonify({"ok": False, "error": "匯入進行中，請稍候"})
+    d = request.get_json(silent=True) or {}
+    path, clear_first = d.get("path", ""), bool(d.get("clearFirst"))
+    rebuild = d.get("rebuild", True)                                       # 匯入後重建「長期認識」（用模型；可關）
+    if not path or not os.path.isfile(path):
+        return jsonify({"ok": False, "error": "找不到檔案"})
+    try:
+        data = _json.loads(Path(path).read_text(encoding="utf-8"))
+    except Exception:
+        return jsonify({"ok": False, "error": "不是有效的 JSON 檔"})
+    turns, err = memory.validate_import(data)
+    if err:
+        return jsonify({"ok": False, "error": "格式不符：" + err})          # 限定格式：非 JAYVIS 記憶檔一律擋
+    owner_name = env_io.read_profile().get("owner_name") or None
+
+    def _run():
+        _mem_import.update(running=True, last=f"匯入中… 0/{len(turns)}")
+        try:
+            n = memory.import_turns(config.OWNER_CHAT_ID, turns, alias=owner_name,
+                                    clear_first=clear_first,
+                                    progress=lambda done, total: _mem_import.update(last=f"匯入中… {done}/{total}"))
+            if rebuild and n:                                              # 從匯入內容重建長期認識（分窗用模型）
+                _mem_import["last"] = "重建長期認識中…"
+                import user_profile
+                user_profile.rebuild_from_memory(
+                    config.OWNER_CHAT_ID,
+                    progress=lambda done, total: _mem_import.update(last=f"重建長期認識中… {done}/{total}"))
+            _mem_import["last"] = f"✅ 完成：匯入 {n} 則" + ("＋已重建長期認識" if (rebuild and n) else "")
+            botctl.log_event(f"📥 匯入 owner 聊天記憶（{n} 則{'，已先清空' if clear_first else ''}{'，已重建長期認識' if (rebuild and n) else ''}）")
+        except Exception as e:
+            _mem_import["last"] = f"匯入失敗：{e}"
+        finally:
+            _mem_import["running"] = False
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True, "started": True, "count": len(turns)})
+
+
+@app.get("/api/memory/import-status")
+def api_memory_import_status():
+    return jsonify(_mem_import)
 
 
 @app.get("/api/memory/profile")
@@ -439,6 +594,7 @@ def api_memory_profile():
 @app.post("/api/memory/profile/clear")
 def api_memory_profile_clear():
     user_profile.clear(str(config.OWNER_CHAT_ID))
+    botctl.log_event("🗑️ 清除 JAYVIS 對你的長期認識")
     return jsonify({"ok": True})
 
 
@@ -450,6 +606,7 @@ def api_owner_get():
 @app.post("/api/owner")
 def api_owner_post():
     env_io.write_owner((request.get_json(force=True) or {}).get("owner_chat_id", ""))
+    botctl.log_event("👤 已更新 owner TG id")
     return jsonify({"ok": True})
 
 
@@ -460,7 +617,10 @@ def api_bot_token_get():
 
 @app.post("/api/bot-token")
 def api_bot_token_post():
-    env_io.write_bot_token((request.get_json(force=True) or {}).get("token", ""))
+    token = (request.get_json(force=True) or {}).get("token", "")
+    env_io.write_bot_token(token)
+    if (token or "").strip():
+        botctl.log_event("🔑 已更新 Bot Token")     # 只記事件、不記 token 值
     return jsonify({"ok": True})
 
 
@@ -506,7 +666,11 @@ def api_llm_keys_get():
 
 @app.post("/api/llm-keys")
 def api_llm_keys_post():
-    env_io.write_llm_keys(request.get_json(force=True) or {})
+    keys = request.get_json(force=True) or {}
+    env_io.write_llm_keys(keys)
+    updated = [n for n in ("gemini", "anthropic", "openai", "tavily") if (keys.get(n) or "").strip()]
+    if updated:
+        botctl.log_event("🔑 已更新金鑰：" + "、".join(updated))   # 只記是哪幾家、不記金鑰值
     return jsonify({"ok": True})
 
 
@@ -520,6 +684,7 @@ def api_models_post():
     d = request.get_json(force=True)
     env_io.write_models(d.get("general"), d.get("code"), d.get("threshold"),
                         openai_base_url=d.get("openai_base_url"))
+    botctl.log_event(f"💾 已儲存模型：一般={d.get('general') or '（空）'}・高階={d.get('code') or '（空）'}")
     return jsonify({"ok": True})
 
 

@@ -75,7 +75,7 @@ def write_actions(enabled: bool, calendar_name: str, email_enabled: bool, mail_a
     set_key(ENV_PATH, "SEARCH_ENABLED", "true" if search_enabled else "false", quote_mode="never")
 
 
-# 助理瀏覽網頁總開關（存 .env；config.BROWSE_ENABLED 同時吃 true/1）
+# 搭檔瀏覽網頁總開關（存 .env；config.BROWSE_ENABLED 同時吃 true/1）
 def read_browse_enabled() -> bool:
     return (get_key(ENV_PATH, "BROWSE_ENABLED") or "false").strip().lower() in ("1", "true", "yes", "on")
 
@@ -84,7 +84,7 @@ def write_browse_enabled(enabled: bool) -> None:
     set_key(ENV_PATH, "BROWSE_ENABLED", "true" if enabled else "false", quote_mode="never")
 
 
-# 助理自動配圖總開關（存 .env；config.IMAGE_GEN_ENABLED 同時吃 true/1）
+# 搭檔自動配圖總開關（存 .env；config.IMAGE_GEN_ENABLED 同時吃 true/1）
 def read_image_gen_enabled() -> bool:
     return (get_key(ENV_PATH, "IMAGE_GEN_ENABLED") or "false").strip().lower() in ("1", "true", "yes", "on")
 

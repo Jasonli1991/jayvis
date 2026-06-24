@@ -13,11 +13,42 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import config
+import install_manifest
 
 INSTALL_LOG = Path(__file__).resolve().parent / "browse-install.log"
 # 專用瀏覽器一開就停在的說明頁（提醒使用者「請勿關閉」），避免被誤以為誤開而關掉。
 _LANDING_URL = (Path(__file__).resolve().parent / "browse_landing.html").as_uri()
 _install_proc = None
+_started = False        # 本次面板是否啟動過安裝
+_suspended = False      # 看門狗暫停旗標（卸載清資料時暫停，避免邊刪 profile 邊被重開）
+
+
+def suspend_watchdog():
+    global _suspended
+    _suspended = True
+
+
+def resume_watchdog():
+    global _suspended
+    _suspended = False
+
+
+def watchdog_suspended() -> bool:
+    return _suspended
+
+
+def chromium_install_dir() -> str:
+    """JAYVIS 實際下載的 chromium-<rev> 子目錄（在共用根 ms-playwright 之下），而非整個共用根。
+    卸載只動這個子目錄，絕不碰根目錄或別工具的 firefox/webkit/ffmpeg。找不到回 ''。"""
+    try:
+        exe = Path(chromium_path()).resolve()
+        root = install_manifest.playwright_browsers_dir().resolve()
+        for parent in exe.parents:
+            if parent.parent == root:          # ms-playwright/chromium-<rev>
+                return str(parent)
+    except Exception:
+        pass
+    return ""
 
 
 def _port() -> int:
@@ -59,13 +90,22 @@ def is_installing() -> bool:
 
 def install_status() -> dict:
     """供面板輪詢：元件是否就緒、是否正在背景安裝。"""
+    global _started
+    if _started and is_ready() and not is_installing():          # 安裝完成 → 記帳
+        try:
+            d = chromium_install_dir()                           # 只記 JAYVIS 那個 chromium-<rev> 子目錄，非整個共用根
+            if d:                                                # start_install 只在 not is_ready() 時跑 → 完成即 JAYVIS 裝的
+                install_manifest.record_if_new("chromium", d, pre_existed=False, method="playwright")
+        except Exception:
+            pass
+        _started = False
     return {"ready": is_ready(), "installing": is_installing()}
 
 
 def start_install() -> dict:
     """背景安裝 playwright 套件 + 下載 Chromium 到「當前 venv」(sys.executable)，非阻塞。
     仿 LibreOffice：Popen 背景跑、寫 log，面板自行輪詢 install_status()。"""
-    global _install_proc
+    global _install_proc, _started
     if is_ready():
         return {"ready": True}
     if is_installing():
@@ -77,6 +117,7 @@ def start_install() -> dict:
               "subprocess.check_call([sys.executable, '-m', 'playwright', 'install', 'chromium'])")
     _install_proc = subprocess.Popen([sys.executable, "-c", runner],
                                      stdout=logf, stderr=subprocess.STDOUT)
+    _started = True
     return {"installing": True}
 
 

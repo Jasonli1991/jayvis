@@ -2,6 +2,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -14,16 +15,45 @@ ROOT = Path(__file__).resolve().parent.parent
 PID_FILE = ROOT / ".bot.pid"
 LOG_FILE = ROOT / "bot.log"
 
+# Flask threaded=True 下 /api/bot/{start,stop,restart} 可並發；序列化這些操作，
+# 避免 start/stop/restart 交錯造成 .bot.pid 與實際行程不一致、spawn 出殺不掉的孤兒。
+# 用 RLock 讓 restart()（內部呼叫 stop()+start()）可重入。
+_op_lock = threading.RLock()
+
+_IS_WIN = (os.name == "nt")
+
+
+def _pid_alive(pid: int) -> bool:
+    """跨平台探測行程是否還活著。Unix 用 os.kill(pid,0)；Windows 用 tasklist
+    （Windows 的 os.kill 沒有『0 號訊號探測』語意，會直接終止行程，不能拿來探活）。"""
+    if _IS_WIN:
+        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+                             capture_output=True, text=True, errors="ignore").stdout
+        return str(pid) in out
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def _terminate(pid: int, force: bool = False) -> None:
+    """跨平台結束行程。Unix：SIGTERM／SIGKILL；Windows：taskkill /PID [/F]。"""
+    if _IS_WIN:
+        subprocess.run(["taskkill", "/PID", str(pid)] + (["/F"] if force else []),
+                       capture_output=True)
+    else:
+        os.kill(pid, signal.SIGKILL if force else signal.SIGTERM)
+
 
 def is_running() -> bool:
     if not PID_FILE.exists():
         return False
     try:
         pid = int(PID_FILE.read_text().strip())
-        os.kill(pid, 0)
-        return True
     except Exception:
         return False
+    return _pid_alive(pid)
 
 
 def _bot_env() -> dict:
@@ -73,54 +103,55 @@ def preflight_errors(env_path: str | None = None) -> list[str]:
 
 
 def start() -> None:
-    if is_running():
-        return
-    logf = open(LOG_FILE, "a")
-    p = subprocess.Popen([sys.executable, "bot.py"], cwd=str(ROOT),
-                         stdout=logf, stderr=subprocess.STDOUT, env=_bot_env())
-    PID_FILE.write_text(str(p.pid))
+    with _op_lock:
+        if is_running():
+            return
+        logf = open(LOG_FILE, "a")
+        p = subprocess.Popen([sys.executable, "bot.py"], cwd=str(ROOT),
+                             stdout=logf, stderr=subprocess.STDOUT, env=_bot_env())
+        PID_FILE.write_text(str(p.pid))
 
 
 def stop() -> None:
-    if not PID_FILE.exists():
-        return
-    try:
-        pid = int(PID_FILE.read_text().strip())
-    except Exception:
-        PID_FILE.unlink(missing_ok=True)
-        return
-    try:
-        os.kill(pid, signal.SIGTERM)
-    except Exception:
-        PID_FILE.unlink(missing_ok=True)
-        return
-    # 等舊 bot 真的結束再回（最多 ~8s）。否則重啟時新舊兩隻會搶 Telegram long-poll（409 衝突）
-    # → bot 看似沒套用新設定，使用者只好整個關掉面板重開。
-    for _ in range(40):
+    with _op_lock:
+        if not PID_FILE.exists():
+            return
         try:
-            os.kill(pid, 0)            # 0 號訊號＝只探測是否還活著
-        except OSError:
-            break                      # 已結束
-        time.sleep(0.2)
-    else:
-        try:
-            os.kill(pid, signal.SIGKILL)   # 逾時仍沒死 → 強制結束
+            pid = int(PID_FILE.read_text().strip())
         except Exception:
-            pass
-    PID_FILE.unlink(missing_ok=True)
+            PID_FILE.unlink(missing_ok=True)
+            return
+        try:
+            _terminate(pid)                # Unix：SIGTERM；Windows：taskkill /PID
+        except Exception:
+            PID_FILE.unlink(missing_ok=True)
+            return
+        # 等舊 bot 真的結束再回（最多 ~8s）。否則重啟時新舊兩隻會搶 Telegram long-poll（409 衝突）
+        # → bot 看似沒套用新設定，使用者只好整個關掉面板重開。
+        for _ in range(40):
+            if not _pid_alive(pid):
+                break                      # 已結束
+            time.sleep(0.2)
+        else:
+            try:
+                _terminate(pid, force=True)   # 逾時仍沒死 → 強制結束（Unix SIGKILL／Windows taskkill /F）
+            except Exception:
+                pass
+        PID_FILE.unlink(missing_ok=True)
 
 
 def restart() -> None:
-    stop()                # stop() 已等舊行程結束，不必再固定 sleep
-    start()
+    with _op_lock:        # RLock 可重入；stop()/start() 內層再取同把鎖不會卡死
+        stop()            # stop() 已等舊行程結束，不必再固定 sleep
+        start()
 
 
 def log_event(msg: str) -> None:
     """面板側事件寫進同一個 bot.log（重啟/分析等），讓「即時 Log」也看得到。
-    格式比照 bot 的 logging（INFO:來源:訊息），方便 tail_log 一致顯示。"""
+    格式比照 bot 的 logging（時間｜INFO:來源:訊息），方便 tail_log 一致顯示。"""
     try:
         with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(f"INFO:panel:{msg}\n")
+            f.write(f"{time.strftime('%m-%d %H:%M:%S')}｜INFO:panel:{msg}\n")
     except Exception:
         pass
 

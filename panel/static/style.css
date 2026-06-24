@@ -82,12 +82,40 @@ body,.topbar,.statusbar,.card,.btn,.badge,input,textarea,.log,.answer,.icon-btn,
    不用 CSS 動畫/絕對定位/溢出 —— 機器人反覆消失之真因是 SVG 以 top:-10px 溢出 .brand-mark，
    WebKit 在 sticky 頂欄捲動重繪時會把溢出邊界的圖層丟掉。整個 logo 收進一個「不溢出」的 SVG 即根治。 */
 .brand-logo{flex:none;width:32px;height:40px;overflow:visible;
-  filter:drop-shadow(0 3px 9px rgba(243,181,74,.30));transition:transform .2s ease}
+  filter:drop-shadow(0 3px 9px rgba(243,181,74,.30));
+  transition:transform .58s cubic-bezier(.34,1.42,.46,1), filter .45s ease, opacity .5s ease}
 .bm-eye{fill:var(--accent-ink)}
 .bm-smile{fill:none;stroke:var(--accent-ink);stroke-width:1.9;stroke-linecap:round}
 .bm-ant{stroke:var(--accent);stroke-width:1.9;stroke-linecap:round}
 .bm-spark{fill:var(--accent-2)}
-.brand:hover .brand-logo{transform:translateY(-1px) scale(1.06)}
+.brand:hover .brand-logo{transform:translateY(-1px) scale(1.06);transition:transform .2s ease}  /* hover 維持輕快，不吃落下用的 overshoot 曲線 */
+/* 開場：登場時縮小抬起、淡入，再落下定位（WebKit 安全：CSS transition 切 class + SMIL，零 @keyframes） */
+.brand-logo.logo-arming{transform:scale(.82) translateY(-3px);opacity:.55}  /* 首幀＝縮小抬起變淡的預備姿勢 */
+.brand-logo.yawning{transform:translateY(.6px)}  /* 睡前打哈欠微沉（僅停止情境） */
+@media (prefers-reduced-motion:reduce){  /* 減少動態：不做落下，直接定位 */
+  .brand-logo{transition:filter .2s ease}
+  .brand-logo.logo-arming{transform:none;opacity:1}
+}
+/* 睡眠臉（bot 停止時由 app.js 切 .asleep）：😴 閉眼＋微張嘴呼吸＋Zzz、整體變暗無光暈。
+   醒↔睡用 opacity 交叉淡入淡出（兩張臉同位、同時存在）→ 柔順過場、不瞬切、不靠遮罩 */
+.bm-look,.bm-sleep{transition:opacity .7s ease}
+.bm-sleep{opacity:0}
+.brand-logo.asleep{filter:brightness(.8) saturate(.82)}
+.brand-logo.asleep .bm-look{opacity:0}
+.brand-logo.asleep .bm-sleep{opacity:1}
+.bm-eye-closed{fill:none;stroke:var(--accent-ink);stroke-width:1.9;stroke-linecap:round}
+.bm-mouth-sleep{fill:var(--accent-ink)}
+.bm-zzz{fill:var(--text-dim);font:700 9px sans-serif}   /* 暗模式用較亮的 dim 才看得清（zzz 浮在深色 header 上，faint 對比不足） */
+[data-theme="light"] .bm-zzz{fill:var(--text-faint)}    /* 淺色 header 維持原本的淡色 */
+/* 暈眩臉（重啟時 app.js 切 .restarting）：😵‍💫 大漩渦眼旋轉＋波浪嘴；星星頭頂環繞 */
+.bm-dizzy{display:none}
+.brand-logo.restarting{filter:drop-shadow(0 3px 9px rgba(243,181,74,.30))}   /* 蓋過 asleep 變暗，重啟保持明亮 */
+.brand-logo.restarting .bm-look,.brand-logo.restarting .bm-sleep{opacity:0}
+.brand-logo.restarting .bm-dizzy{display:block}
+.bm-swirl{fill:none;stroke:var(--accent-ink);stroke-width:.8;stroke-linecap:round;stroke-linejoin:round}
+.bm-mouth-dizzy{fill:none;stroke:var(--accent-ink);stroke-width:1.15;stroke-linecap:round;stroke-linejoin:round}
+.bm-star{fill:var(--accent-2)}
+.bm-orbit{fill:none;stroke:var(--accent);stroke-width:1.1;stroke-linecap:round;opacity:.95}
 @media (prefers-reduced-motion:reduce){.bm-bot,.bm-eyes,.bm-spark{animation:none}}
 .brand-name{font-weight:600;font-size:15px;letter-spacing:.01em}
 .brand-sub{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.02em;
@@ -345,3 +373,30 @@ ul.chips li.chip .mono{font-size:13.5px;color:var(--text)}
   .dot.on{animation:none}
   .btn:hover{transform:none}
 }
+
+/* ── 解除安裝（危險區）── */
+.danger-card{border-color:var(--accent-line)}
+.uninst-btn{font:inherit;font-size:13px;padding:8px 14px;border-radius:8px;border:1px solid var(--border);
+  background:var(--panel-2);color:var(--text);cursor:pointer;transition:background-color .12s,border-color .12s}
+.uninst-btn:not(:disabled):hover{border-color:var(--accent-line)}
+.uninst-btn.danger{border-color:var(--warn);color:var(--warn);font-weight:600}
+.uninst-btn.danger:not(:disabled):hover{background:var(--accent-soft)}
+.uninst-btn:disabled{opacity:.5;cursor:not-allowed}
+.uninst-h{font-size:12.5px;margin:16px 0 7px;color:var(--text-dim);font-weight:600}
+.uninst-ok{color:var(--accent-text);font-weight:500;font-size:11.5px;margin-left:6px}
+.uninst-warn{color:var(--warn);font-weight:500;font-size:11.5px;margin-left:6px}
+.uninst-row{display:grid;grid-template-columns:auto 1fr auto;column-gap:9px;row-gap:2px;align-items:center;
+  padding:8px 11px;border:1px solid var(--border-soft);border-radius:8px;margin-bottom:6px;font-size:13px}
+.uninst-row.danger-row{border-color:var(--warn)}
+.uninst-name{font-weight:500}
+.uninst-size{color:var(--accent-text);font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap}
+.uninst-path{grid-column:2 / 4;font-family:var(--mono);font-size:10.5px;color:var(--text-faint);word-break:break-all}
+.uninst-confirm{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-top:16px}
+.uninst-confirm label{font-size:13px;color:var(--text-dim)}
+.uninst-confirm input{font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:7px;
+  background:var(--inset);color:var(--text);width:160px}
+.uninst-confirm code{font-family:var(--mono);background:var(--accent-soft);padding:1px 5px;border-radius:4px;color:var(--accent-text)}
+.uninst-closeopt{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-dim);margin-top:11px}
+.uninst-closeopt input[type="checkbox"],.uninst-row input[type="checkbox"]{width:auto;flex:none;margin:0}  /* 覆寫全域 input{width:100%}：否則 checkbox 被撐滿整列、把文字擠到右邊跑版 */
+#uninst-result{margin-top:12px}
+.uninst-countdown{display:flex;align-items:center;gap:11px;margin-top:12px;font-size:13px;color:var(--warn);font-weight:600}

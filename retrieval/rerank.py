@@ -14,7 +14,14 @@ def _get_model() -> CrossEncoder:
     if _model is None:
         with _lock:
             if _model is None:
-                _model = CrossEncoder(_MODEL_NAME)
+                import install_manifest
+                _dir = install_manifest.hf_model_dir(_MODEL_NAME)
+                _pre = _dir.exists()                          # 裝之前原本就有？（有就不記、卸載不碰）
+                _model = CrossEncoder(_MODEL_NAME)            # 首次會下載到 HF 快取
+                try:
+                    install_manifest.record_if_new("model", str(_dir), _pre, name=_MODEL_NAME)
+                except Exception:
+                    pass
     return _model
 
 

@@ -35,7 +35,7 @@
 <header class="topbar">
   <div class="topbar-row">
     <div class="brand">
-      <svg class="brand-logo" viewBox="0 0 40 50" width="32" height="40" aria-hidden="true">
+      <svg class="brand-logo logo-arming" viewBox="0 0 40 50" width="32" height="40" aria-hidden="true">
         <defs>
           <radialGradient id="jvGold" cx="30%" cy="18%" r="115%">
             <stop offset="0" stop-color="#ffd585"/>
@@ -56,13 +56,54 @@
           <circle class="bm-spark" cx="26.3" cy="8" r="2.2">
             <animate attributeName="opacity" values="0.5;1;0.5" keyTimes="0;0.5;1" dur="2.2s" begin="-1.1s" repeatCount="indefinite"/>
           </circle>
-          <ellipse class="bm-eye" cx="15" cy="30" rx="3.2" ry="3.2">
-            <animate attributeName="ry" values="3.2;3.2;0.4;3.2" keyTimes="0;0.9;0.96;1" dur="4.6s" repeatCount="indefinite"/>
-          </ellipse>
-          <ellipse class="bm-eye" cx="25" cy="30" rx="3.2" ry="3.2">
-            <animate attributeName="ry" values="3.2;3.2;0.4;3.2" keyTimes="0;0.9;0.96;1" dur="4.6s" repeatCount="indefinite"/>
-          </ellipse>
-          <path class="bm-smile" d="M15 36Q20 41 25 36"/>
+          <!-- 臉（眼＋笑）整組週期性瞄向左/右＝轉頭看別處（SMIL translate） -->
+          <g class="bm-look">
+            <animateTransform attributeName="transform" type="translate"
+              values="0 0; 0 0; -3 0; -3 0; 0 0; 0 0; 3 0; 3 0; 0 0"
+              keyTimes="0; 0.32; 0.38; 0.5; 0.56; 0.76; 0.82; 0.93; 1"
+              dur="7s" repeatCount="indefinite"/>
+            <ellipse class="bm-eye" cx="15" cy="30" rx="3.2" ry="3.2">
+              <animate attributeName="ry" values="3.2;3.2;0.4;3.2" keyTimes="0;0.9;0.96;1" dur="4.6s" repeatCount="indefinite"/>
+            </ellipse>
+            <ellipse class="bm-eye" cx="25" cy="30" rx="3.2" ry="3.2">
+              <animate attributeName="ry" values="3.2;3.2;0.4;3.2" keyTimes="0;0.9;0.96;1" dur="4.6s" repeatCount="indefinite"/>
+            </ellipse>
+            <path class="bm-smile" d="M15 36Q20 41 25 36"/>
+          </g>
+          <!-- 睡眠臉（😴：閉眼弧＋微張的嘴會呼吸＋Zzz）；bot 停止時由 .asleep 顯示，醒臉藏起 -->
+          <g class="bm-sleep">
+            <path class="bm-eye-closed" d="M11.8 30 Q15 32.6 18.2 30"/>
+            <path class="bm-eye-closed" d="M21.8 30 Q25 32.6 28.2 30"/>
+            <ellipse class="bm-mouth-sleep" cx="20" cy="38" rx="2.4" ry="1.9">
+              <animate attributeName="rx" values="2.2;3.4;2.2" keyTimes="0;0.5;1" dur="2.6s" repeatCount="indefinite"/>
+            </ellipse>
+            <text class="bm-zzz" x="28" y="13">z
+              <animate attributeName="opacity" values="0;0.85;0" keyTimes="0;0.3;1" dur="2.6s" repeatCount="indefinite"/>
+              <animateTransform attributeName="transform" type="translate" values="0 0; 4 -9" keyTimes="0;1" dur="2.6s" repeatCount="indefinite"/>
+            </text>
+          </g>
+          <!-- 暈眩臉（重啟時由 .restarting 顯示）：😵‍💫 大漩渦眼（靜止不轉）＋波浪嘴；星星沿頭頂橢圓軌道環繞 -->
+          <g class="bm-dizzy">
+            <g transform="translate(15,30)">
+              <path class="bm-swirl" d="M0,0 a0.75,0.75 0 0,1 1.5,0 a1.5,1.5 0 0,1 -3,0 a2.25,2.25 0 0,1 4.5,0 a3,3 0 0,1 -6,0"/>
+            </g>
+            <g transform="translate(25,30)">
+              <path class="bm-swirl" d="M0,0 a0.75,0.75 0 0,1 1.5,0 a1.5,1.5 0 0,1 -3,0 a2.25,2.25 0 0,1 4.5,0 a3,3 0 0,1 -6,0"/>
+            </g>
+            <path class="bm-mouth-dizzy" d="M14 39.5 q2 -1.3 4 0 t4 0 t4 0"/>
+            <!-- 頭頂暈眩光環：扁橢圓用 pathLength=100 切成兩條長弧(36)＋兩缺口(14)，dashoffset 讓兩弧 360° 沿軌道繞行；外加兩顆星星 -->
+            <g class="bm-stars">
+              <ellipse class="bm-orbit" cx="20" cy="7" rx="10" ry="3" pathLength="100" stroke-dasharray="36 14">
+                <animate attributeName="stroke-dashoffset" values="0;-100" dur="2s" repeatCount="indefinite"/>
+              </ellipse>
+              <path class="bm-star" d="M0,-1.7 L0.4,-0.55 L1.62,-0.53 L0.65,0.21 L1,1.38 L0,0.68 L-1,1.38 L-0.65,0.21 L-1.62,-0.53 L-0.4,-0.55 Z">
+                <animateMotion dur="1.5s" repeatCount="indefinite" path="M30,7 a10,3 0 1,0 -20,0 a10,3 0 1,0 20,0"/>
+              </path>
+              <path class="bm-star" d="M0,-1.7 L0.4,-0.55 L1.62,-0.53 L0.65,0.21 L1,1.38 L0,0.68 L-1,1.38 L-0.65,0.21 L-1.62,-0.53 L-0.4,-0.55 Z">
+                <animateMotion dur="1.5s" begin="-0.75s" repeatCount="indefinite" path="M30,7 a10,3 0 1,0 -20,0 a10,3 0 1,0 20,0"/>
+              </path>
+            </g>
+          </g>
         </g>
       </svg>
       <div class="brand-txt">
@@ -101,7 +142,7 @@
       <div class="field"><label for="pf-title">職稱</label><input id="pf-title" placeholder="如：產品經理"></div>
       <div class="field"><label for="pf-company">公司</label><input id="pf-company" placeholder="如：Dash-U"></div>
     </div>
-    <div class="field"><label for="pf-projects">專案（每行一筆：名稱｜說明）</label><textarea id="pf-projects" rows="4" placeholder="例：JAYVIS｜個人 AI 助理&#10;知識庫重構｜把筆記接進 RAG"></textarea></div>
+    <div class="field"><label for="pf-projects">專案（每行一筆：名稱｜說明）</label><textarea id="pf-projects" rows="4" placeholder="例：JAYVIS｜個人 AI 搭檔&#10;知識庫重構｜把筆記接進 RAG"></textarea></div>
     <div class="field"><label for="pf-team">團隊（每行一筆：名稱｜分工）</label><textarea id="pf-team" rows="4" placeholder="例：David｜前端&#10;Matt｜後端 API"></textarea></div>
     <div class="field"><label for="pf-bosses">Boss（每行一筆：名稱｜備註）</label><textarea id="pf-bosses" rows="2" placeholder="例：Stanley｜重要訊息優先回報"></textarea></div>
     <div class="field"><label>轉介規則（領域 → 負責人）</label>
@@ -120,13 +161,13 @@
     </div>
     <div class="model-row"><div class="field"><input id="lv-focus-brief" class="mono" autocomplete="off" placeholder="（選填）給個方向，如：這週主要處理…，請假時…找 Jason"></div><button id="lv-focus-draft" class="btn" type="button"><svg class="ic"><use href="#i-sparkles"></use></svg>幫我擬本週重點</button></div>
     <div id="lv-focus-draft-msg" class="msg" style="margin:4px 0 12px"></div>
-    <div class="field"><label for="lv-focus">本週重點 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">這段會「一直」餵給助理當作目前重點／背景（不限請假時，平常同事問答也會參考）。若內含請假時程，也是助理判斷你是否請假、何時回來的依據。改後需重啟 bot。</span></span></label><textarea id="lv-focus" rows="6"></textarea></div>
+    <div class="field"><label for="lv-focus">本週重點 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">這段會「一直」餵給搭檔當作目前重點／背景（不限請假時，平常同事問答也會參考）。若內含請假時程，也是搭檔判斷你是否請假、何時回來的依據。改後需重啟 bot。</span></span></label><textarea id="lv-focus" rows="6"></textarea></div>
     <div class="actions">
       <button id="lv-save" class="btn primary"><svg class="ic"><use href="#i-save"></use></svg>儲存請假設定</button>
       <span class="hint">儲存後需重啟 bot 生效</span>
       <span id="lv-msg" class="msg"></span>
     </div>
-    <div class="section-label">請假期間彙整 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">用高階模型把請假區間內「同事與助理的對話」整理成「已處理的項目」＋「待辦／需你決定」。按下會在面板顯示，並一併發到你的 TG。請假結束後 bot 也會自動把這份彙整 DM 給你一次。需先在請假設定填好日期區間才會觸發（沒設不會動用模型）。</span></span></div>
+    <div class="section-label">請假期間彙整 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">用高階模型把請假區間內「同事與搭檔的對話」整理成「已處理的項目」＋「待辦／需你決定」。按下會在面板顯示，並一併發到你的 TG。請假結束後 bot 也會自動把這份彙整 DM 給你一次。需先在請假設定填好日期區間才會觸發（沒設不會動用模型）。</span></span></div>
     <div class="actions">
       <button id="lv-digest" class="btn" type="button"><svg class="ic"><use href="#i-sparkles"></use></svg>彙整請假期間</button>
       <span id="lv-digest-msg" class="msg"></span>
@@ -164,16 +205,16 @@
       <div class="field model-row"><span id="lo-status" class="hint" style="flex:1;min-width:0"></span><button id="lo-install" class="btn sm" type="button" style="display:none"><svg class="ic"><use href="#i-play"></use></svg>安裝 LibreOffice</button></div>
       <div class="field"><label class="switch"><input id="ac-search" type="checkbox"><span>啟用時事搜尋（owner 專屬・需 Tavily 金鑰）<span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">你本人私訊問「最新／今天／股價／匯率／天氣…」等時事時，先打 Tavily 搜尋再用搜到的資料回你並標來源。金鑰填在下方。同事不會觸發。改後需重啟 bot。</span></span></span></label></div>
       <div class="field"><label for="key-tavily">Tavily 金鑰（時事搜尋用）</label><input id="key-tavily" type="password" class="mono" autocomplete="off" placeholder="未設定"></div>
-      <div class="field"><label class="switch"><input id="ig-enabled" type="checkbox"><span>啟用自動配圖（owner 專屬・Pollinations.AI）<span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">你本人私訊時，助理覺得配圖更清楚就會自動用 Pollinations.AI 生一張圖一起回你（免金鑰、生圖約數十秒）。只有你本人會自動配圖、同事不會。改後需重啟 bot。</span></span></span></label></div>
+      <div class="field"><label class="switch"><input id="ig-enabled" type="checkbox"><span>啟用自動配圖（owner 專屬・Pollinations.AI）<span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">你本人私訊時，搭檔覺得配圖更清楚就會自動用 Pollinations.AI 生一張圖一起回你（免金鑰、生圖約數十秒）。只有你本人會自動配圖、同事不會。改後需重啟 bot。</span></span></span></label></div>
       <div class="actions"><button id="ac-save" class="btn primary"><svg class="ic"><use href="#i-save"></use></svg>儲存</button><span class="hint">儲存後需重啟 bot 生效</span><span id="ac-msg" class="msg"></span></div>
     </section>
   </div>
 
   <section class="card" style="--d:4">
     <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-route"></use></svg></span><h2>瀏覽白名單</h2></div>
-    <div class="field"><label class="switch"><input id="browse-enabled" type="checkbox"><span>啟用網站瀏覽（owner 專屬）<span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">讓你本人私訊 JAYVIS「幫我看 &lt;網址&gt;」可瀏覽網頁並操作（送出/發布等會先問你確認）。第一次打開會提示下載「專用瀏覽器元件」(~150MB，用 Playwright 自帶、版本相容的 Chromium，與個人 Chrome 隔離)，確定後安裝；裝好會自動開一個專用視窗，請在裡面登入要讓助理瀏覽的網站（如 ka2ka），cookie 會記住。關閉開關會一併關掉該專用瀏覽器。僅白名單網域、僅你本人能觸發。改後需重啟 bot。</span></span></span></label></div>
+    <div class="field"><label class="switch"><input id="browse-enabled" type="checkbox"><span>啟用網站瀏覽（owner 專屬）<span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">讓你本人私訊 JAYVIS「幫我看 &lt;網址&gt;」可瀏覽網頁並操作（送出/發布等會先問你確認）。第一次打開會提示下載「專用瀏覽器元件」(~150MB，用 Playwright 自帶、版本相容的 Chromium，與個人 Chrome 隔離)，確定後安裝；裝好會自動開一個專用視窗，請在裡面登入要讓搭檔瀏覽的網站（如 ka2ka），cookie 會記住。關閉開關會一併關掉該專用瀏覽器。僅白名單網域、僅你本人能觸發。改後需重啟 bot。</span></span></span></label></div>
     <div class="field"><button id="browse-login-btn" class="btn" type="button">開啟登入視窗</button> <span id="browse-login-status" class="hint"></span></div>
-    <p class="hint">助理只能進這些網域（含子網域）。空清單＝完全禁止瀏覽。</p>
+    <p class="hint">搭檔只能進這些網域（含子網域）。空清單＝完全禁止瀏覽。</p>
     <ul id="browse-list" class="chips"></ul>
     <div class="inline">
       <input id="browse-input" type="text" placeholder="例如 analytics.google.com" autocomplete="off">
@@ -187,7 +228,36 @@
   </section>
 
   <section class="card" style="--d:5">
-    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-database"></use></svg></span><h2>記憶管理 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">兩個層次：上半「知識來源」把 Obsidian 筆記與 GitHub commit 灌進向量知識庫（bot 回答同事問題的依據）；下半「對談記憶」是助理記得的每次對談與動作（含時間），可依對象檢視、清除。</span></span></h2></div>
+    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-route"></use></svg></span><h2>模型路由 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">模型名開頭決定供應商：gemini-*→Google、claude-*→Anthropic、gpt-*/o*→OpenAI 金鑰所指端點。設了相容端點後，其他任意模型名（gemma4:12b、qwen3:8b 等）都走該端點；本地 Ollama 金鑰可留空。金鑰留空＝不變更，要清除請編輯 .env。</span></span> <span id="md-models-hint" class="hint head-hint"></span></h2></div>
+    <div class="model-row">
+      <div class="field"><label for="md-general">一般模型</label><input id="md-general" class="mono" autocomplete="off" placeholder="gemini-2.5-flash 或點選本地"></div>
+      <div class="field"><label for="md-code">高階模型</label><input id="md-code" class="mono" autocomplete="off" placeholder="claude-opus-4-8 或點選本地"></div>
+      <button id="md-refresh-models" class="btn" type="button" title="重新整理可用模型（雲端＋本地）"><svg class="ic"><use href="#i-rotate"></use></svg>重新整理</button>
+    </div>
+    <div class="field">
+      <label for="md-threshold">檢索門檻
+        <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg>
+          <span class="info-text">回答前先看知識庫有沒有夠相關的內容：相關度低於此值就回「資料不足」而不硬答（不會呼叫模型）。<br><b>調高</b>＝更嚴格、少幻覺、較常婉拒；<b>調低</b>＝更願意回答，但根據弱時可能亂掰。本地小模型較易幻覺，建議別調太低（0.3 起跳）。</span>
+        </span>
+        <span id="md-threshold-val" class="thresh-val mono">0.30</span>
+      </label>
+      <input id="md-threshold" type="range" min="0" max="0.9" step="0.05" class="range-slider">
+    </div>
+    <div class="grid-3 eq">
+      <div class="field"><label for="key-gemini">Gemini API key</label><input id="key-gemini" type="password" class="mono" autocomplete="off"></div>
+      <div class="field"><label for="key-anthropic">Anthropic API key</label><input id="key-anthropic" type="password" class="mono" autocomplete="off"></div>
+      <div class="field"><label for="key-openai">OpenAI API key</label><input id="key-openai" type="password" class="mono" autocomplete="off"></div>
+    </div>
+    <div class="field"><label for="md-baseurl">OpenAI 相容端點 Base URL（選填：公司 Ollama / 第三方供應商；留空＝官方 OpenAI）</label><input id="md-baseurl" class="mono" placeholder="http://192.168.50.229:11435/v1"></div>
+    <div class="actions">
+      <button id="md-save" class="btn primary"><svg class="ic"><use href="#i-save"></use></svg>儲存</button>
+      <span class="hint">儲存後需重啟 bot 生效</span>
+      <span id="md-msg" class="msg"></span>
+    </div>
+  </section>
+
+  <section class="card" style="--d:6">
+    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-database"></use></svg></span><h2>記憶管理 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">兩個層次：上半「知識來源」把 Obsidian 筆記與 GitHub commit 灌進向量知識庫（bot 回答同事問題的依據）；下半「對談記憶」是搭檔記得的每次對談與動作（含時間），可依對象檢視、清除。</span></span></h2></div>
     <div class="grid-2">
       <div>
         <div class="section-label">知識庫來源（同事問答依據・改了路徑要按「重建索引」才生效）</div>
@@ -225,7 +295,18 @@
         </div>
       </div>
       <div>
-        <div class="section-label">對談記憶（助理記得誰、聊過什麼，含時間）</div>
+        <div class="section-label">聊天記憶 匯入／匯出（你本人）
+          <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">把你在別處與 LLM 的長期聊天記憶匯入，讓 JAYVIS 一開始就認識你。匯入會走 JAYVIS 完整記憶管線（分塊＋向量索引＋長期整併）；勾「重建長期認識」會用模型從匯入內容抽出對你的長期畫像（下方「JAYVIS 對你的長期認識」）。限定 JAYVIS 記憶檔格式（.json，由「匯出」產生、可來回）；從 ChatGPT／Claude 來的需先轉成此格式（欄位見 README）。匯入需先設好「你的 TG id（owner）」。</span></span></div>
+        <div class="actions wrap">
+          <button id="mem-import" class="btn"><svg class="ic"><use href="#i-folder"></use></svg>瀏覽…匯入</button>
+          <button id="mem-export" class="btn"><svg class="ic"><use href="#i-save"></use></svg>匯出我的記憶</button>
+          <span id="mem-iexp-msg" class="msg"></span>
+        </div>
+        <div class="actions wrap">
+          <label class="switch sm"><input id="mem-import-clear" type="checkbox"><span>先清空再匯入</span></label>
+          <label class="switch sm"><input id="mem-import-rebuild" type="checkbox" checked><span>匯入後重建長期認識</span></label>
+        </div>
+        <div class="section-label">對談記憶（搭檔記得誰、聊過什麼，含時間）</div>
         <div class="row-inline"><label for="mem-person">對象</label>
           <select id="mem-person" class="mono"></select></div>
         <ul id="mem-timeline" class="chips" style="max-height:200px"></ul>
@@ -234,42 +315,13 @@
           <button id="mem-clear-all" class="btn"><svg class="ic"><use href="#i-trash"></use></svg>清除全部</button>
           <span id="mem-msg" class="msg"></span>
         </div>
-        <div class="section-label">助理對你的長期認識（自動觀察、可清除）</div>
-        <pre id="mem-profile" class="mono" style="max-height:160px;overflow:auto;white-space:pre-wrap;margin:0">—</pre>
-        <div class="actions wrap">
-          <button id="mem-profile-clear" class="btn"><svg class="ic"><use href="#i-trash"></use></svg>清除認識</button>
-          <span id="mem-profile-msg" class="msg"></span>
-        </div>
       </div>
     </div>
-  </section>
-
-  <section class="card" style="--d:6">
-    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-route"></use></svg></span><h2>模型路由 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">模型名開頭決定供應商：gemini-*→Google、claude-*→Anthropic、gpt-*/o*→OpenAI 金鑰所指端點。設了相容端點後，其他任意模型名（gemma4:12b、qwen3:8b 等）都走該端點；本地 Ollama 金鑰可留空。金鑰留空＝不變更，要清除請編輯 .env。</span></span> <span id="md-models-hint" class="hint head-hint"></span></h2></div>
-    <div class="model-row">
-      <div class="field"><label for="md-general">一般模型</label><input id="md-general" class="mono" autocomplete="off" placeholder="gemini-2.5-flash 或點選本地"></div>
-      <div class="field"><label for="md-code">高階模型</label><input id="md-code" class="mono" autocomplete="off" placeholder="claude-opus-4-8 或點選本地"></div>
-      <button id="md-refresh-models" class="btn" type="button" title="重新整理可用模型（雲端＋本地）"><svg class="ic"><use href="#i-rotate"></use></svg>重新整理</button>
-    </div>
-    <div class="field">
-      <label for="md-threshold">檢索門檻
-        <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg>
-          <span class="info-text">回答前先看知識庫有沒有夠相關的內容：相關度低於此值就回「資料不足」而不硬答（不會呼叫模型）。<br><b>調高</b>＝更嚴格、少幻覺、較常婉拒；<b>調低</b>＝更願意回答，但根據弱時可能亂掰。本地小模型較易幻覺，建議別調太低（0.3 起跳）。</span>
-        </span>
-        <span id="md-threshold-val" class="thresh-val mono">0.30</span>
-      </label>
-      <input id="md-threshold" type="range" min="0" max="0.9" step="0.05" class="range-slider">
-    </div>
-    <div class="grid-3 eq">
-      <div class="field"><label for="key-gemini">Gemini API key</label><input id="key-gemini" type="password" class="mono" autocomplete="off"></div>
-      <div class="field"><label for="key-anthropic">Anthropic API key</label><input id="key-anthropic" type="password" class="mono" autocomplete="off"></div>
-      <div class="field"><label for="key-openai">OpenAI API key</label><input id="key-openai" type="password" class="mono" autocomplete="off"></div>
-    </div>
-    <div class="field"><label for="md-baseurl">OpenAI 相容端點 Base URL（選填：公司 Ollama / 第三方供應商；留空＝官方 OpenAI）</label><input id="md-baseurl" class="mono" placeholder="http://192.168.50.229:11435/v1"></div>
-    <div class="actions">
-      <button id="md-save" class="btn primary"><svg class="ic"><use href="#i-save"></use></svg>儲存</button>
-      <span class="hint">儲存後需重啟 bot 生效</span>
-      <span id="md-msg" class="msg"></span>
+    <div class="section-label" style="margin-top:16px">JAYVIS 對你的長期認識（自動觀察、可清除）</div>
+    <pre id="mem-profile" class="mono" style="max-height:160px;overflow:auto;white-space:pre-wrap;margin:0">—</pre>
+    <div class="actions wrap">
+      <button id="mem-profile-clear" class="btn"><svg class="ic"><use href="#i-trash"></use></svg>清除認識</button>
+      <span id="mem-profile-msg" class="msg"></span>
     </div>
   </section>
 
@@ -292,6 +344,38 @@
   <section class="card" style="--d:8">
     <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-terminal"></use></svg></span><h2>即時 Log</h2></div>
     <pre id="log" class="log">—</pre>
+  </section>
+
+  <section class="card danger-card" style="--d:9">
+    <div class="card-head"><span class="card-ic"><svg class="ic"><use href="#i-trash"></use></svg></span><h2>解除安裝 <span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">本地模型在你下次用到知識庫／記憶時會自動重新下載（RAG 核心，無法避免）；Chromium 與 LibreOffice 不會自動裝，要再用時於控制台按「安裝」即可。適合「離開 JAYVIS／暫時清空間」。</span></span></h2></div>
+    <p class="card-sub">移除 JAYVIS 為了運作而安裝的外部元件（本地模型／Chromium／LibreOffice）以回收空間。<b>操作不可復原，請先停止 bot。</b></p>
+    <button id="uninst-scan" class="uninst-btn">掃描可移除項目</button>
+    <div id="uninst-body" hidden>
+      <div id="uninst-tracked-wrap" hidden>
+        <h3 class="uninst-h">JAYVIS 安裝的元件 <span class="uninst-ok">可安全移除</span></h3>
+        <div id="uninst-tracked"></div>
+      </div>
+      <div id="uninst-legacy-wrap" hidden>
+        <h3 class="uninst-h">偵測到的相關項目 <span class="uninst-warn">⚠️ 無法確認是否由 JAYVIS 安裝，可能被其他程式共用——確定才勾</span></h3>
+        <div id="uninst-legacy"></div>
+      </div>
+      <div id="uninst-data-wrap" hidden>
+        <h3 class="uninst-h">JAYVIS 資料</h3>
+        <label class="uninst-row danger-row">
+          <input type="checkbox" id="uninst-cleardata">
+          <span class="uninst-name">清除知識庫與設定</span>
+          <span class="uninst-size" id="uninst-data-size"></span>
+          <span class="uninst-path">含對話記憶／白名單／已登入網站的 cookie 與 session 等，<b>不可復原</b>（保留卸載清單 installed.json）</span>
+        </label>
+      </div>
+      <label class="uninst-closeopt"><input type="checkbox" id="uninst-close-after" checked> 完成後關閉 JAYVIS（僅全部成功才關，可取消）</label>
+      <div class="uninst-confirm">
+        <label>要執行請輸入 <code>移除JAYVIS</code>：<input id="uninst-confirm-txt" type="text" autocomplete="off" placeholder="移除JAYVIS"></label>
+        <button id="uninst-run" class="uninst-btn danger" disabled>執行移除所選</button>
+      </div>
+      <pre id="uninst-result" class="log" hidden></pre>
+      <div id="uninst-countdown" class="uninst-countdown" hidden></div>
+    </div>
   </section>
 </main>
 
