@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-Hant" data-theme="dark">
+<html lang="zh-Hant" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -161,7 +161,7 @@
       <div class="field"><label class="switch"><input id="ac-email" type="checkbox"><span>啟用發信／讀信（owner 專屬・僅 macOS）</span></label></div>
       <div class="field"><label for="ac-mail-acct">寄件帳號（選填，空＝寄信時問你）<span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">寄信用哪個 Mail 帳號（email 位址）；留空＝每次寄信列帳號問你。首次會跳 macOS「允許控制 Mail」。讀信摘要時該封內容會送進當前模型。改後需重啟 bot。</span></span></label><input id="ac-mail-acct" class="mono" placeholder="如：you@example.com"></div>
       <div class="field"><label class="switch"><input id="ac-media" type="checkbox"><span>啟用媒體工具（owner 專屬・圖片去背／轉檔／調尺寸）<span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">你本人私訊傳圖片/文件 + 一句話（如「幫我去背」「轉成 pdf」「縮到 1080 寬」），JAYVIS 處理後以檔案回傳。圖片用 Pillow + rembg（跨平台，HEIC 需 pillow-heif）；文件(Word/PDF)需另裝 LibreOffice。改後需重啟 bot。</span></span></span></label></div>
-      <div class="field model-row"><span id="lo-status" class="hint" style="flex:1;min-width:0"></span><button id="lo-install" class="btn" type="button" style="display:none"><svg class="ic"><use href="#i-play"></use></svg>安裝 LibreOffice</button></div>
+      <div class="field model-row"><span id="lo-status" class="hint" style="flex:1;min-width:0"></span><button id="lo-install" class="btn sm" type="button" style="display:none"><svg class="ic"><use href="#i-play"></use></svg>安裝 LibreOffice</button></div>
       <div class="field"><label class="switch"><input id="ac-search" type="checkbox"><span>啟用時事搜尋（owner 專屬・需 Tavily 金鑰）<span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">你本人私訊問「最新／今天／股價／匯率／天氣…」等時事時，先打 Tavily 搜尋再用搜到的資料回你並標來源。金鑰填在下方。同事不會觸發。改後需重啟 bot。</span></span></span></label></div>
       <div class="field"><label for="key-tavily">Tavily 金鑰（時事搜尋用）</label><input id="key-tavily" type="password" class="mono" autocomplete="off" placeholder="未設定"></div>
       <div class="field"><label class="switch"><input id="ig-enabled" type="checkbox"><span>啟用自動配圖（owner 專屬・Pollinations.AI）<span class="info-tip" tabindex="0"><svg class="ic"><use href="#i-info"></use></svg><span class="info-text">你本人私訊時，助理覺得配圖更清楚就會自動用 Pollinations.AI 生一張圖一起回你（免金鑰、生圖約數十秒）。只有你本人會自動配圖、同事不會。改後需重啟 bot。</span></span></span></label></div>
