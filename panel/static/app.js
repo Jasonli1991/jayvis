@@ -465,10 +465,16 @@ async function loadMemPersons() {
 }
 async function loadMemTimeline() {
   const pid = $("mem-person").value;
-  if (!pid) { $("mem-timeline").innerHTML = ""; return; }
+  const box = $("mem-timeline");
+  if (!pid) { box.innerHTML = ""; return; }
   const tl = await getJSON("/api/memory/timeline?person=" + encodeURIComponent(pid));
-  $("mem-timeline").innerHTML = tl.map(m =>
+  const html = tl.map(m =>
     `<li><span class="hint">${esc(m.ts)}・${esc(m.kind)}</span><br>${esc(m.content)}</li>`).join("") || "<li class='hint'>（無記錄）</li>";
+  if (box.innerHTML === html) return;                                  // 沒變就不動（免閃爍、不跳捲動）
+  const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 4;
+  const prevTop = box.scrollTop;
+  box.innerHTML = html;
+  box.scrollTop = atBottom ? box.scrollHeight : prevTop;               // 原在底部→跟到最新，否則保留位置
 }
 $("mem-person").onchange = loadMemTimeline;
 $("mem-person").addEventListener("focus", loadMemPersons);   // 點開下拉時重抓對談記憶（含時間軸）→ 免按鈕、免定時、不跟「重啟」混淆
@@ -901,11 +907,15 @@ setInterval(refreshLog, 4000);
 
 // 搭檔對 owner 的長期認識（自動畫像）：唯讀檢視 + 清除
 // 註：函式名不可叫 loadProfile —— 會蓋掉上面載入「身份設定」的同名函式（/api/profile）。
+let _profileSig = null;                                      // 變了才重繪（免文字/頭像閃爍）
 async function loadLearnedProfile() {
   try {
     const r = await fetch("/api/memory/profile");
     const d = await r.json();
     const prof = (d.profile || "").trim();
+    const sig = prof + "" + JSON.stringify(d.portrait || null);
+    if (sig === _profileSig) return;
+    _profileSig = sig;
     document.getElementById("mem-profile").textContent = prof || "—";
     renderOwnerPortrait(d.portrait, prof);
   } catch (e) { /* 面板非關鍵，靜默 */ }
@@ -930,6 +940,20 @@ document.getElementById("mem-profile-clear")?.addEventListener("click", async ()
   loadLearnedProfile();
 });
 loadLearnedProfile();
+
+// 對談記憶 / 長期認識：面板重新可見或取得焦點時自動刷新（切走再回來即更新，免重啟面板）；
+// 開著時也緩速更新（只在可見時，比 status 的 5s 慢很多）。操作進行中或正在操作下拉時不打擾。
+function _autoRefreshMemory() {
+  if (_opBusy) return;                                       // 啟動/停止/重啟進行中 → 不打擾
+  if (document.activeElement === $("mem-person")) return;    // 使用者正在操作下拉 → 不搶
+  loadMemPersons().catch(() => {});                          // 內含 loadMemTimeline（保留捲動、變了才重繪）
+  loadLearnedProfile();                                       // 變了才重繪
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") _autoRefreshMemory();
+});
+window.addEventListener("focus", _autoRefreshMemory);
+setInterval(() => { if (document.visibilityState === "visible") _autoRefreshMemory(); }, 15000);
 
 // info「i」提示框：打開時夾進可視範圍，靠右緣就改往左展開，避免被視窗裁切（與卡片位置無關）
 function _clampInfoTip(tip) {
