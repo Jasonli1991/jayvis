@@ -8,6 +8,11 @@ from chunks import citation_of
 import obsidian_graph
 
 
+# KB 問答排除的 source_type：對話/動作記憶走另一條 recall，不混進 KB 檢索。
+# 其餘 source_type（obsidian / git / manual 自我說明…）都可被 KB 問答撈到。
+KB_EXCLUDE_SOURCE_TYPES = ("conversation", "action")
+
+
 @dataclass
 class RetrievalResult:
     abstain: bool
@@ -26,7 +31,7 @@ def _citation_for_scored(s) -> str:
 def answer_context(conn, query: str, owner: str = "owner", expand_graph: bool = False) -> RetrievalResult:
     threshold = float(os.environ.get("RETRIEVAL_THRESHOLD", "0.3"))
     candidates = hybrid_search(conn, query, owner=owner, out_k=20,
-                               exclude_source_types=("conversation", "action"))
+                               exclude_source_types=KB_EXCLUDE_SOURCE_TYPES)
     scored = rerank(query, candidates, top_n=5)
     decision = decide(scored, threshold=threshold)
     if decision.abstain:

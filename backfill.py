@@ -5,6 +5,7 @@ load_dotenv()
 from db.connection import get_conn, apply_schema
 from ingest.obsidian import ingest_obsidian
 from ingest.github import commit_to_chunk
+from ingest.self_doc import seed as seed_self_doc
 from github_sync import _fetch_commits
 from config import GITHUB_REPOS
 
@@ -28,6 +29,7 @@ def backfill_github(conn) -> int:
 def main():
     conn = get_conn()
     apply_schema(conn)
+    print("Self-doc:", seed_self_doc(conn), "chunks")     # JAYVIS 自我說明：隨 repo 出貨、自動進 KB
     print("Obsidian:", backfill_obsidian(conn), "chunks")
     print("GitHub:", backfill_github(conn), "chunks")
 

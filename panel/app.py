@@ -32,6 +32,7 @@ import browse_launch
 from db.connection import get_conn, apply_schema
 from ingest.obsidian import ingest_dir, count_md_files
 from ingest.github import commit_to_chunk
+from ingest.self_doc import seed as seed_self_doc
 from github_sync import _fetch_commits, gh_ready, list_repos
 
 app = Flask(__name__, static_folder="static", static_url_path="")
@@ -693,6 +694,12 @@ def _run_backfill(src):
     try:
         conn = get_conn()
         apply_schema(conn)
+        try:
+            sd = seed_self_doc(conn)        # JAYVIS 自我說明：隨 repo 出貨、任何重建都自動灌進 KB（使用者免手動搬檔）
+            if sd:
+                botctl.log_event(f"📘 自我說明：{sd} 段已同步進知識庫")
+        except Exception as e:
+            botctl.log_event(f"📘 自我說明同步略過：{e}")
         # 即時讀 .env：面板剛存的來源不必重啟 panel 就生效
         if src == "obsidian":
             path = get_key(env_io.ENV_PATH, "OBSIDIAN_PATH") or config.OBSIDIAN_PATH
