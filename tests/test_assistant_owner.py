@@ -84,6 +84,49 @@ def test_owner_dm_no_guidance_when_self_doc_seeded(monkeypatch):
     _patch_common(monkeypatch, seen)                          # 預設 _self_doc_seeded → True
     assistant.compose_reply(6803, "你能做什麼")
     assert "讓 JAYVIS 認識自己" not in seen["system"]          # 已認識自己 → 不嘮叨
+    assert "群組限制" not in seen["system"]                    # 私訊不套群組收斂（私訊能力完整）
+    assert "你能為同事做什麼" not in seen["system"]            # owner 不套同事界線（owner 能力完整）
+
+
+def test_colleague_capability_honesty(monkeypatch):
+    # 同事被問能做什麼：誠實界線——只知識問答、動作工具只服務 owner、不主打陪聊但單句閒聊仍可回
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(config, "OWNER_NAME", "Owner")
+    monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(False, "ctx", ["obsidian"]))
+    monkeypatch.setattr(assistant.memory, "recall", lambda *a, **k: "")
+    seen = {}
+    _patch_common(monkeypatch, seen)
+    assistant.compose_reply(999, "你能做什麼")                 # 非 owner（同事）
+    assert "只服務 Owner 本人" in seen["system"]               # 動作工具 owner-only
+    assert "以工作／知識問答為主" in seen["system"]
+    assert "不用拒人" in seen["system"]                        # 保留：單句閒聊仍可自然回
+    assert "鐵則" in seen["system"] and "不畫餅" in seen["system"]   # 不對同事承諾/列出做不到的事
+
+
+def test_colleague_on_leave_can_hand_off_todos(monkeypatch):
+    # owner 請假中：同事可發問＋交辦待辦，JAYVIS 會整理成「已處理＋待辦」給 owner
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(config, "OWNER_NAME", "Owner")
+    monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(False, "ctx", ["obsidian"]))
+    monkeypatch.setattr(assistant.memory, "recall", lambda *a, **k: "")
+    monkeypatch.setattr(assistant._leave_io, "is_on_leave", lambda: True)
+    seen = {}
+    _patch_common(monkeypatch, seen)
+    assistant.compose_reply(999, "Owner 在嗎")                 # 同事、請假中
+    assert "請假中" in seen["system"] and "交辦" in seen["system"]
+    assert "已處理＋待辦" in seen["system"]
+
+
+def test_colleague_not_on_leave_no_todo_note(monkeypatch):
+    # 沒請假 → 不出現請假交辦說明
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(False, "ctx", ["obsidian"]))
+    monkeypatch.setattr(assistant.memory, "recall", lambda *a, **k: "")
+    monkeypatch.setattr(assistant._leave_io, "is_on_leave", lambda: False)
+    seen = {}
+    _patch_common(monkeypatch, seen)
+    assistant.compose_reply(999, "你能做什麼")
+    assert "已處理＋待辦" not in seen["system"]
 
 
 def test_colleague_no_panel_guidance_even_if_unseeded(monkeypatch):
@@ -126,6 +169,11 @@ def test_owner_in_group_no_recent_actions(monkeypatch):
     assistant.compose_reply(6803, "大家好", group_context="群組脈絡")
     assert called["n"] == 0
     assert "做過的事" not in seen["system"]
+    assert "同事在群組只能用知識問答" in seen["system"]      # 同事在群組只有知識問答
+    assert "只有我本人能在群組觸發" in seen["system"]        # 生圖/媒體/搜尋是 owner 專屬、別講成同事也能用
+    assert "同事也能丟給你" in seen["system"]                # 明確禁止把多媒體講成同事可用
+    assert "冷卻約 60 分鐘" in seen["system"]               # 同事閒聊冷卻
+    assert "鐵則" in seen["system"]                         # 不承諾/不自我介紹做不到的事
 
 
 def test_colleague_dm_best_effort_no_kb(monkeypatch):
@@ -290,7 +338,7 @@ def test_owner_in_group_action_tool_guard(monkeypatch):
     assistant.compose_reply(6803, "幫我截圖 ka2ka.com", group_context="群組脈絡")
     sys = seen["system"]
     assert "私訊" in sys and "瀏覽" in sys and "假裝" in sys      # 動作工具群組受限、別假裝在處理
-    assert "生圖" in sys and "時事查詢" in sys                    # 註明生圖/搜尋群組可用，不誤傷
+    assert "生圖" in sys and "時事搜尋" in sys                    # 生圖/搜尋仍是我本人群組可用（owner 專屬），不誤傷
 
 
 def test_owner_dm_no_group_guard(monkeypatch):

@@ -38,3 +38,12 @@ def test_character_block_name_origin_for_jayvis(monkeypatch):
     monkeypatch.setattr(persona, "load_profile", lambda: {"owner_name": "Jason", "assistant_name": "JAYVIS"})
     b = persona.character_block()
     assert "名字由來" in b and "Sidekick" in b and "Jason's AI" in b
+
+
+def test_character_block_self_refers_by_name(monkeypatch):
+    # 自稱用自己的名字（assistant_name，可為「{owner}的搭檔」或自訂）；別拿「金頭機器人」外型當稱呼
+    monkeypatch.setattr(persona, "load_profile", lambda: {"owner_name": "Eric", "assistant_name": "BOB"})
+    b = persona.character_block()
+    assert "我是 BOB" in b                         # 用自己的名字自稱
+    assert "別拿" in b and "金頭機器人" in b         # 有「別拿金頭機器人外型當稱呼」的規則
+    assert "金頭機器人搭檔" not in b               # 自我介紹不再用「金頭機器人」帶過

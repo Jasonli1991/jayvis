@@ -123,7 +123,7 @@ $("pf-save").onclick = () => withBusy($("pf-save"), async () => {
   try {
     const p = await getJSON("/api/profile");
     Object.assign(p, {
-      owner_name: name, title, company, assistant_name: (name || "") + " 的搭檔",
+      owner_name: name, title, company, assistant_name: (name || "") + " 的搭檔",  // 多租戶差異化：各自「{owner}的搭檔」，非都叫產品名 JAYVIS
       projects, team, bosses, routing,
     });
     const res = await postJSON("/api/profile", p);
