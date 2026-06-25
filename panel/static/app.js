@@ -137,6 +137,11 @@ $("pf-save").onclick = () => withBusy($("pf-save"), async () => {
 
 // logo 狀態：面板開場先醒著 ~3.5 秒（打招呼），之後依 bot 是否運作切「醒 / 睡(😴)」
 const _brandLogo = document.querySelector("svg.brand-logo");
+// 測試/開發：?stage=baby|normal|scholar 強制 logo 成長階段（無此參數＝依真實資料判定）。
+const _forceStage = (() => {
+  const s = new URLSearchParams(location.search).get("stage");
+  return ["baby", "normal", "scholar"].includes(s) ? s : null;
+})();
 // 重建索引／認識自己的訊息該寫到哪個元素：含「認識自己」→ #selfdoc-msg（在按鈕下方）、其餘 → #bf-msg。
 // 用訊息內容判斷（而非狀態變數）→ 連重新整理後輪詢沿用伺服器上次結果也會放對位置。
 function _bfMsgFor(text) { return (text && text.indexOf("認識自己") >= 0) ? $("selfdoc-msg") : $("bf-msg"); }
@@ -206,7 +211,7 @@ async function refreshStatus() {
   if (_sd) { _sd.textContent = _seeded ? "✅ 已認識自己" : "⚠️ 尚未認識自己"; _sd.classList.toggle("ok", _seeded); _sd.classList.toggle("warn", !_seeded); }
   // logo 成長階段彩蛋：未認識自己=嬰兒 👶、認識後=一般 🤖、owner 對談≥100 則=學士 🎓
   if (_brandLogo) {
-    const stage = !_seeded ? "baby" : (s.owner_graduated ? "scholar" : "normal");   // 學士＝持久化畢業里程碑（不受記憶整併回落影響）
+    const stage = _forceStage || (!_seeded ? "baby" : (s.owner_graduated ? "scholar" : "normal"));   // 學士＝持久化畢業里程碑；?stage= 可強制（測試用）
     _brandLogo.classList.toggle("stage-baby", stage === "baby");
     _brandLogo.classList.toggle("stage-normal", stage === "normal");
     _brandLogo.classList.toggle("stage-scholar", stage === "scholar");
