@@ -31,7 +31,7 @@ def _str_env(key: str, default: str) -> str:
 
 
 APP_NAME = "JAYVIS"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 
 # Anthropic
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
