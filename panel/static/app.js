@@ -160,8 +160,12 @@ let _reactT = null;
 if (_brandLogo) _brandLogo.addEventListener("click", () => {
   if (_logoIntro || _opBusy || _brandLogo.classList.contains("restarting")) return;
   _brandLogo.classList.add("reacting");
+  try { _brandLogo.pauseAnimations(); } catch (e) {}      // 凍住「看左右」→ 害羞表情靜止不錯位
   clearTimeout(_reactT);
-  _reactT = setTimeout(() => _brandLogo.classList.remove("reacting"), 1200);
+  _reactT = setTimeout(() => {
+    _brandLogo.classList.remove("reacting");
+    try { _brandLogo.unpauseAnimations(); } catch (e) {}
+  }, 1200);
 });
 
 // 開場：登場淡入落下 → 打招呼（既有 SMIL 轉頭/眨眼）→（若 bot 停止）打哈欠微沉後柔順淡入 😴。

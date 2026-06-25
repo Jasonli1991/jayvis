@@ -80,6 +80,11 @@
               <line x1="10.9" y1="29.3" x2="8.2" y2="28.4" stroke="#36291a" stroke-width="1.1" stroke-linecap="round"/>
               <line x1="29.1" y1="29.3" x2="31.8" y2="28.4" stroke="#36291a" stroke-width="1.1" stroke-linecap="round"/>
             </g>
+            <g class="bm-shy">   <!-- 害羞臉（點擊反應）：放在 bm-look 內，和眼鏡一起看左右、不錯位 -->
+              <path class="bm-eye-happy" d="M11.8 31 Q15 27.8 18.2 31"/>
+              <path class="bm-eye-happy" d="M21.8 31 Q25 27.8 28.2 31"/>
+              <path class="bm-smile-shy" d="M16 37 Q20 40 24 37"/>
+            </g>
           </g>
           <!-- 睡眠臉（😴：閉眼弧＋微張的嘴會呼吸＋Zzz）；bot 停止時由 .asleep 顯示，醒臉藏起 -->
           <g class="bm-sleep">
@@ -114,12 +119,6 @@
                 <animateMotion dur="1.5s" begin="-0.75s" repeatCount="indefinite" path="M30,7 a10,3 0 1,0 -20,0 a10,3 0 1,0 20,0"/>
               </path>
             </g>
-          </g>
-          <!-- 點擊反應：害羞臉紅（^^ 眼＋小笑；臉更紅＋天線火花變粉紅由 CSS .reacting 處理） -->
-          <g class="bm-shy">
-            <path class="bm-eye-happy" d="M11.8 31 Q15 27.8 18.2 31"/>
-            <path class="bm-eye-happy" d="M21.8 31 Q25 27.8 28.2 31"/>
-            <path class="bm-smile-shy" d="M16 37 Q20 40 24 37"/>
           </g>
           <!-- 成長階段彩蛋配件：預設藏起，由 logo 的 .stage-baby / .stage-scholar 顯示 -->
           <g class="bm-baby">   <!-- 👶 嬰兒：呆毛（腮紅改用 bm-look 內的永久腮紅、嬰兒時加深）-->

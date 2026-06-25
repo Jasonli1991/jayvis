@@ -122,6 +122,7 @@ body,.topbar,.statusbar,.card,.btn,.badge,input,textarea,.log,.answer,.icon-btn,
 .bm-shy{opacity:0;transition:opacity .3s ease}
 .bm-eye-happy,.bm-smile-shy{fill:none;stroke:var(--accent-ink);stroke-width:1.9;stroke-linecap:round}
 .bm-spark{transition:fill .3s ease}
+.brand-logo.reacting .bm-look{opacity:1}           /* bm-shy 在 bm-look 內：睡著時點擊也要露臉 */
 .brand-logo.reacting .bm-eye,.brand-logo.reacting .bm-smile,.brand-logo.reacting .bm-sleep{opacity:0}
 .brand-logo.reacting .bm-shy{opacity:1}
 .brand-logo.reacting .bm-cheek{opacity:.85}        /* 臉更紅 */
