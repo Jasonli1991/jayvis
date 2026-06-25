@@ -182,8 +182,11 @@ async function refreshStatus() {
     document.querySelectorAll(".botbtns button").forEach(x => { x.disabled = x.dataset.act === "start" ? s.running : !s.running; });
   }
   $("models").textContent = (s.models.general || "?").split("-").pop() + " / " + (s.models.code || "?").split("-").pop();
-  const _memLabel = {conversation: "對話索引", action: "動作", git: "git", obsidian: "obsidian"};
+  const _memLabel = {conversation: "對話索引", action: "動作", git: "git", obsidian: "obsidian", manual: "自我說明"};
   $("mem").textContent = Object.entries(s.memory || {}).map(([k, v]) => `${_memLabel[k] || k} ${v}`).join("、") || "—";
+  const _seeded = (s.memory && s.memory.manual) > 0;       // 自我說明是否已灌進 KB → 給初次使用者狀態提示
+  const _sd = $("selfdoc-status");
+  if (_sd) { _sd.textContent = _seeded ? "✅ 已認識自己" : "⚠️ 尚未認識自己"; _sd.classList.toggle("ok", _seeded); _sd.classList.toggle("warn", !_seeded); }
   $("allowcount").textContent = s.allowlist;
   if (s.owner_name) {
     document.querySelector(".brand-name").textContent = s.owner_name + " 的個人 AI 搭檔";
@@ -589,19 +592,25 @@ async function waitBackfill(maxMs) {
   return "";
 }
 
+const _bfLabel = { obsidian: "Obsidian", github: "GitHub", self: "JAYVIS 自我說明" };
 const _bfBtns = [...document.querySelectorAll("[data-bf]")];
 _bfBtns.forEach(b => b.onclick = () => withBusy(b, async () => {
-  const src = b.dataset.bf, others = _bfBtns.filter(x => x !== b);
+  const src = b.dataset.bf, others = _bfBtns.filter(x => x !== b), label = _bfLabel[src] || src;
   others.forEach(x => x.disabled = true);
-  $("bf-msg").classList.remove("warn", "ok"); $("bf-msg").textContent = "儲存來源中…";
+  $("bf-msg").classList.remove("warn", "ok");
   try {
-    await saveSources();
-    $("bf-msg").textContent = src + " 重建索引中…（需時，請稍候）";
+    if (src === "self") {                              // 自我說明：與 Obsidian/GitHub 來源無關，免存來源
+      $("bf-msg").textContent = "讓 JAYVIS 認識自己中…（首次需下載本地模型，請稍候）";
+    } else {
+      $("bf-msg").textContent = "儲存來源中…";
+      await saveSources();
+      $("bf-msg").textContent = label + " 重建索引中…（需時，請稍候）";
+    }
     await postJSON("/api/backfill/" + src);
     const last = await waitBackfill(180000);          // 等背景索引真的完成再報結果
-    const txt = last || (src + " 重建索引完成");
+    const txt = last || (label + " 完成");
     if (/^⚠️/.test(txt)) warn($("bf-msg"), txt); else flash($("bf-msg"), txt);   // ⚠️ 開頭＝有狀況（如 gh 未登入），用警示樣式
-  } catch (e) { warn($("bf-msg"), src + " 重建索引失敗，請重試"); }
+  } catch (e) { warn($("bf-msg"), label + " 失敗，請重試"); }
   finally { others.forEach(x => x.disabled = false); }
 }));
 

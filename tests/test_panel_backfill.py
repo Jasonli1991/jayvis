@@ -62,6 +62,39 @@ def test_pick_folder_returns_selected_path(monkeypatch):
     assert r.get_json()["path"] == "/Users/someone/MyVault"
 
 
+def test_backfill_self_seeds_only_no_sources(tmp_path, monkeypatch):
+    """『讓 JAYVIS 認識自己』：只灌自我說明，完全不碰 Obsidian/GitHub。"""
+    _setup(tmp_path, monkeypatch, "")
+    monkeypatch.setattr(app_mod, "seed_self_doc", lambda conn: 13)
+    monkeypatch.setattr(app_mod, "ingest_dir",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("self 不該碰 obsidian")))
+    monkeypatch.setattr(app_mod, "_fetch_commits",
+                        lambda repo: (_ for _ in ()).throw(AssertionError("self 不該碰 github")))
+    app_mod._run_backfill("self")
+    assert "認識自己" in app_mod._backfill["last"] and "13" in app_mod._backfill["last"]
+
+
+def test_backfill_self_warns_when_doc_missing(tmp_path, monkeypatch):
+    """自我說明檔不存在（seed 回 0）→ 明確警示，而非假裝成功。"""
+    _setup(tmp_path, monkeypatch, "")
+    monkeypatch.setattr(app_mod, "seed_self_doc", lambda conn: 0)
+    app_mod._run_backfill("self")
+    assert "⚠️" in app_mod._backfill["last"]
+
+
+def test_backfill_route_accepts_self(monkeypatch):
+    """/api/backfill/self 在白名單內（不是 400），別讓有人不小心拔掉。"""
+    monkeypatch.setattr(app_mod, "_run_backfill", lambda src: None)   # 不真跑背景
+    app_mod._backfill["running"] = False
+    try:
+        r = app_mod.app.test_client().post("/api/backfill/self")
+        assert r.status_code == 200 and r.get_json().get("started") is True
+        bad = app_mod.app.test_client().post("/api/backfill/nope")
+        assert bad.status_code == 400
+    finally:
+        app_mod._backfill["running"] = False
+
+
 def test_backfill_github_empty_env_disables(tmp_path, monkeypatch):
     """.env GITHUB_REPOS= 空字串 → 重灌 GitHub no-op，不該去 fetch，且明確提示尚未設定"""
     _setup(tmp_path, monkeypatch, "GITHUB_REPOS=\n")

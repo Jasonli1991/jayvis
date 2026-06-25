@@ -694,6 +694,7 @@ def _run_backfill(src):
     try:
         conn = get_conn()
         apply_schema(conn)
+        sd = 0
         try:
             sd = seed_self_doc(conn)        # JAYVIS 自我說明：隨 repo 出貨、任何重建都自動灌進 KB（使用者免手動搬檔）
             if sd:
@@ -701,7 +702,10 @@ def _run_backfill(src):
         except Exception as e:
             botctl.log_event(f"📘 自我說明同步略過：{e}")
         # 即時讀 .env：面板剛存的來源不必重啟 panel 就生效
-        if src == "obsidian":
+        if src == "self":                   # 初始化「讓 JAYVIS 認識自己」：只灌自我說明，不需 Obsidian/GitHub
+            msg = (f"JAYVIS 已認識自己（自我說明 {sd} 段進知識庫）——現在能回答自己的設定／功能了"
+                   if sd else "⚠️ 找不到自我說明檔（docs/JAYVIS-使用說明.md）")
+        elif src == "obsidian":
             path = get_key(env_io.ENV_PATH, "OBSIDIAN_PATH") or config.OBSIDIAN_PATH
             n = ingest_dir(conn, path)
             scanned = count_md_files(path)
@@ -749,7 +753,7 @@ def _run_backfill(src):
 
 @app.post("/api/backfill/<src>")
 def api_backfill(src):
-    if src not in ("obsidian", "github"):
+    if src not in ("obsidian", "github", "self"):
         return jsonify({"error": "bad src"}), 400
     if _backfill["running"]:
         return jsonify({"error": "已在執行"}), 409

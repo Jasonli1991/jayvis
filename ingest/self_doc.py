@@ -7,10 +7,26 @@ from pathlib import Path
 
 import config
 from chunks import ChunkRecord, upsert_chunk
+from db.connection import get_conn
 
 DOC_PATH = Path(__file__).resolve().parent.parent / "docs" / "JAYVIS-使用說明.md"
 SOURCE_TYPE = "manual"
 _ID_PREFIX = "selfdoc:"
+
+
+def is_seeded(conn=None) -> bool:
+    """KB 裡是否已有自我說明（manual chunks）。供面板顯示狀態、bot 判斷是否引導 owner 去灌。
+    便宜查詢（LIMIT 1）；conn 為 None 時自開 KB 連線。"""
+    own = conn is None
+    c = conn or get_conn()
+    try:
+        return c.execute("SELECT 1 FROM chunks WHERE source_type=:t LIMIT 1",
+                         {"t": SOURCE_TYPE}).fetchone() is not None
+    except Exception:
+        return False
+    finally:
+        if own:
+            c.close()
 
 
 def _strip_frontmatter(text: str) -> str:

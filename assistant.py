@@ -105,6 +105,15 @@ def _is_macos() -> bool:
     return sys.platform == "darwin"
 
 
+def _self_doc_seeded() -> bool:
+    """KB 裡是否已灌入 JAYVIS 自我說明（manual chunks）。沒灌時 owner 問起自己 → 引導去面板按鈕。"""
+    try:
+        import ingest.self_doc as _sd
+        return _sd.is_seeded()
+    except Exception:
+        return True        # 查不到就當已灌，寧可不嘮叨（避免誤引導）
+
+
 def _email_ready() -> bool:        # 收發信靠 macOS Mail（osascript）→ 要真的有可用帳號
     def _probe():
         import mail_tool
@@ -213,6 +222,11 @@ def compose_reply(sender_id: int, incoming: str, image_bytes: Optional[bytes] = 
         ls = _leave_status_line()
         if ls:
             system += f"\n\n## {config.OWNER_NAME} 目前狀態\n{ls}"
+
+    if owner_mode and not in_group and not _self_doc_seeded():   # 還沒「認識自己」→ 我問起自己時引導去面板灌
+        system += ("\n\n（你還沒被灌入完整的自我說明。若我問起你是誰／你能做什麼／你的設定或怎麼操作，"
+                   "而你只能憑人設與工具清單粗略回答 → 就自然提一句：到控制台「記憶管理」按一下"
+                   "「讓 JAYVIS 認識自己」，你就能完整、準確地說明自己。這是給我本人的提示，別每則都講、也別對外提。）")
 
     if owner_mode and not in_group:                 # 學習畫像只在 owner 私訊注入
         _blk = user_profile.prompt_block(sender_id)

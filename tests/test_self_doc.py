@@ -67,6 +67,15 @@ def test_seed_prunes_removed_sections(tmp_path, monkeypatch):
     assert conn.execute("SELECT count(*) c FROM chunks WHERE id='selfdoc:99'").fetchone()["c"] == 0
 
 
+def test_is_seeded_reflects_manual_chunks(tmp_path, monkeypatch):
+    # is_seeded()：KB 有沒有自我說明（manual chunks）—— 供面板狀態與 bot 引導判斷
+    _stub_embed(monkeypatch)
+    conn = _db(tmp_path)
+    assert self_doc.is_seeded(conn) is False     # 還沒灌
+    self_doc.seed(conn)
+    assert self_doc.is_seeded(conn) is True       # 灌完 → True
+
+
 def test_seed_no_doc_returns_zero_and_clears(tmp_path, monkeypatch):
     _stub_embed(monkeypatch)
     monkeypatch.setattr(self_doc, "DOC_PATH", tmp_path / "nope.md")

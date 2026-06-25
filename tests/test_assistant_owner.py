@@ -29,6 +29,7 @@ def _patch_common(monkeypatch, seen):
     monkeypatch.setattr(assistant.memory, "recent", lambda *a, **k: [])
     monkeypatch.setattr(assistant.memory, "recent_actions", lambda *a, **k: [])
     monkeypatch.setattr(assistant.memory, "append", lambda *a, **k: None)
+    monkeypatch.setattr(assistant, "_self_doc_seeded", lambda: True)   # 預設已認識自己；不灌引導語干擾既有斷言
     monkeypatch.setattr(assistant.inbox_capture, "is_knowledge_question", lambda t: False)
     monkeypatch.setattr(assistant.user_profile, "prompt_block", lambda pid: "")
     monkeypatch.setattr(assistant.user_profile, "maybe_update", lambda pid: None)
@@ -61,6 +62,40 @@ def test_owner_dm_injects_recent_actions(monkeypatch):
     assert out == "本人回覆"
     assert "做過的事" in seen["system"]
     assert "已建立『與 Max 開會』6/25 15:00" in seen["system"]
+
+
+def test_owner_dm_guides_to_panel_when_self_doc_missing(monkeypatch):
+    # 還沒「認識自己」→ owner 私訊系統提示加入「去面板按『讓 JAYVIS 認識自己』」的條件引導
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(True))
+    monkeypatch.setattr(assistant.memory, "recall", lambda *a, **k: "")
+    seen = {}
+    _patch_common(monkeypatch, seen)
+    monkeypatch.setattr(assistant, "_self_doc_seeded", lambda: False)
+    assistant.compose_reply(6803, "你是誰？你能做什麼")
+    assert "讓 JAYVIS 認識自己" in seen["system"] and "記憶管理" in seen["system"]
+
+
+def test_owner_dm_no_guidance_when_self_doc_seeded(monkeypatch):
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(True))
+    monkeypatch.setattr(assistant.memory, "recall", lambda *a, **k: "")
+    seen = {}
+    _patch_common(monkeypatch, seen)                          # 預設 _self_doc_seeded → True
+    assistant.compose_reply(6803, "你能做什麼")
+    assert "讓 JAYVIS 認識自己" not in seen["system"]          # 已認識自己 → 不嘮叨
+
+
+def test_colleague_no_panel_guidance_even_if_unseeded(monkeypatch):
+    # 同事沒有面板：就算 self-doc 沒灌也不該叫他去點面板按鈕
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(False, "ctx", ["obsidian"]))
+    monkeypatch.setattr(assistant.memory, "recall", lambda *a, **k: "")
+    seen = {}
+    _patch_common(monkeypatch, seen)
+    monkeypatch.setattr(assistant, "_self_doc_seeded", lambda: False)
+    assistant.compose_reply(999, "你能做什麼")                 # 非 owner
+    assert "讓 JAYVIS 認識自己" not in seen["system"]
 
 
 def test_colleague_dm_no_recent_actions_block(monkeypatch):
