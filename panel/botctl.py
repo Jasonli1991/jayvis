@@ -1,3 +1,4 @@
+import json
 import os
 import signal
 import subprocess
@@ -202,10 +203,66 @@ def _memory_counts() -> dict:
         return {}
 
 
+def _owner_turns() -> int:
+    """owner 與 JAYVIS 的對話則數（user+assistant）。供面板 logo 成長階段彩蛋判斷。
+    註：此值非單調——記憶整併會把舊對話壓成摘要、刪掉原始列，所以會回落；
+    「學士」用持久化的畢業里程碑（_owner_graduated）latch，不受此回落影響。"""
+    try:
+        conn = get_conn()
+        n = conn.execute(
+            "SELECT count(*) AS n FROM memories WHERE person_id=:p AND kind IN ('user','assistant')",
+            {"p": str(config.OWNER_CHAT_ID)}).fetchone()["n"]
+        conn.close()
+        return n
+    except Exception:
+        return 0
+
+
+_GRADUATE_AT = 100                                   # owner 對談累積達此數 → 永久「學士」
+_MILESTONES = Path(config.DATA_DIR) / "milestones.json"
+
+
+def _read_milestones() -> dict:
+    try:
+        return json.loads(_MILESTONES.read_text(encoding="utf-8")) if _MILESTONES.exists() else {}
+    except Exception:
+        return {}
+
+
+def _owner_graduated(turns: int) -> bool:
+    """owner 對談累積『曾經』達門檻 → 永久學士里程碑（持久化）。一旦畢業，之後記憶整併
+    把 count 壓回也維持學士（畢業了就不會變回學生）。"""
+    if _read_milestones().get("owner_graduated"):
+        return True
+    if turns >= _GRADUATE_AT:
+        try:
+            data = _read_milestones()
+            data["owner_graduated"] = True
+            _MILESTONES.parent.mkdir(parents=True, exist_ok=True)
+            _MILESTONES.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
+        return True
+    return False
+
+
+def clear_graduation() -> None:
+    """清除全部對談記憶時一併重置畢業里程碑 → 可重新從嬰兒/一般成長。"""
+    try:
+        data = _read_milestones()
+        if data.pop("owner_graduated", None) is not None:
+            _MILESTONES.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+
 def status() -> dict:
+    turns = _owner_turns()
     return {
         "running": is_running(),
         "models": {"general": config.MODEL_GENERAL, "code": config.MODEL_CODE},
         "allowlist": len(config.ALLOWLIST_USER_IDS),
         "memory": _memory_counts(),
+        "owner_turns": turns,
+        "owner_graduated": _owner_graduated(turns),
     }

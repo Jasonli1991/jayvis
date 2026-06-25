@@ -116,6 +116,19 @@ body,.topbar,.statusbar,.card,.btn,.badge,input,textarea,.log,.answer,.icon-btn,
 .bm-mouth-dizzy{fill:none;stroke:var(--accent-ink);stroke-width:1.15;stroke-linecap:round;stroke-linejoin:round}
 .bm-star{fill:var(--accent-2)}
 .bm-orbit{fill:none;stroke:var(--accent);stroke-width:1.1;stroke-linecap:round;opacity:.95}
+/* 成長階段彩蛋（app.js 依 owner 認識/對談量切 .stage-*）：嬰兒(呆毛+腮紅) / 學士(學士帽+眼鏡)。
+   平滑過場：配件用 opacity 淡入淡出；帽子/呆毛多帶一點 translateY「落下戴上」感
+   （translate 不踩 SVG transform-origin 雷，sticky header 下穩定）。眼鏡在 bm-look 內 → 睡/暈眩自動隨臉淡出。 */
+.bm-cheek{fill:#ff8fa3;opacity:.42;transition:opacity .55s ease}   /* 永久淡腮紅，讓「一般」不單調 */
+.brand-logo.stage-baby .bm-cheek{opacity:.66}                      /* 嬰兒臉更紅一點 */
+.bm-antennae,.bm-baby,.bm-cap,.bm-glasses{transition:opacity .55s ease, transform .55s ease}
+.bm-baby,.bm-cap,.bm-glasses{opacity:0}
+.bm-baby,.bm-cap{transform:translateY(-5px)}
+.brand-logo.stage-baby .bm-antennae{opacity:0}
+.brand-logo.stage-baby .bm-baby{opacity:1;transform:translateY(0)}
+.brand-logo.stage-scholar .bm-antennae{opacity:0}
+.brand-logo.stage-scholar .bm-cap{opacity:1;transform:translateY(0)}
+.brand-logo.stage-scholar .bm-glasses{opacity:1}
 @media (prefers-reduced-motion:reduce){.bm-bot,.bm-eyes,.bm-spark{animation:none}}
 .brand-name{font-weight:600;font-size:15px;letter-spacing:.01em}
 .brand-sub{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.02em;

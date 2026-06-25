@@ -29,6 +29,20 @@ def test_clear_person(tmp_path, monkeypatch):
     assert c.get("/api/memory/timeline?person=7").get_json() == []
 
 
+def test_clear_owner_resets_graduation(tmp_path, monkeypatch):
+    # 清除 owner 本人對談 → 也重置「學士」畢業里程碑（回到一般重新成長）；清除別人則不影響
+    import panel.botctl as botctl
+    c = _setup(tmp_path, monkeypatch)
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(botctl, "_MILESTONES", tmp_path / "milestones.json")
+    botctl._owner_graduated(botctl._GRADUATE_AT)           # 先畢業（持久化里程碑）
+    assert botctl._owner_graduated(0) is True
+    c.post("/api/memory/clear", json={"person_id": "999"}, headers={"Origin": "http://127.0.0.1:8765"})
+    assert botctl._owner_graduated(0) is True              # 清非 owner → 不動里程碑
+    c.post("/api/memory/clear", json={"person_id": "6803"}, headers={"Origin": "http://127.0.0.1:8765"})
+    assert botctl._owner_graduated(0) is False             # 清 owner 本人 → 重置
+
+
 def test_persons_resolves_names(tmp_path, monkeypatch):
     c = _setup(tmp_path, monkeypatch)
     monkeypatch.setattr(config, "OWNER_CHAT_ID", 123456789)

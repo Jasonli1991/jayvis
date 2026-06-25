@@ -489,9 +489,12 @@ def api_memory_clear():
     d = request.get_json(force=True) or {}
     if d.get("all"):
         memory.clear_all()
+        botctl.clear_graduation()                          # 全部清掉 → 也重置「學士」畢業里程碑
         botctl.log_event("🗑️ 清除對談記憶：全部")
     elif d.get("person_id"):
         memory.clear(str(d["person_id"]))
+        if str(d["person_id"]) == str(config.OWNER_CHAT_ID):   # 清掉 owner 本人 → 也重置畢業，回到一般重新成長
+            botctl.clear_graduation()
         botctl.log_event(f"🗑️ 清除對談記憶：{d['person_id']}")
     return jsonify({"ok": True})
 
@@ -758,7 +761,8 @@ def api_backfill(src):
     if _backfill["running"]:
         return jsonify({"error": "已在執行"}), 409
     _backfill["running"] = True
-    _backfill["last"] = f"{src} 執行中…"
+    # 訊息含「認識自己」→ 前端把 self 的進度/結果顯示在按鈕下方（而非重建索引處）
+    _backfill["last"] = "讓 JAYVIS 認識自己…" if src == "self" else f"{src} 執行中…"
     threading.Thread(target=_run_backfill, args=(src,), daemon=True).start()
     return jsonify({"started": True})
 
