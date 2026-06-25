@@ -154,6 +154,16 @@ function swapFace(toAsleep) {
   _brandLogo.classList.toggle("asleep", toAsleep);                     // 已是該狀態則不變、不會閃
 }
 
+// 點擊 logo → 害羞臉紅反應（呼應角色秘密：被誇會亮粉紅）~1.2s 後淡回。
+// 開場/操作中/暈眩(重啟) 時不搶臉——維持原動畫（暈眩＝「進行中」，別被打斷）。
+let _reactT = null;
+if (_brandLogo) _brandLogo.addEventListener("click", () => {
+  if (_logoIntro || _opBusy || _brandLogo.classList.contains("restarting")) return;
+  _brandLogo.classList.add("reacting");
+  clearTimeout(_reactT);
+  _reactT = setTimeout(() => _brandLogo.classList.remove("reacting"), 1200);
+});
+
 // 開場：登場淡入落下 → 打招呼（既有 SMIL 轉頭/眨眼）→（若 bot 停止）打哈欠微沉後柔順淡入 😴。
 async function _playLogoIntro() {
   if (!_brandLogo) { _logoIntro = false; return; }

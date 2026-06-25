@@ -116,6 +116,17 @@ body,.topbar,.statusbar,.card,.btn,.badge,input,textarea,.log,.answer,.icon-btn,
 .bm-mouth-dizzy{fill:none;stroke:var(--accent-ink);stroke-width:1.15;stroke-linecap:round;stroke-linejoin:round}
 .bm-star{fill:var(--accent-2)}
 .bm-orbit{fill:none;stroke:var(--accent);stroke-width:1.1;stroke-linecap:round;opacity:.95}
+/* 點擊 logo → 害羞臉紅反應（呼應「被誇會亮粉紅」秘密）：app.js 暫掛 .reacting、~1.2s 後淡回。
+   ^^ 眼＋小笑取代原本臉、腮紅加深、天線火花變粉紅，全用 opacity/顏色過場（sticky header 穩）。 */
+.brand-logo{cursor:pointer}
+.bm-shy{opacity:0;transition:opacity .3s ease}
+.bm-eye-happy,.bm-smile-shy{fill:none;stroke:var(--accent-ink);stroke-width:1.9;stroke-linecap:round}
+.bm-spark{transition:fill .3s ease}
+.brand-logo.reacting .bm-eye,.brand-logo.reacting .bm-smile,.brand-logo.reacting .bm-sleep{opacity:0}
+.brand-logo.reacting .bm-shy{opacity:1}
+.brand-logo.reacting .bm-cheek{opacity:.85}        /* 臉更紅 */
+.brand-logo.reacting .bm-spark{fill:#ff8fb0}       /* 天線火花變粉紅 */
+.brand-logo.restarting .bm-shy{opacity:0}          /* 暈眩(重啟)永遠優先：點擊反應不蓋過進行中動畫 */
 /* 成長階段彩蛋（app.js 依 owner 認識/對談量切 .stage-*）：嬰兒(呆毛+腮紅) / 學士(學士帽+眼鏡)。
    平滑過場：配件用 opacity 淡入淡出；帽子/呆毛多帶一點 translateY「落下戴上」感
    （translate 不踩 SVG transform-origin 雷，sticky header 下穩定）。眼鏡在 bm-look 內 → 睡/暈眩自動隨臉淡出。 */
