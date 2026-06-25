@@ -31,6 +31,18 @@ def test_classify_none_when_no_match(tmp_path, monkeypatch):
     assert cd.classify("今天天氣如何") is None
 
 
+def test_classify_excludes_self_questions(tmp_path, monkeypatch):
+    # 問助理自己的事（功能/設定/後台/區塊）不該被委派：提示要帶助理名＋「問自己→none」指示
+    (tmp_path / "projx").mkdir()
+    monkeypatch.setattr(config, "CODE_ROOT", str(tmp_path))
+    monkeypatch.setattr(config, "ASSISTANT_NAME", "JAYVIS")
+    seen = {}
+    monkeypatch.setattr(cd, "generate", lambda **k: seen.update(system=k["system"]) or "none")
+    assert cd.classify("後台的「JAYVIS 想像中的你」區塊是什麼") is None
+    assert "JAYVIS" in seen["system"]                       # 提示知道助理叫什麼
+    assert "none" in seen["system"] and ("自己" in seen["system"] or "助理" in seen["system"])
+
+
 def test_classify_error_is_none(tmp_path, monkeypatch):
     (tmp_path / "projx").mkdir()
     monkeypatch.setattr(config, "CODE_ROOT", str(tmp_path))

@@ -34,14 +34,21 @@ def projects() -> list:
 
 
 def classify(text):
-    """便宜 LLM 判：是不是某專案的程式問題、對到哪個。對不到/失敗/空 → None。"""
+    """便宜 LLM 判：是不是某『工作專案』的程式問題、對到哪個。
+    問助理自己的事（功能／設定／面板／後台…）→ None，交給 compose_reply 走自我說明；對不到／失敗／空 → None。"""
     t = (text or "").strip()
     projs = [p for p, _ in projects()]
     if not t or not projs:
         return None
-    sys = ("判斷使用者這句是不是『關於某個專案的程式／技術問題』（需要看該專案原始碼才答得好）。"
-           f"可用專案：{'、'.join(projs)}。"
-           "若是、且能對應到其中一個專案 → 只回該專案名（與清單一字不差）；否則回 none。只回專案名或 none。")
+    aname = config.ASSISTANT_NAME
+    sys = (f"使用者有個 AI 助理／搭檔叫「{aname}」。判斷使用者這句是不是"
+           f"『關於使用者某個**工作專案**的程式／技術問題』（需要看那個專案的原始碼才答得好）。"
+           f"可委派的工作專案：{'、'.join(projs)}。\n"
+           f"重要：若這句其實是在問 **{aname} 自己**（這個助理本身）的功能、設定、面板／控制台／後台、"
+           f"UI、你能做什麼、你怎麼運作、你的某個區塊／畫面之類 → 一律回 none"
+           f"（那是關於助理自己、不是使用者的工作專案，由 {aname} 依自我說明回答，不要委派）。\n"
+           f"只有明確對應到上面某個工作專案的原始碼／技術問題，才回該專案名（與清單一字不差）；"
+           f"否則回 none。只回專案名或 none。")
     try:
         out = generate(model=config.MODEL_GENERAL, system=sys,
                        messages=[{"role": "user", "content": t[:500]}], max_output_tokens=16)
