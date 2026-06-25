@@ -76,6 +76,7 @@ def test_rebuild_from_memory_iterates_windows(monkeypatch):
         return "畫像v" + str(len(calls))
 
     monkeypatch.setattr(user_profile, "generate", fake_gen)
+    monkeypatch.setattr(user_profile, "_update_portrait", lambda pid, prof: None)   # 本測只看分窗，不牽動頭像抽取
     prog = []
     user_profile.rebuild_from_memory("123", window=16, progress=lambda d, t: prog.append((d, t)))
     assert len(calls) == 3                  # 40 輪 / 窗 16 → 3 窗 → 3 次模型呼叫
@@ -93,9 +94,25 @@ def test_rebuild_caps_max_turns(monkeypatch):
     seen = []
     monkeypatch.setattr(user_profile, "generate",
                         lambda model, system, messages, max_output_tokens=600: seen.append(messages[0]["content"]) or "x")
+    monkeypatch.setattr(user_profile, "_update_portrait", lambda pid, prof: None)   # 本測只看分窗
     user_profile.rebuild_from_memory("123", max_turns=20, window=10)
     assert len(seen) == 2                   # 上限 20 輪 / 窗 10 → 2 窗
     assert "m99" in seen[-1]                # 取的是最近的（含最後一筆 m99）
+
+
+def test_rebuild_extracts_portrait_at_end(monkeypatch):
+    """重建完，會用最終畫像抽一次後台塗鴉頭像的臉部特徵。"""
+    import user_profile
+    turns = [{"ts": "t", "role": "user", "content": f"訊息{i}"} for i in range(20)]
+    monkeypatch.setattr(user_profile.memory, "export_person", lambda pid: turns)
+    monkeypatch.setattr(user_profile, "get", lambda pid: "")
+    monkeypatch.setattr(user_profile, "_write", lambda pid, prof: None)
+    monkeypatch.setattr(user_profile, "generate",
+                        lambda model, system, messages, max_output_tokens=600: "最終畫像")
+    got = {}
+    monkeypatch.setattr(user_profile, "_update_portrait", lambda pid, prof: got.update(pid=pid, prof=prof))
+    user_profile.rebuild_from_memory("123", window=16)
+    assert got.get("prof") == "最終畫像"     # 以最終畫像抽頭像特徵
 
 
 def test_export_endpoint_blocks_when_owner_unset(monkeypatch):

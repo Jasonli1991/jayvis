@@ -66,5 +66,6 @@ CREATE INDEX IF NOT EXISTS note_links_dst ON note_links(dst);
 CREATE TABLE IF NOT EXISTS person_profiles (
     person_id  TEXT PRIMARY KEY,
     profile    TEXT NOT NULL DEFAULT '',
-    updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    portrait   TEXT NOT NULL DEFAULT ''   -- 後台塗鴉頭像用：JAYVIS 依觀察挑的臉部特徵 spec（JSON）
 );

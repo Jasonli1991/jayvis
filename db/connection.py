@@ -19,3 +19,11 @@ def get_conn(path: str | None = None) -> sqlite3.Connection:
 def apply_schema(conn: sqlite3.Connection) -> None:
     sql = (Path(__file__).parent / "schema.sql").read_text(encoding="utf-8")
     conn.executescript(sql)
+    _migrate(conn)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    # 既有資料庫的增欄遷移（SQLite 無 ADD COLUMN IF NOT EXISTS）：冪等、可重複跑。
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(person_profiles)").fetchall()}
+    if "portrait" not in cols:
+        conn.execute("ALTER TABLE person_profiles ADD COLUMN portrait TEXT NOT NULL DEFAULT ''")

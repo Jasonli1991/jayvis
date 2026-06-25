@@ -355,7 +355,13 @@
       </div>
     </div>
     <div class="section-label" style="margin-top:16px">JAYVIS 對你的長期認識（自動觀察、可清除）</div>
-    <pre id="mem-profile" class="mono" style="max-height:160px;overflow:auto;white-space:pre-wrap;margin:0">—</pre>
+    <div class="profile-row">
+      <pre id="mem-profile" class="mono" style="flex:1 1 auto;min-width:0;max-height:160px;overflow:auto;white-space:pre-wrap;margin:0">—</pre>
+      <figure id="mem-portrait" class="portrait" hidden>
+        <svg id="mem-portrait-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="JAYVIS 想像中的你"></svg>
+        <figcaption>JAYVIS 想像中的你</figcaption>
+      </figure>
+    </div>
     <div class="actions wrap">
       <button id="mem-profile-clear" class="btn"><svg class="ic"><use href="#i-trash"></use></svg>清除認識</button>
       <span id="mem-profile-msg" class="msg"></span>
@@ -418,6 +424,7 @@
 
 <footer class="appfoot"><span class="jv">J</span>AYVIS <span id="ver" class="mono">—</span> · Jason's AI Sidekick</footer>
 
+<script src="doodle.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

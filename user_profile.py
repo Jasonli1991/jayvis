@@ -1,4 +1,5 @@
 """owner 學習畫像（仿 Hermes USER.md）：批次抽取耐久事實、合併、注入。owner-only。"""
+import json
 import logging
 import threading
 
@@ -14,6 +15,40 @@ PROFILE_MAX_CHARS = 1500
 PROFILE_RECENT_TURNS = 12
 REBUILD_MAX_TURNS = 400      # 匯入後重建：最多取最近這麼多輪（有界，避免大批匯入打爆模型呼叫）
 REBUILD_WINDOW = 16          # 每窗送模型的輪數（逐窗合併進畫像）
+
+# 後台塗鴉頭像：把「對 owner 的觀察」濃縮成一組臉部特徵 enum（前端程式即時畫成醜塗鴉，不耗繪圖 token）。
+# 只在「畫像有更新」時順手多抽一次（省 token）；JAYVIS 不擅長繪畫＝醜風格在前端，這裡只負責挑特徵。
+PORTRAIT_MAX_TOKENS = 200
+PORTRAIT_VOCAB = {
+    "mood": ["tired", "stressed", "focused", "cheerful", "calm", "overwhelmed", "meh"],
+    "headShape": ["round", "square", "egg", "potato"],
+    "eyes": ["dots", "wide", "tired", "uneven", "sparkle", "dead"],
+    "eyeBags": [0, 1],
+    "brows": ["flat", "raised", "furrowed", "uneven"],
+    "mouth": ["smile", "flat", "frown", "squiggle", "open", "smirk"],
+    "hair": ["none", "tuft", "messy", "side", "spiky", "bald"],
+    "accessory": ["none", "glasses", "coffee", "cap", "headphones", "phone"],
+    "gender": ["masc", "femme", "neutral"],     # 先用 owner 名字粗判（沒把握 neutral）
+}
+_PORTRAIT_DEFAULT = {"mood": "meh", "headShape": "round", "eyes": "dots", "eyeBags": 0,
+                     "brows": "flat", "mouth": "flat", "hair": "tuft", "accessory": "none",
+                     "gender": "neutral"}
+_PORTRAIT_SYS = (
+    "你是 JAYVIS。依『你對 owner 的長期觀察』想像他此刻的神情與長相，挑一組臉部特徵"
+    "（之後會被畫成一張塗鴉頭像）。**只輸出一個 JSON 物件**，每欄挑一個值（eyeBags 填 0 或 1）：\n"
+    "mood: tired|stressed|focused|cheerful|calm|overwhelmed|meh\n"
+    "headShape: round|square|egg|potato\n"
+    "eyes: dots|wide|tired|uneven|sparkle|dead\n"
+    "eyeBags: 0|1\n"
+    "brows: flat|raised|furrowed|uneven\n"
+    "mouth: smile|flat|frown|squiggle|open|smirk\n"
+    "hair: none|tuft|messy|side|spiky|bald\n"
+    "accessory: none|glasses|coffee|cap|headphones|phone\n"
+    "gender: masc|femme|neutral（先用 owner 名字粗判，沒把握就 neutral）\n"
+    "依觀察合理推測：常熬夜→eyeBags:1、eyes:tired；壓力大→brows:furrowed、mood:stressed；"
+    "愛咖啡→accessory:coffee；心情好→mouth:smile、mood:cheerful。沒線索就合理猜。"
+    "不要任何解釋或 markdown，只回 JSON。"
+)
 
 _schema_ready = set()
 _running = set()         # 正在背景抽取畫像的 person（避免短時間重複抽取）；in-memory，僅作並發鎖
@@ -42,6 +77,22 @@ def get(person_id) -> str:
         c.close()
 
 
+def get_portrait(person_id):
+    """owner 塗鴉頭像的臉部特徵 spec（dict）；沒有／壞掉 → None。前端據此程式化畫圖。"""
+    c = _conn()
+    try:
+        row = c.execute("SELECT portrait FROM person_profiles WHERE person_id=:p",
+                        {"p": str(person_id)}).fetchone()
+    finally:
+        c.close()
+    if not row or not row["portrait"]:
+        return None
+    try:
+        return _norm_portrait(json.loads(row["portrait"]))
+    except Exception:
+        return None
+
+
 def _write(person_id, profile):
     c = _conn()
     try:
@@ -50,6 +101,16 @@ def _write(person_id, profile):
             "VALUES (:p, :pr, datetime('now','localtime')) "
             "ON CONFLICT(person_id) DO UPDATE SET profile=excluded.profile, updated_at=excluded.updated_at",
             {"p": str(person_id), "pr": profile})
+    finally:
+        c.close()
+
+
+def _write_portrait(person_id, spec):
+    # 塗鴉頭像特徵；UPDATE 不新建列（呼叫前 _write 已建好該人的列）。
+    c = _conn()
+    try:
+        c.execute("UPDATE person_profiles SET portrait=:pt WHERE person_id=:p",
+                  {"p": str(person_id), "pt": json.dumps(spec, ensure_ascii=False)})
     finally:
         c.close()
 
@@ -123,14 +184,70 @@ def _extract_merge(current, turns) -> str:
     return prof or current
 
 
+def _norm_portrait(d):
+    """把（可能不完整／含非法值的）特徵 dict 正規化到合法 vocab；非 dict → None。"""
+    if not isinstance(d, dict):
+        return None
+    out = {}
+    for k, allowed in PORTRAIT_VOCAB.items():
+        v = d.get(k)
+        if k == "eyeBags":
+            out[k] = 1 if v in (1, "1", True, "true", "True") else 0
+        else:
+            out[k] = v if v in allowed else _PORTRAIT_DEFAULT[k]
+    return out
+
+
+def _parse_portrait(text):
+    """從模型輸出抓出第一個 JSON 物件並正規化。抓不到／非物件 → None。"""
+    s = (text or "").strip()
+    i, j = s.find("{"), s.rfind("}")
+    if i < 0 or j <= i:
+        return None
+    try:
+        d = json.loads(s[i:j + 1])
+    except Exception:
+        return None
+    return _norm_portrait(d)
+
+
+def _extract_portrait(profile_text, owner_name=None):
+    """把『這回對 owner 的觀察』＋owner 名字濃縮成臉部特徵（給後台塗鴉頭像）。
+    名字用來先粗判性別傾向（沒把握 neutral）。失敗／格式錯 → None（留舊頭像）。"""
+    if not (profile_text or "").strip():
+        return None
+    sys = _PORTRAIT_SYS
+    name = (owner_name or "").strip()
+    if name:
+        sys = (f"owner 的名字是「{name}」：**先用名字粗判他的性別傾向**"
+               "（gender 填 masc／femme／neutral，沒把握就 neutral），再挑其餘特徵。\n\n") + sys
+    try:
+        out = generate(model=config.MODEL_GENERAL, system=sys,
+                       messages=[{"role": "user", "content": profile_text[:PROFILE_MAX_CHARS]}],
+                       max_output_tokens=PORTRAIT_MAX_TOKENS)
+    except Exception:
+        _log.info("🎨 頭像特徵抽取失敗 → 保留舊頭像")
+        return None
+    return _parse_portrait(out)
+
+
+def _update_portrait(person_id, profile_text):
+    spec = _extract_portrait(profile_text, config.OWNER_NAME)
+    if spec:
+        _write_portrait(person_id, spec)
+
+
 def update_now(person_id):
-    """抽取近 N 輪的耐久資訊、與現有畫像合併、寫回 DB。任何失敗 → 不動。"""
+    """抽取近 N 輪的耐久資訊、與現有畫像合併、寫回 DB。畫像有更新時，順手依新畫像
+    抽一組臉部特徵（後台塗鴉頭像）。任何失敗 → 不動。"""
     turns = memory.recent(person_id, k=PROFILE_RECENT_TURNS)
     if not turns:
         return
-    prof = _extract_merge(get(person_id), turns)
-    if prof and prof != get(person_id):
+    old = get(person_id)
+    prof = _extract_merge(old, turns)
+    if prof and prof != old:
         _write(person_id, prof)
+        _update_portrait(person_id, prof)        # 畫像變了才重抽頭像特徵（省 token）
 
 
 def rebuild_from_memory(person_id, max_turns=REBUILD_MAX_TURNS, window=REBUILD_WINDOW, progress=None) -> str:
@@ -148,6 +265,7 @@ def rebuild_from_memory(person_id, max_turns=REBUILD_MAX_TURNS, window=REBUILD_W
             progress(min(i + window, total), total)
     if current:
         _write(person_id, current)
+        _update_portrait(person_id, current)     # 重建完依最終畫像抽一次頭像特徵
     return current
 
 

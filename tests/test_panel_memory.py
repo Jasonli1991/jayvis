@@ -70,7 +70,11 @@ def test_profile_get_and_clear(tmp_path, monkeypatch):
     user_profile.reset()
     monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
     user_profile._write("6803", "- 偏好繁中")
-    assert "偏好繁中" in c.get("/api/memory/profile").get_json()["profile"]
+    user_profile._write_portrait("6803", {"mood": "tired", "accessory": "coffee"})
+    j = c.get("/api/memory/profile").get_json()
+    assert "偏好繁中" in j["profile"]
+    assert j["portrait"]["accessory"] == "coffee"          # 頭像特徵一併回傳
     r = c.post("/api/memory/profile/clear", json={}, headers={"Origin": "http://127.0.0.1:8765"})
     assert r.status_code != 403
-    assert c.get("/api/memory/profile").get_json()["profile"] == ""
+    j2 = c.get("/api/memory/profile").get_json()
+    assert j2["profile"] == "" and j2["portrait"] is None   # 清除連頭像一起沒

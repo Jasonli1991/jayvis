@@ -425,3 +425,10 @@ ul.chips li.chip .mono{font-size:13.5px;color:var(--text)}
 .uninst-closeopt input[type="checkbox"],.uninst-row input[type="checkbox"]{width:auto;flex:none;margin:0}  /* 覆寫全域 input{width:100%}：否則 checkbox 被撐滿整列、把文字擠到右邊跑版 */
 #uninst-result{margin-top:12px}
 .uninst-countdown{display:flex;align-items:center;gap:11px;margin-top:12px;font-size:13px;color:var(--warn);font-weight:600}
+
+/* 長期認識：左文字、右 JAYVIS 依觀察畫的 owner 塗鴉頭像（不擅長繪畫＝故意醜，純趣味） */
+.profile-row{display:flex;gap:10px;align-items:flex-start}
+.portrait{margin:0;flex:0 0 auto;width:104px;text-align:center}
+.portrait svg{width:104px;height:104px;display:block;background:#fffdf7;
+  border:1px solid var(--border);border-radius:10px}
+.portrait figcaption{font-size:10px;color:var(--text-dim);margin-top:4px;line-height:1.35}

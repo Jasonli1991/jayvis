@@ -592,7 +592,8 @@ def api_memory_import_status():
 
 @app.get("/api/memory/profile")
 def api_memory_profile():
-    return jsonify({"profile": user_profile.get(str(config.OWNER_CHAT_ID))})
+    pid = str(config.OWNER_CHAT_ID)
+    return jsonify({"profile": user_profile.get(pid), "portrait": user_profile.get_portrait(pid)})
 
 
 @app.post("/api/memory/profile/clear")

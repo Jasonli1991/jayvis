@@ -905,8 +905,23 @@ async function loadLearnedProfile() {
   try {
     const r = await fetch("/api/memory/profile");
     const d = await r.json();
-    document.getElementById("mem-profile").textContent = (d.profile || "").trim() || "—";
+    const prof = (d.profile || "").trim();
+    document.getElementById("mem-profile").textContent = prof || "—";
+    renderOwnerPortrait(d.portrait, prof);
   } catch (e) { /* 面板非關鍵，靜默 */ }
+}
+
+// JAYVIS 依「長期認識」觀察畫的 owner 塗鴉頭像（程式即時畫、零繪圖 token）。
+// 種子＝畫像文字 → 同一份觀察每次都長一樣、觀察一更新就重畫；spec＝後端模型依觀察＋名字挑的特徵。
+function renderOwnerPortrait(spec, profileText) {
+  const fig = document.getElementById("mem-portrait");
+  const svg = document.getElementById("mem-portrait-svg");
+  if (!fig || !svg || typeof jayvisDoodle !== "function") return;
+  if (!profileText) { fig.hidden = true; svg.innerHTML = ""; return; }   // 還沒認識你 → 不畫
+  try {
+    svg.innerHTML = jayvisDoodle(spec || {}, profileText);
+    fig.hidden = false;
+  } catch (e) { fig.hidden = true; }
 }
 document.getElementById("mem-profile-clear")?.addEventListener("click", async () => {
   if (!confirm("確定清除 JAYVIS 對你的長期認識？")) return;
