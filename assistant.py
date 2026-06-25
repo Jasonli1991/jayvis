@@ -1,4 +1,5 @@
 import logging
+import sys
 import time
 from pathlib import Path
 from typing import Optional
@@ -77,30 +78,80 @@ _OWNER_TONE = (
 )
 
 
-# 動作工具清單：(顯示名, 取「真實可用」狀態的函式)。狀態對齊各 gate 的實際條件，於呼叫時即時讀 config。
+# --- 動作工具「真實就緒」探測：不只看開關旗標，連前置條件都查（macOS／郵件帳號／Chromium）。
+#     帳號/Chromium 探測較貴 → TTL 快取，避免每則訊息都做檔案/子行程探測。 ---
+_READINESS_TTL = 60.0
+_readiness_cache: dict = {}        # key -> (bool, ts)
+
+
+def _reset_readiness():            # 測試/設定變更用
+    _readiness_cache.clear()
+
+
+def _cached_ready(key, probe) -> bool:
+    now = time.time()
+    hit = _readiness_cache.get(key)
+    if hit and (now - hit[1]) < _READINESS_TTL:
+        return hit[0]
+    try:
+        val = bool(probe())
+    except Exception:
+        val = False
+    _readiness_cache[key] = (val, now)
+    return val
+
+
+def _is_macos() -> bool:
+    return sys.platform == "darwin"
+
+
+def _email_ready() -> bool:        # 收發信靠 macOS Mail（osascript）→ 要真的有可用帳號
+    def _probe():
+        import mail_tool
+        return bool(mail_tool.list_accounts())
+    return _cached_ready("email", _probe)
+
+
+def _browse_ready() -> bool:       # 瀏覽要 Playwright Chromium 已下載（用便宜的 glob，不啟動 playwright）
+    def _probe():
+        import install_manifest
+        return any(install_manifest.playwright_browsers_dir().glob("chromium-*"))
+    return _cached_ready("browse", _probe)
+
+
+# 動作工具清單：(顯示名, 是否啟用, 前置是否就緒, 未就緒原因)。於呼叫時即時讀 config。
+# 三態：啟用且就緒＝✅；沒啟用＝⬜；啟用但前置缺＝⬜（已開但缺：原因）——讓 JAYVIS 講得出「為何現在做不到」。
 _ACTION_TOOLS = (
-    ("行事曆：查/排/改/刪行程", lambda: config.ACTIONS_ENABLED),
-    ("收發信", lambda: config.EMAIL_ENABLED),
-    ("媒體：圖片去背/轉檔/調尺寸", lambda: config.MEDIA_ENABLED),
-    ("時事搜尋（即時資訊）", lambda: config.SEARCH_ENABLED and bool(config.TAVILY_API_KEY)),
-    ("自動配圖", lambda: config.IMAGE_GEN_ENABLED),
-    ("瀏覽網頁", lambda: config.BROWSE_ENABLED),
-    ("程式委派", lambda: bool(config.CODE_ROOT)),
+    ("行事曆：查/排/改/刪行程", lambda: config.ACTIONS_ENABLED, lambda: _is_macos(), "需 macOS（靠 AppleScript 控制日曆）"),
+    ("收發信", lambda: config.EMAIL_ENABLED, lambda: _email_ready(), "找不到可用的郵件帳號"),
+    ("媒體：圖片去背/轉檔/調尺寸", lambda: config.MEDIA_ENABLED, lambda: True, ""),
+    ("時事搜尋（即時資訊）", lambda: config.SEARCH_ENABLED, lambda: bool(config.TAVILY_API_KEY), "缺 Tavily 金鑰"),
+    ("自動配圖", lambda: config.IMAGE_GEN_ENABLED, lambda: True, ""),
+    ("瀏覽網頁", lambda: config.BROWSE_ENABLED, lambda: _browse_ready(), "Chromium 未安裝（可到面板「動作工具」安裝）"),
+    ("程式委派", lambda: bool(config.CODE_ROOT), lambda: True, ""),
 )
 
 
 def _action_tools_block() -> str:
-    """owner system prompt 用：列出動作工具與其可用狀態（✅可用／⬜未啟用）+ 行為規則。
-    狀態於呼叫時即時讀 config（A 自我認知 + B 缺工具提示，同一塊文字達成）。"""
-    lines = [f"- {'✅' if avail() else '⬜'} {name}" for name, avail in _ACTION_TOOLS]
+    """owner system prompt 用：列出動作工具的「真實就緒」狀態 + 行為規則。
+    狀態於呼叫時即時讀 config／探測前置（A 自我認知 + B 缺什麼/為何做不到，同一塊文字達成）。"""
+    lines = []
+    for name, enabled, ready, reason in _ACTION_TOOLS:
+        if not enabled():
+            lines.append(f"- ⬜ {name}")
+        elif ready():
+            lines.append(f"- ✅ {name}")
+        else:
+            lines.append(f"- ⬜ {name}（已開但缺：{reason}）")
     return (
         "## 你的動作工具（實際執行由系統負責，不是你在這則回覆裡自己做）\n"
         + "\n".join(lines)
         + "\n規則：\n"
         "- 動作由系統背景處理，**別在這則回覆假裝自己執行了**。\n"
-        "- 若使用者明顯想用某個「⬜未啟用」的工具 → 自然提一句：去控制台面板「動作工具」把它打開"
-        "（時事搜尋還要填 Tavily 金鑰；程式委派要在 .env 設 CODE_ROOT），改後需重啟 bot。\n"
-        "- 別每則都報菜單，只有真的相關時才提。"
+        "- 工具標 ⬜ 就是現在做不到：純 ⬜＝沒開（自然提一句去控制台面板「動作工具」打開；"
+        "時事搜尋要填 Tavily 金鑰、程式委派要在 .env 設 CODE_ROOT，改後需重啟 bot）；"
+        "「⬜（已開但缺…）」＝已啟用但前置沒準備好，就**據實說那個原因**（如需 macOS、沒郵件帳號、Chromium 要先在面板安裝），別只說去面板開。\n"
+        "- 別假裝做得到、也別每則都報菜單，只有真的相關時才提。"
     )
 
 
@@ -117,6 +168,9 @@ def build_owner_system(rag_context: str, project_status: str) -> str:
         "- 不需對外代言、不需婉拒；繁體中文、實用導向。"
     )
     parts = [_OWNER_TONE, "\n\n" + head, "\n\n" + _action_tools_block()]
+    roster = persona.roster_block()                 # 團隊/老闆/專案名冊：owner 問人員角色職責也答得出（同事模式本來就有，owner 以前反而沒有）
+    if roster:
+        parts.append("\n\n" + roster)
     if rag_context:
         parts.append("\n\n" + obsidian_folders.prompt_legend())
         parts.append("\n\n## 相關知識庫內容（供你參考，不要直接複製貼上）\n\n" + rag_context)
@@ -200,7 +254,9 @@ def compose_reply(sender_id: int, incoming: str, image_bytes: Optional[bytes] = 
                                f"若與你的知識牴觸以此為準）\n{block}")
 
     if in_group:
-        system += f"\n\n## 群組近期對話（供你理解討論脈絡）\n{group_context}"
+        system += ("\n\n## 群組近期對話（僅背景輔助，不是答題依據）\n"
+                   "**以當前這則 @ 你的訊息為主、準確回答它**；下面只是背景脈絡，"
+                   "別被舊話題帶走、也別硬把不相關的內容兜進答案。\n" + group_context)
 
     # 群組模式：脈絡走 group_context，不混入也不污染 per-人私訊記憶（owner 在群組也不 recall → 私事不外洩）
     if in_group:
@@ -208,6 +264,14 @@ def compose_reply(sender_id: int, incoming: str, image_bytes: Optional[bytes] = 
         recall_used = False
     else:
         history = memory.recent(sender_id)
+        if owner_mode:                                  # 常駐「我最近做過的事」：動作/媒體不進對話歷史，
+            acts = memory.recent_actions(sender_id)     # 否則做完下一輪就忘了自己剛做什麼 → 體感換了個人
+            _hist = {(t.get("content") or "") for t in history}   # 已在對話歷史出現的（寫入型動作結果會同時是 assistant turn）→ 不重複注入
+            acts = [a for a in acts if a["content"] not in _hist]
+            if acts:
+                _lines = "\n".join(f"[{a['ts']}] {a['content']}" for a in acts)
+                system += (f"\n\n## 你最近幫 {config.OWNER_NAME} 做過的事（依時間，供你自然延續；"
+                           f"別重做、也別否認做過）\n{_lines}")
         recalled = memory.recall(sender_id, incoming, owner=owner_mode)
         recall_used = bool(recalled)
         if recalled:

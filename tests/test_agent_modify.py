@@ -30,7 +30,7 @@ def test_delete_single_match_confirm_executes(monkeypatch):
     assert "與 Max 開會" in out1 and "yes" in out1.lower()
     assert deleted == {}
     out2 = agent.handle("yes", _now())
-    assert deleted["uid"] == "U1" and "已刪除" in out2
+    assert deleted["uid"] == "U1" and "清掉" in out2
 
 
 def test_update_multi_match_select_then_confirm(monkeypatch):
@@ -46,7 +46,7 @@ def test_update_multi_match_select_then_confirm(monkeypatch):
     assert "yes" in out2.lower()
     out3 = agent.handle("yes", _now())
     assert updated["uid"] == "U2" and updated["changes"]["start"] == "2026-06-18T14:00"
-    assert "已更新" in out3
+    assert "更新" in out3
 
 
 def test_modify_no_match(monkeypatch):

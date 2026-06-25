@@ -40,6 +40,28 @@ def test_append_and_recent(tmp_path):
     assert h == [{"role": "user", "content": "你好"}, {"role": "assistant", "content": "嗨 Eric"}]
 
 
+def test_recent_excludes_actions_and_media(tmp_path):
+    # recent()（線性對話歷史）只回 user/assistant；動作/媒體不混進對話脈絡
+    conn = _db(tmp_path)
+    memory.append("7", "user", "幫我約明天3點開會", conn=conn)
+    memory.append("7", "action", "已建立『開會』6/25 15:00", conn=conn)
+    memory.append("7", "media", "處理檔案 a.png → a-nobg.png", conn=conn)
+    memory.append("7", "assistant", "好，已經幫你建立了", conn=conn)
+    assert [m["role"] for m in memory.recent("7", conn=conn)] == ["user", "assistant"]
+
+
+def test_recent_actions_returns_actions_media_in_order(tmp_path):
+    # recent_actions()：只回 action/media，依時間升冪，受 k 限制（供常駐「我最近做過的事」）
+    conn = _db(tmp_path)
+    memory.append("7", "user", "閒聊一句不算動作", conn=conn)
+    memory.append("7", "action", "已寄信給 a@b.com", conn=conn)
+    memory.append("7", "media", "處理檔案 x.png → x-nobg.png", conn=conn)
+    acts = memory.recent_actions("7", conn=conn)
+    assert [a["content"] for a in acts] == ["已寄信給 a@b.com", "處理檔案 x.png → x-nobg.png"]
+    assert all(a["ts"] for a in acts)
+    assert memory.recent_actions("7", k=1, conn=conn) == [acts[-1]]   # k 限制：只取最新 1 筆
+
+
 def test_short_line_skips_chunk_sync(tmp_path):
     conn = _db(tmp_path)
     mid = memory.append("7", "user", "ok", conn=conn)            # < MEMORY_MIN_CHARS

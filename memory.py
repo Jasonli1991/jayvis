@@ -152,6 +152,22 @@ def get_history(person_id, conn=None):
     return recent(person_id, conn=conn)
 
 
+def recent_actions(person_id, k=None, conn=None):
+    """撈某人最近 k 筆動作/媒體（依時間升冪），供 owner 私訊常駐「我最近做過的事」區塊。
+    這些 kind 被 recent()（對話歷史）排除，否則 JAYVIS 下一輪看不到自己剛做了什麼 →
+    體感「換了個人」。回 [{ts, content}]。"""
+    k = k or config.MEMORY_RECENT_ACTIONS
+    c, own = _with_conn(conn)
+    try:
+        rows = c.execute(
+            "SELECT ts, content FROM memories WHERE person_id=:p AND kind IN ('action','media') "
+            "ORDER BY rowid DESC LIMIT :lim", {"p": str(person_id), "lim": k}).fetchall()
+        return [{"ts": r["ts"], "content": r["content"]} for r in reversed(rows)]
+    finally:
+        if own:
+            c.close()
+
+
 def recall(person_id, query, n=None, owner=False, conn=None):
     """依 person scope 做語意 + FTS 回想；回帶時間戳的文字（''＝無）。owner=True 不過濾人。"""
     from retrieval.hybrid import hybrid_search

@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import agent
 import bot
 import config
+import memory
 
 
 class _FakeFile:
@@ -102,6 +103,25 @@ def test_text_followup_applies_to_remembered_image(monkeypatch):
     update, ctx = _update_ctx(msg)
     asyncio.run(bot.handle_message(update, ctx))
     assert sent["kind"] == "document" and sent["filename"] == "cat-nobg.png"
+
+
+def test_dm_media_followup_records_turns(monkeypatch):
+    # DM 媒體跟進成功 → 把 user 指令 + 處理結果記進對話脈絡（下一輪記得剛做了什麼）
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 777)
+    monkeypatch.setattr(config, "OWNER_NAME", "Jason")
+    monkeypatch.setattr(config, "MEDIA_ENABLED", True)
+    monkeypatch.setattr(config, "ALLOWLIST_USER_IDS", {777})
+    agent.reset()
+    agent.remember_media(b"IMG", "cat.png", 1)          # 綁 chat_id=1（與 _msg 一致）
+    monkeypatch.setattr(agent, "handle_media_followup",
+                        lambda text, now, chat_id: agent.MediaResult(file=b"PNG", filename="cat-nobg.png", note="去背完成"))
+    msg, sent = _msg(caption=None)
+    msg.text = "幫我去背"
+    update, ctx = _update_ctx(msg)
+    asyncio.run(bot.handle_message(update, ctx))
+    h = memory.recent(777)
+    assert h[0] == {"role": "user", "content": "幫我去背"}
+    assert h[1]["role"] == "assistant" and "cat-nobg.png" in h[1]["content"]
 
 
 def test_text_media_without_remembered_falls_through(monkeypatch):

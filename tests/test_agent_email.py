@@ -78,7 +78,7 @@ def test_send_asks_account_then_sends(monkeypatch):
     assert sent == {}                                          # 還沒寄
     out3 = agent.handle("yes", _now(), email_on=True)
     assert sent["to"] == "a@b.com" and sent["account"] == "work@dash.com"
-    assert "已寄出" in out3
+    assert "寄出" in out3
 
 
 def test_send_uses_default_account(monkeypatch):
@@ -118,7 +118,7 @@ def test_send_refine_then_send(monkeypatch):
     assert "6/13" in out2 and "yes" in out2.lower()               # 新預覽
     assert sent == {}                                             # 還沒寄
     out3 = agent.handle("yes", _now(), email_on=True)
-    assert "6/13" in sent["body"] and "已寄出" in out3
+    assert "6/13" in sent["body"] and "寄出" in out3
 
 
 def test_read_single_returns_body(monkeypatch):

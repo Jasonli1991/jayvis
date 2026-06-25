@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 GROUP_PATH = Path.home() / ".n" / "group_conversations.json"
-MAX_MSGS = 10     # 每群保留最近幾則訊息
+MAX_MSGS = 20     # 每群保留最近幾則訊息（含 JAYVIS 自己的回覆）；熱絡群組才不易斷片
 MAX_TEXT = 400    # 每則文字截斷長度（避免 context 爆）
 
 

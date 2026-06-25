@@ -48,7 +48,7 @@ def test_delete_by_ref_confirms_then_deletes(monkeypatch):
     assert "Discord" in out1 and "yes" in out1.lower() and "垃圾桶" in out1
     assert deleted == {}                                       # 還沒刪
     out2 = agent.handle("yes", _now(), email_on=True)
-    assert deleted["id"] == "22" and "已刪除" in out2
+    assert deleted["id"] == "22" and "刪掉" in out2
 
 
 def test_delete_ref_without_list(monkeypatch):
@@ -90,7 +90,7 @@ def test_delete_by_match_multi_selects(monkeypatch):
     out2 = agent.handle("2", _now(), email_on=True)
     assert "yes" in out2.lower() and "B" in out2
     out3 = agent.handle("yes", _now(), email_on=True)
-    assert deleted["id"] == "2" and "已刪除" in out3
+    assert deleted["id"] == "2" and "刪掉" in out3
 
 
 def test_read_by_ref(monkeypatch):

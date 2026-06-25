@@ -141,10 +141,11 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "")
 MODEL_GENERAL = _str_env("MODEL_GENERAL", "gemini-2.5-flash")   # 空值（面板存空欄位）退回預設，避免 bot 挑不到模型
 MODEL_CODE = _str_env("MODEL_CODE", "gemini-2.5-pro")
-# 記憶層：近期歷史輪數、語意回想筆數、進語意庫的最短字數
+# 記憶層：近期歷史輪數、語意回想筆數、進語意庫的最短字數、常駐「近期動作」筆數
 MEMORY_RECENT_TURNS = _int_env("MEMORY_RECENT_TURNS", 10)
 MEMORY_RECALL_N = _int_env("MEMORY_RECALL_N", 6)
 MEMORY_MIN_CHARS = _int_env("MEMORY_MIN_CHARS", 6)
+MEMORY_RECENT_ACTIONS = _int_env("MEMORY_RECENT_ACTIONS", 6)   # owner 私訊常駐「我最近做過的事」筆數
 # 時事搜尋（Tavily）：開關 + 金鑰；兩者備齊才會搜
 SEARCH_ENABLED = os.getenv("SEARCH_ENABLED", "false").lower() == "true"
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")

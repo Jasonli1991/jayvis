@@ -352,6 +352,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await msg.reply_document(document=BytesIO(result.file), filename=result.filename, caption=result.note)
         else:
             await msg.reply_text(result.message)
+        if not is_group:                                # 私訊才記進線性脈絡（群組脈絡走 group_memory，不污染私訊記憶）
+            _outcome = f"已處理上一張圖 → {result.filename}" if result.file is not None else result.message
+            memory.append(user.id, "user", text, alias=config.OWNER_NAME)
+            memory.append(user.id, "assistant", _outcome, alias=config.OWNER_NAME)
         return
 
     # owner-only 動作（行事曆 / 收發信）：私訊 + owner + 任一啟用 + 純文字才走（無附檔）；
@@ -368,6 +372,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if action_reply is not None:
             _log.info("🛠 動作 %s", _preview(action_reply))
             await msg.reply_text(action_reply)
+            # 把動作互動（含唯讀查詢、確認流程）記進對話脈絡，讓 JAYVIS 下一輪記得自己剛做了什麼。
+            # 唯讀查詢（如「今天有什麼會議」）不會產生 kind="action" 記錄，故這裡是它唯一的記憶來源。
+            memory.append(user.id, "user", text, alias=config.OWNER_NAME)
+            memory.append(user.id, "assistant", action_reply, alias=config.OWNER_NAME)
             return
 
     # owner 媒體工具（去背/轉檔/調尺寸）：owner + 啟用 + 帶檔案才走（私訊或群組被 @）。
@@ -398,6 +406,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await msg.reply_document(document=BytesIO(result.file), filename=result.filename, caption=cap)
         else:
             await msg.reply_text(result.message)
+        if not is_group:                                # 私訊才記進線性脈絡（群組不污染私訊記憶）
+            _outcome = f"已處理 {fname} → {result.filename}" if result.file is not None else result.message
+            memory.append(user.id, "user", text or f"[傳了檔案 {fname}]", alias=config.OWNER_NAME)
+            memory.append(user.id, "assistant", _outcome, alias=config.OWNER_NAME)
         return
 
     image_bytes = None

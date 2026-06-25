@@ -44,7 +44,7 @@ def test_create_needs_confirmation_then_executes(monkeypatch):
     assert created == {}                              # 還沒執行
     out2 = agent.handle("yes", _now())
     assert created["title"] == "與 Max 開會"
-    assert "已新增" in out2
+    assert "排好" in out2
 
 
 def test_create_cancel(monkeypatch):

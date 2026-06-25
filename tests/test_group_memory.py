@@ -15,11 +15,11 @@ def test_record_and_transcript(tmp_path, monkeypatch):
 
 def test_caps_at_max(tmp_path, monkeypatch):
     _isolate(tmp_path, monkeypatch)
-    for i in range(15):
+    for i in range(25):
         group_memory.record(1, f"U{i}", f"msg{i}")
     lines = group_memory.recent_transcript(1).splitlines()
-    assert len(lines) == group_memory.MAX_MSGS == 10
-    assert lines[0] == "U5：msg5" and lines[-1] == "U14：msg14"   # 只剩最後 10 則
+    assert len(lines) == group_memory.MAX_MSGS == 20
+    assert lines[0] == "U5：msg5" and lines[-1] == "U24：msg24"   # 只剩最後 20 則
 
 
 def test_per_chat_isolation(tmp_path, monkeypatch):

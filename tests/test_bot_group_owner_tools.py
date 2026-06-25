@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import agent
 import bot
 import config
+import memory
 
 
 class _FakeFile:
@@ -60,6 +61,7 @@ def test_owner_group_document_routes_media(monkeypatch):
     update, ctx = _update_ctx(msg, sent)
     asyncio.run(bot.handle_message(update, ctx))
     assert sent.get("kind") == "document" and sent["filename"] == "x-nobg.png"
+    assert memory.recent(777) == []        # 群組媒體不污染 owner 私訊線性記憶（not is_group 防護）
 
 
 def test_owner_group_image_request_routes_image_gen(monkeypatch):

@@ -61,4 +61,4 @@ def test_execute_create_threads_all_day_and_shows_range(monkeypatch):
     assert "整天" in out1 and "7/16" in out1          # 確認畫面顯示跨日整天
     out2 = agent.handle("yes", _now())
     assert got["all_day"] is True and got["end"] == "2026-07-16"
-    assert "已新增" in out2
+    assert "排好" in out2

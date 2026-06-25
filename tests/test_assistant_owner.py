@@ -27,6 +27,7 @@ def _patch_common(monkeypatch, seen):
     monkeypatch.setattr(assistant, "_leave_status_line", lambda: "")
     monkeypatch.setattr(assistant, "choose_model", lambda i, st: "m")
     monkeypatch.setattr(assistant.memory, "recent", lambda *a, **k: [])
+    monkeypatch.setattr(assistant.memory, "recent_actions", lambda *a, **k: [])
     monkeypatch.setattr(assistant.memory, "append", lambda *a, **k: None)
     monkeypatch.setattr(assistant.inbox_capture, "is_knowledge_question", lambda t: False)
     monkeypatch.setattr(assistant.user_profile, "prompt_block", lambda pid: "")
@@ -44,6 +45,52 @@ def test_owner_dm_does_not_abstain(monkeypatch):
     out = assistant.compose_reply(6803, "我在想一個架構問題")
     assert out == "本人回覆"                       # 沒回 ABSTAIN
     assert "本人" in seen["system"]                # 走 owner prompt
+
+
+def test_owner_dm_injects_recent_actions(monkeypatch):
+    # owner 私訊：常駐「我最近做過的事」區塊注入 → 動作做完下一輪不忘自己做了什麼
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(True))
+    monkeypatch.setattr(assistant.memory, "recall", lambda *a, **k: "")
+    seen = {}
+    _patch_common(monkeypatch, seen)
+    monkeypatch.setattr(assistant.memory, "recent_actions",
+                        lambda *a, **k: [{"ts": "2026-06-24 15:00:00",
+                                          "content": "已建立『與 Max 開會』6/25 15:00"}])
+    out = assistant.compose_reply(6803, "那提醒我前一天通知")
+    assert out == "本人回覆"
+    assert "做過的事" in seen["system"]
+    assert "已建立『與 Max 開會』6/25 15:00" in seen["system"]
+
+
+def test_colleague_dm_no_recent_actions_block(monkeypatch):
+    # 非 owner：不查也不注入「我最近做過的事」（同事不能做動作，且避免外洩）
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(False, "ctx", ["obsidian"]))
+    monkeypatch.setattr(assistant.memory, "recall", lambda *a, **k: "")
+    seen = {}
+    _patch_common(monkeypatch, seen)
+    called = {"n": 0}
+    monkeypatch.setattr(assistant.memory, "recent_actions",
+                        lambda *a, **k: called.__setitem__("n", called["n"] + 1) or [])
+    assistant.compose_reply(999, "嗨")                  # 非 owner
+    assert "做過的事" not in seen["system"]
+    assert called["n"] == 0
+
+
+def test_owner_in_group_no_recent_actions(monkeypatch):
+    # owner 在群組：不注入私訊動作（不外洩、群組脈絡走 group_context）
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 6803)
+    monkeypatch.setattr(assistant, "retrieve_result", lambda q, expand_graph=False: _result(True))
+    monkeypatch.setattr(assistant.memory, "recall", lambda *a, **k: "")
+    seen = {}
+    _patch_common(monkeypatch, seen)
+    called = {"n": 0}
+    monkeypatch.setattr(assistant.memory, "recent_actions",
+                        lambda *a, **k: called.__setitem__("n", called["n"] + 1) or [])
+    assistant.compose_reply(6803, "大家好", group_context="群組脈絡")
+    assert called["n"] == 0
+    assert "做過的事" not in seen["system"]
 
 
 def test_colleague_dm_best_effort_no_kb(monkeypatch):
@@ -236,6 +283,10 @@ def _all_tools(monkeypatch, on):
     monkeypatch.setattr(_c, "IMAGE_GEN_ENABLED", on)
     monkeypatch.setattr(_c, "BROWSE_ENABLED", on)
     monkeypatch.setattr(_c, "CODE_ROOT", "/x" if on else "")
+    # 真實就緒探測在單元測試中固定為「就緒」，避免依賴執行環境（macOS／郵件帳號／Chromium）
+    monkeypatch.setattr(_a, "_is_macos", lambda: True)
+    monkeypatch.setattr(_a, "_email_ready", lambda: True)
+    monkeypatch.setattr(_a, "_browse_ready", lambda: True)
 
 
 def test_action_tools_block_all_on(monkeypatch):
@@ -267,10 +318,80 @@ def test_action_tools_code_needs_root(monkeypatch):
     assert "- ⬜ 程式委派" in s
 
 
+def test_tool_enabled_but_not_ready_shows_reason(monkeypatch):
+    # 啟用但前置缺 → 顯示「⬜（已開但缺：原因）」，讓 JAYVIS 講得出為何現在做不到
+    _all_tools(monkeypatch, True)
+    monkeypatch.setattr(_a, "_is_macos", lambda: False)        # 行事曆：開了但非 macOS
+    monkeypatch.setattr(_a, "_email_ready", lambda: False)     # 收發信：開了但沒帳號
+    monkeypatch.setattr(_a, "_browse_ready", lambda: False)    # 瀏覽：開了但 Chromium 沒裝
+    s = _a._action_tools_block()
+    assert "⬜ 行事曆：查/排/改/刪行程（已開但缺：需 macOS" in s
+    assert "⬜ 收發信（已開但缺：找不到可用的郵件帳號）" in s
+    assert "⬜ 瀏覽網頁（已開但缺：Chromium 未安裝" in s
+    assert "據實說那個原因" in s                                # 規則教 JAYVIS 講真實原因
+
+
+def test_calendar_not_ready_on_non_macos(monkeypatch):
+    _all_tools(monkeypatch, True)
+    monkeypatch.setattr(_a, "_is_macos", lambda: False)
+    s = _a._action_tools_block()
+    assert "✅ 行事曆" not in s and "⬜ 行事曆" in s            # 非 macOS → 行事曆不可用
+
+
+def test_email_readiness_probes_accounts(monkeypatch):
+    # _email_ready 探測真實郵件帳號：有帳號才就緒
+    _a._reset_readiness()
+    import mail_tool
+    monkeypatch.setattr(mail_tool, "list_accounts", lambda: ["work@x.com"])
+    assert _a._email_ready() is True
+    _a._reset_readiness()
+    monkeypatch.setattr(mail_tool, "list_accounts", lambda: [])
+    assert _a._email_ready() is False
+
+
+def test_email_readiness_uses_cache_within_ttl(monkeypatch):
+    # TTL 內回快取值：第一次探到 True 後，即使帳號清單變空（未 reset）仍回 True（證明走快取而非每次重探）
+    _a._reset_readiness()
+    import mail_tool
+    monkeypatch.setattr(mail_tool, "list_accounts", lambda: ["work@x.com"])
+    assert _a._email_ready() is True
+    monkeypatch.setattr(mail_tool, "list_accounts", lambda: [])   # 換空，但不 reset
+    assert _a._email_ready() is True                              # 仍回快取的 True
+
+
+def test_browse_readiness_probes_chromium_dir(tmp_path, monkeypatch):
+    # _browse_ready 的真實探測：playwright 瀏覽器目錄下有沒有 chromium-* 子目錄
+    import install_manifest
+    monkeypatch.setattr(install_manifest, "playwright_browsers_dir", lambda: tmp_path)
+    _a._reset_readiness()
+    assert _a._browse_ready() is False                            # 沒有 chromium-* → 未就緒
+    (tmp_path / "chromium-1234").mkdir()
+    _a._reset_readiness()
+    assert _a._browse_ready() is True                             # 有 chromium-* → 就緒
+
+
 def test_owner_system_includes_tools_block(monkeypatch):
     _all_tools(monkeypatch, False)
     s = _a.build_owner_system("", "")
     assert "你的動作工具" in s                  # owner 路徑含工具 block
+
+
+def test_owner_system_includes_roster(monkeypatch):
+    # owner 模式注入團隊/老闆/專案名冊 → 你問人員角色/職責也答得出（以前 owner 反而沒有）
+    monkeypatch.setattr(_a.persona, "load_profile", lambda: {
+        "owner_name": "Jason",
+        "projects": [{"name": "jayvis", "desc": "TG 搭檔"}],
+        "team": [{"name": "Max", "role": "後端"}],
+        "bosses": [{"name": "Lin", "note": "只看結論"}]})
+    s = _a.build_owner_system("", "")
+    assert "你認識的人與專案" in s
+    assert "Max（後端）" in s and "jayvis（TG 搭檔）" in s and "Lin（只看結論）" in s
+
+
+def test_owner_system_roster_empty_when_no_profile(monkeypatch):
+    monkeypatch.setattr(_a.persona, "load_profile", lambda: {})
+    s = _a.build_owner_system("", "")
+    assert "你認識的人與專案" not in s          # 沒名冊資料 → 不硬塞空區塊
 
 
 def test_colleague_system_excludes_tools_block(monkeypatch):

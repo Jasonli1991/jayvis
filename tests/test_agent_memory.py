@@ -11,8 +11,8 @@ def test_execute_records_action(monkeypatch):
                         lambda pid, kind, content, **k: recorded.append((pid, kind, content)))
     monkeypatch.setattr(agent.mail, "send_mail", lambda *a, **k: {"sent": True})
     out = agent._execute({"action": "send_email", "intent": {"to": "a@b.com"}, "account": ""})
-    assert "已寄出" in out
-    assert recorded and recorded[0][1] == "action" and "已寄出" in recorded[0][2]
+    assert "寄出" in out
+    assert recorded and recorded[0][1] == "action" and "寄出" in recorded[0][2]
 
 
 def test_handle_media_records_media(monkeypatch):

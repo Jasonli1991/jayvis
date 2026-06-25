@@ -408,21 +408,21 @@ def _begin_create(intent):
 def _confirm_create_default(intent):
     _pending["p"] = {"kind": "confirm", "action": "create", "intent": intent, "calendar": ""}
     return ("（暫時讀不到你的日曆清單，先放到系統預設日曆；之後可在日曆 App 拖到別本）\n"
-            f"要我新增「{intent['title']}」 {_fmt_when(intent)} 嗎？（回 yes 確認）")
+            f"要幫你排「{intent['title']}」{_fmt_when(intent)} 嗎？回 yes 我就排下去 👌")
 
 
 def _confirm_create(intent, cal_name):
     _pending["p"] = {"kind": "confirm", "action": "create", "intent": intent, "calendar": cal_name}
     where = f"到【{cal_name}】" if cal_name else ""
-    return (f"要我新增「{intent['title']}」{where} "
-            f"{_fmt_when(intent)} 嗎？（回 yes 確認）")
+    return (f"要幫你排「{intent['title']}」{where} "
+            f"{_fmt_when(intent)} 嗎？回 yes 我就排下去 👌")
 
 
 def _advance_pick_calendar(t):
     pend = _pending["p"]
     if not t.isdigit() or not (1 <= int(t) <= len(pend["cals"])):
         _pending.clear()
-        return "已取消。"
+        return "好喔，那就先這樣，取消了 👌"
     return _confirm_create(pend["intent"], pend["cals"][int(t) - 1])
 
 
@@ -441,7 +441,7 @@ def _begin_send(intent):
 def _confirm_send(intent, account):
     _pending["p"] = {"kind": "confirm", "action": "send_email", "intent": intent, "account": account}
     frm = f"（從 {account}）" if account else ""
-    return (f"要寄這封嗎？{frm}（回 yes 確認）\n"
+    return (f"這封要幫你寄出去嗎？{frm}回 yes 我就送 ✉️\n"
             f"收件人：{intent.get('to', '')}\n主旨：{intent.get('subject', '')}\n"
             f"———\n{intent.get('body', '')}")
 
@@ -450,7 +450,7 @@ def _advance_pick_account(t):
     pend = _pending["p"]
     if not t.isdigit() or not (1 <= int(t) <= len(pend["accounts"])):
         _pending.clear()
-        return "已取消。"
+        return "好喔，那就先這樣，取消了 👌"
     return _confirm_send(pend["intent"], pend["accounts"][int(t) - 1])
 
 
@@ -508,7 +508,7 @@ def _begin_delete(intent):
 
 def _confirm_delete(msg):
     _pending["p"] = {"kind": "confirm", "action": "delete_email", "msg": msg}
-    return f"要刪除「{msg['from']}｜{msg['subject']}」嗎？（回 yes，會移到垃圾桶、可復原）"
+    return f"要幫你刪「{msg['from']}｜{msg['subject']}」嗎？回 yes 就丟垃圾桶（放心，還救得回來）🗑"
 
 
 def _do_read(msg_id, summarize):
@@ -524,7 +524,7 @@ def _advance_select_email(t):
     pend = _pending["p"]
     if not t.isdigit() or not (1 <= int(t) <= len(pend["cands"])):
         _pending.clear()
-        return "已取消。"
+        return "好喔，那就先這樣，取消了 👌"
     msg = pend["cands"][int(t) - 1]
     if pend.get("op") == "delete":
         return _confirm_delete(msg)              # 覆寫 pending 為 confirm
@@ -555,8 +555,8 @@ def _begin_modify(intent):
 def _to_confirm(action, ev, changes):
     _pending["p"] = {"kind": "confirm", "action": action, "ev": ev, "changes": changes}
     if action == "delete":
-        return f"要刪除「{ev['title']}」{_fmt_dt(ev['start'])} 嗎？（回 yes 確認）"
-    return f"要把「{ev['title']}」改成 {_fmt_dt(changes.get('start', ev['start']))} 嗎？（回 yes 確認）"
+        return f"要幫你刪「{ev['title']}」{_fmt_dt(ev['start'])} 嗎？回 yes 我就刪 👌"
+    return f"要把「{ev['title']}」改成 {_fmt_dt(changes.get('start', ev['start']))} 嗎？回 yes 我就改 👌"
 
 
 _CANCEL = {"取消", "不要", "不用", "不用了", "算了", "no", "不寄", "不寄了", "cancel"}
@@ -578,7 +578,7 @@ def _advance(t, now):
         return _execute(pend)
     if t.strip().lower() in _CANCEL:            # 明確取消詞才取消
         _pending.clear()
-        return "已取消。"
+        return "好喔，那就先這樣，取消了 👌"
     action = pend.get("action")                 # 其餘非-yes → 重新解讀，絕不靜默取消
     if action == "send_email":
         return _refine_send(pend, t, now)
@@ -587,7 +587,7 @@ def _advance(t, now):
     if action in ("update", "delete"):
         return _refine_modify(pend, t, now)
     _pending.clear()
-    return "已取消。"
+    return "好喔，那就先這樣，取消了 👌"
 
 
 def _refine_send(pend, instruction, now):
@@ -647,7 +647,7 @@ def _advance_select(t):
     pend = _pending["p"]
     if not t.isdigit() or not (1 <= int(t) <= len(pend["cands"])):
         _pending.clear()
-        return "已取消。"
+        return "好喔，那就先這樣，取消了 👌"
     ev = pend["cands"][int(t) - 1]
     return _to_confirm(pend["action"], ev, pend["changes"])
 
@@ -666,20 +666,20 @@ def _execute_impl(pend):
     if a == "send_email":
         i = pend["intent"]
         mail.send_mail(i.get("to", ""), i.get("subject", ""), i.get("body", ""), pend.get("account", ""))
-        return f"已寄出給 {i.get('to', '')}。"
+        return f"寄出去囉！收件人 {i.get('to', '')} ✅"
     if a == "delete_email":
         m = pend["msg"]
         mail.delete_message(m["id"])
-        return f"已刪除「{m['subject']}」（在垃圾桶可復原）。"
+        return f"OK，「{m['subject']}」幫你刪掉了——別擔心，垃圾桶裡還救得回來 🗑"
     if a == "create":
         i = pend["intent"]
         cal.create_event(i["title"], i["start"], i["end"], i.get("notes", ""),
                          calendar=pend.get("calendar", ""), all_day=bool(i.get("all_day")))
         where = f"到【{pend['calendar']}】" if pend.get("calendar") else ""
-        return f"已新增「{i['title']}」{where} {_fmt_when(i)}。"
+        return f"搞定！「{i['title']}」{where} {_fmt_when(i)} 幫你排好啦 📅"
     ev = pend["ev"]
     if a == "delete":
         cal.delete_event(ev["uid"])
-        return f"已刪除「{ev['title']}」。"
+        return f"OK，「{ev['title']}」幫你清掉了 👌"
     cal.update_event(ev["uid"], pend["changes"] or {})
-    return f"已更新「{ev['title']}」。"
+    return f"改好囉！「{ev['title']}」更新完成 ✅"
