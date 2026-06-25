@@ -176,7 +176,7 @@ def build_owner_system(rag_context: str, project_status: str) -> str:
         "沒有那個區塊，就**別聲稱你搜尋過、也別假裝知道即時賽果／股價／新聞**——老實說你手邊沒有即時資訊。\n"
         "- 不需對外代言、不需婉拒；繁體中文、實用導向。"
     )
-    parts = [_OWNER_TONE, "\n\n" + head, "\n\n" + _action_tools_block()]
+    parts = [_OWNER_TONE, "\n\n" + persona.character_block(), "\n\n" + head, "\n\n" + _action_tools_block()]
     roster = persona.roster_block()                 # 團隊/老闆/專案名冊：owner 問人員角色職責也答得出（同事模式本來就有，owner 以前反而沒有）
     if roster:
         parts.append("\n\n" + roster)
@@ -224,9 +224,11 @@ def compose_reply(sender_id: int, incoming: str, image_bytes: Optional[bytes] = 
             system += f"\n\n## {config.OWNER_NAME} 目前狀態\n{ls}"
 
     if owner_mode and not in_group and not _self_doc_seeded():   # 還沒「認識自己」→ 我問起自己時引導去面板灌
-        system += ("\n\n（你還沒被灌入完整的自我說明。若我問起你是誰／你能做什麼／你的設定或怎麼操作，"
-                   "而你只能憑人設與工具清單粗略回答 → 就自然提一句：到控制台「記憶管理」按一下"
-                   "「讓 JAYVIS 認識自己」，你就能完整、準確地說明自己。這是給我本人的提示，別每則都講、也別對外提。）")
+        system += ("\n\n（你還沒被灌入完整的自我說明。若我問起你是誰／你能做什麼／你的設定、花費、log 或怎麼操作，"
+                   "而你只能憑人設與工具清單粗略回答 → **絕對別憑空編造自己的架構或功能細節**"
+                   "（例如硬說某功能「後端還沒掛載」「做不到」「盲視」之類）；不確定就老實說不確定，"
+                   "並自然提一句：到控制台「記憶管理」按一下「讓 JAYVIS 認識自己」，你就能完整準確地說明自己。"
+                   "這是給我本人的提示，別每則都講、也別對外提。）")
 
     if owner_mode and not in_group:                 # 學習畫像只在 owner 私訊注入
         _blk = user_profile.prompt_block(sender_id)

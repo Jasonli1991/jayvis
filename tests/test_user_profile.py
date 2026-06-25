@@ -24,19 +24,46 @@ def test_prompt_block_empty_and_filled(monkeypatch):
     assert "長期認識" in blk and "非權威" in blk and "Owner" in blk and "偏好繁中" in blk
 
 
-def test_note_turn_threshold():
+def test_maybe_update_triggers_by_persistent_turns(monkeypatch):
+    # 依持久化的對話則數觸發（非記憶體計數器）：累積到門檻才背景抽取
+    import memory
     user_profile.reset()
-    for _ in range(5):
-        assert user_profile.note_turn("6803") is False
-    assert user_profile.note_turn("6803") is True       # 第 6 次觸發
-    assert user_profile.note_turn("6803") is False       # 歸零後重數
+    spawned = {"n": 0}
+    monkeypatch.setattr(user_profile, "_spawn", lambda pid: spawned.__setitem__("n", spawned["n"] + 1))
+    for i in range(user_profile.PROFILE_EVERY_N * 2 - 1):          # 差一則
+        memory.append("6803", "user" if i % 2 == 0 else "assistant", f"訊息{i}")
+    user_profile.maybe_update("6803")
+    assert spawned["n"] == 0
+    memory.append("6803", "assistant", "再一則")
+    user_profile.maybe_update("6803")
+    assert spawned["n"] == 1                                       # 到門檻 → 觸發
 
 
-def test_note_turn_per_person():
+def test_maybe_update_survives_restart(monkeypatch):
+    # 關鍵：模擬 bot 重啟（reset 清掉所有記憶體狀態）後，仍能依持久化對話數觸發
+    # —— 舊版記憶體計數器會歸零 → 永遠不更新，正是「長期認識一直空白」的根因
+    import memory
     user_profile.reset()
-    for _ in range(5):
-        user_profile.note_turn("A")
-    assert user_profile.note_turn("B") is False           # B 獨立計數
+    spawned = {"n": 0}
+    monkeypatch.setattr(user_profile, "_spawn", lambda pid: spawned.__setitem__("n", spawned["n"] + 1))
+    for i in range(user_profile.PROFILE_EVERY_N * 2):
+        memory.append("6803", "user", f"訊息{i}")
+    user_profile.reset()                                          # ← 模擬重啟
+    user_profile.maybe_update("6803")
+    assert spawned["n"] == 1                                       # 仍觸發（不靠記憶體計數器）
+
+
+def test_maybe_update_counts_only_turns_since_profile(monkeypatch):
+    # 有畫像後，只計 updated_at 之後的新對話；少量新對話不該重複觸發
+    import memory
+    user_profile.reset()
+    spawned = {"n": 0}
+    monkeypatch.setattr(user_profile, "_spawn", lambda pid: spawned.__setitem__("n", spawned["n"] + 1))
+    user_profile._write("6803", "- 舊畫像")                        # 設了 updated_at
+    for i in range(user_profile.PROFILE_EVERY_N):                  # < 門檻(*2)
+        memory.append("6803", "user", f"新{i}")
+    user_profile.maybe_update("6803")
+    assert spawned["n"] == 0
 
 
 def test_update_now_writes_merged_profile(monkeypatch):
@@ -74,12 +101,3 @@ def test_update_now_llm_error_keeps_old(monkeypatch):
     assert user_profile.get("6803") == "- 舊畫像"          # 失敗保留舊
 
 
-def test_maybe_update_spawns_only_at_threshold(monkeypatch):
-    user_profile.reset()
-    spawned = {"n": 0}
-    monkeypatch.setattr(user_profile, "_spawn", lambda pid: spawned.__setitem__("n", spawned["n"] + 1))
-    for _ in range(5):
-        user_profile.maybe_update("6803")
-    assert spawned["n"] == 0
-    user_profile.maybe_update("6803")                      # 第 6 次
-    assert spawned["n"] == 1

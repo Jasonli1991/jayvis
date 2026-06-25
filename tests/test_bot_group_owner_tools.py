@@ -51,6 +51,18 @@ def _update_ctx(msg, sent, uid=777):
     return update, ctx
 
 
+def test_group_records_owner_under_owner_name(monkeypatch):
+    # 群組 transcript 把 owner 記成 OWNER_NAME（非 TG 顯示名）→ JAYVIS 回顧群組歷史認得出本人
+    import group_memory
+    monkeypatch.setattr(config, "OWNER_CHAT_ID", 777)
+    monkeypatch.setattr(config, "OWNER_NAME", "Jason")
+    monkeypatch.setattr(config, "ALLOWLIST_USER_IDS", {777})
+    msg, sent = _group_msg(text="大家好")              # 非 @ → 只記錄脈絡就 return
+    update, ctx = _update_ctx(msg, sent)                # effective_user.id=777（owner），full_name="Owner"
+    asyncio.run(bot.handle_message(update, ctx))
+    assert "Jason：大家好" in group_memory.recent_transcript(9)   # 用 OWNER_NAME，不是顯示名「Owner」
+
+
 def test_owner_group_document_routes_media(monkeypatch):
     monkeypatch.setattr(config, "OWNER_CHAT_ID", 777)
     monkeypatch.setattr(config, "MEDIA_ENABLED", True)

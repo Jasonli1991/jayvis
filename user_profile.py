@@ -15,13 +15,13 @@ PROFILE_RECENT_TURNS = 12
 REBUILD_MAX_TURNS = 400      # 匯入後重建：最多取最近這麼多輪（有界，避免大批匯入打爆模型呼叫）
 REBUILD_WINDOW = 16          # 每窗送模型的輪數（逐窗合併進畫像）
 
-_turn_counts = {}        # person_id -> int（in-memory，重啟清零）
 _schema_ready = set()
+_running = set()         # 正在背景抽取畫像的 person（避免短時間重複抽取）；in-memory，僅作並發鎖
 
 
 def reset():             # 測試/手動重置用
-    _turn_counts.clear()
     _schema_ready.clear()
+    _running.clear()
 
 
 def _conn():
@@ -70,13 +70,33 @@ def prompt_block(person_id) -> str:
             f"與上面的設定衝突時以設定為準）\n{prof}")
 
 
-def note_turn(person_id) -> bool:
-    pid = str(person_id)
-    _turn_counts[pid] = _turn_counts.get(pid, 0) + 1
-    if _turn_counts[pid] >= PROFILE_EVERY_N:
-        _turn_counts[pid] = 0
-        return True
-    return False
+def _profile_updated_at(person_id):
+    c = _conn()
+    try:
+        row = c.execute("SELECT updated_at FROM person_profiles WHERE person_id=:p",
+                        {"p": str(person_id)}).fetchone()
+        return row["updated_at"] if row else None
+    finally:
+        c.close()
+
+
+def _turns_since(person_id, since_ts) -> int:
+    """某人在 since_ts 之後（None＝全部）的對話則數（user/assistant）。
+    持久化來源（memories 表）→ bot 重啟也不歸零；動作/媒體互動也記在這、一併算進去。"""
+    c = _conn()
+    try:
+        if since_ts:
+            row = c.execute(
+                "SELECT count(*) n FROM memories WHERE person_id=:p "
+                "AND kind IN ('user','assistant') AND ts > :t",
+                {"p": str(person_id), "t": since_ts}).fetchone()
+        else:
+            row = c.execute(
+                "SELECT count(*) n FROM memories WHERE person_id=:p "
+                "AND kind IN ('user','assistant')", {"p": str(person_id)}).fetchone()
+        return row["n"] if row else 0
+    finally:
+        c.close()
 
 
 def _fmt_turns(turns) -> str:
@@ -132,9 +152,22 @@ def rebuild_from_memory(person_id, max_turns=REBUILD_MAX_TURNS, window=REBUILD_W
 
 
 def _spawn(person_id):
-    threading.Thread(target=update_now, args=(str(person_id),), daemon=True).start()
+    pid = str(person_id)
+    if pid in _running:                  # 已有背景抽取在跑 → 不重複（避免一連串訊息狂觸發）
+        return
+    _running.add(pid)
+
+    def _run():
+        try:
+            update_now(pid)
+        finally:
+            _running.discard(pid)
+    threading.Thread(target=_run, daemon=True).start()
 
 
 def maybe_update(person_id):
-    if note_turn(person_id):
+    """不用記憶體計數器（重啟會歸零、且動作回合不算）：改看「上次更新畫像後又累積了幾則對話」。
+    來源是持久化的 memories.ts vs person_profiles.updated_at → bot 重啟也不歸零。
+    沒畫像時計全部對話、有畫像時只計 updated_at 之後的新對話；達門檻就背景抽取一次。"""
+    if _turns_since(person_id, _profile_updated_at(person_id)) >= PROFILE_EVERY_N * 2:
         _spawn(person_id)

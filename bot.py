@@ -284,8 +284,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     is_group = chat.type in ("group", "supergroup")
     if is_group:
-        # 一律記錄群組對話（含非白名單者）建立完整脈絡
-        speaker = config.ALLOWLIST_ALIASES.get(user.id) or user.full_name or str(user.id)
+        # 一律記錄群組對話（含非白名單者）建立完整脈絡。
+        # owner 用 OWNER_NAME、同事用別名 → transcript 的發話者與 prompt 裡的身份一致，
+        # JAYVIS 回顧群組歷史時才認得出「這是我 owner」（不靠 TG 顯示名碰運氣）。
+        speaker = (config.OWNER_NAME if user.id == config.OWNER_CHAT_ID
+                   else config.ALLOWLIST_ALIASES.get(user.id)) or user.full_name or str(user.id)
         group_memory.record(chat.id, speaker, text)
         # 只在被 @ 時回應，並剝掉 @mention
         uname = context.bot.username
