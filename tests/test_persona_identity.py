@@ -30,3 +30,11 @@ def test_character_block_fixed_traits_hardcoded_creator(monkeypatch):
     assert "BOB" in b and "Eric" in b                            # 名稱/owner 參數化
     assert "對 Eric 的看法" not in b and "對主人的看法" not in b   # 不做「對 owner 的看法」
     assert "被問到才" in b                                        # 守則：被問到才分享、不編造
+    assert "名字由來" not in b                                    # 改名（非 JAYVIS）→ 縮寫不適用、不顯示
+
+
+def test_character_block_name_origin_for_jayvis(monkeypatch):
+    # 名字未改（JAYVIS）→ 帶名字由來：J=Jason 寫死、Your=主人
+    monkeypatch.setattr(persona, "load_profile", lambda: {"owner_name": "Jason", "assistant_name": "JAYVIS"})
+    b = persona.character_block()
+    assert "名字由來" in b and "Sidekick" in b and "Jason's AI" in b
