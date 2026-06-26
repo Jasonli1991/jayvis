@@ -759,6 +759,7 @@ $("an-refine-run").onclick = () => withBusy($("an-refine-run"), async () => {
 
 // 瀏覽白名單
 let _browseDomains = [];
+let _browseDirty = false;   // 使用者本地加/刪過、還沒按「儲存」→ 自動刷新時別覆蓋
 
 function renderBrowse() {
   const ul = $("browse-list");
@@ -769,7 +770,7 @@ function renderBrowse() {
     li.textContent = d;
     const x = document.createElement("button");
     x.type = "button"; x.className = "r-del"; x.title = "移除"; x.innerHTML = '<svg class="ic"><use href="#i-trash"></use></svg>';
-    x.onclick = () => { _browseDomains.splice(i, 1); renderBrowse(); };
+    x.onclick = () => { _browseDomains.splice(i, 1); _browseDirty = true; renderBrowse(); };
     li.appendChild(x);
     ul.appendChild(li);
   });
@@ -779,6 +780,7 @@ async function loadBrowse() {
   try {
     const r = await getJSON("/api/browse/allowlist");
     _browseDomains = r.domains || [];
+    _browseDirty = false;                 // 剛從 server 載入 → 與後端同步
     renderBrowse();
     const e = await getJSON("/api/browse/enabled");
     $("browse-enabled").checked = !!e.enabled;
@@ -855,7 +857,7 @@ function wireBrowse() {
   });
   $("browse-add").addEventListener("click", () => {
     const v = $("browse-input").value.trim().toLowerCase();
-    if (v && !_browseDomains.includes(v)) { _browseDomains.push(v); renderBrowse(); }
+    if (v && !_browseDomains.includes(v)) { _browseDomains.push(v); _browseDirty = true; renderBrowse(); }
     $("browse-input").value = "";
   });
   $("browse-input").addEventListener("keydown", (e) => {
@@ -864,6 +866,7 @@ function wireBrowse() {
   $("browse-save").addEventListener("click", () => withBusy($("browse-save"), async () => {
     try {
       await postJSON("/api/browse/allowlist", { domains: _browseDomains });
+      _browseDirty = false;
       flash($("browse-msg"), "已儲存，重啟 bot 後生效");
     } catch (e) { warn($("browse-msg"), "儲存失敗，請重試"); }
   }));
@@ -949,11 +952,24 @@ function _autoRefreshMemory() {
   loadMemPersons().catch(() => {});                          // 內含 loadMemTimeline（保留捲動、變了才重繪）
   loadLearnedProfile();                                       // 變了才重繪
 }
+async function _refreshBrowseList() {
+  // 瀏覽白名單即時同步（JAYVIS 從 TG 加完即顯示）；有未存編輯或正在輸入時不覆蓋。
+  if (_browseDirty || document.activeElement === $("browse-input")) return;
+  try {
+    const r = await getJSON("/api/browse/allowlist");
+    const fresh = r.domains || [];
+    if (JSON.stringify(fresh) !== JSON.stringify(_browseDomains)) {   // 變了才重繪
+      _browseDomains = fresh;
+      renderBrowse();
+    }
+  } catch (e) { /* 面板非關鍵，靜默 */ }
+}
+function _autoRefreshPanel() { _autoRefreshMemory(); _refreshBrowseList(); }
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") _autoRefreshMemory();
+  if (document.visibilityState === "visible") _autoRefreshPanel();
 });
-window.addEventListener("focus", _autoRefreshMemory);
-setInterval(() => { if (document.visibilityState === "visible") _autoRefreshMemory(); }, 15000);
+window.addEventListener("focus", _autoRefreshPanel);
+setInterval(() => { if (document.visibilityState === "visible") _autoRefreshPanel(); }, 15000);
 
 // info「i」提示框：打開時夾進可視範圍，靠右緣就改往左展開，避免被視窗裁切（與卡片位置無關）
 function _clampInfoTip(tip) {
