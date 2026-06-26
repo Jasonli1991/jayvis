@@ -190,7 +190,7 @@ cp .env.example .env          # 之後填金鑰（見「設定詳解」）
 | `OBSIDIAN_PATH` | Obsidian vault 路徑（留空＝跳過 Obsidian）。 | 空 |
 | `GITHUB_REPOS` | 逗號分隔 `owner/repo`，追蹤 commit（空＝不追；需先 `brew install gh` + `gh auth login`）。 | 空 |
 | `CODE_ROOT` | 本機專案母資料夾（子資料夾＝一個專案），供 owner 程式委派。 | 空 |
-| `CODE_ASK_BUDGET_USD` / `CODE_APPLY_BUDGET_USD` | 程式問答/計畫、改碼+PR 的花費上限（美元）。 | `2` / `15` |
+| `CODE_ASK_BUDGET_USD` / `CODE_APPLY_BUDGET_USD` | 程式問答/計畫、改碼+PR 的花費上限（美元）。 | `5` / `15` |
 | `TAVILY_API_KEY` | 時事搜尋金鑰（tavily.com）。 | 空 |
 | `KB_PATH` | SQLite 知識庫路徑。 | `~/.n/kb.sqlite` |
 
