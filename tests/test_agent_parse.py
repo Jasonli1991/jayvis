@@ -37,6 +37,12 @@ def test_build_system_email_block():
     assert "a@x.com" in s
 
 
+def test_build_system_excludes_code_intent():
+    # 程式/PR/git/版本 不該被當成行事曆或郵件操作（避免「排『開PR』到行事曆」誤判）
+    s = agent.build_system(datetime(2026, 6, 11))
+    assert "程式委派" in s and "PR" in s
+
+
 def test_build_system_email_off_by_default():
     s = agent.build_system(datetime(2026, 6, 11))     # email_on 預設 False
     assert "send_email" not in s

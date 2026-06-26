@@ -9,6 +9,12 @@ def test_build_owner_system_framing():
     assert "代表他回答同事" not in s             # 不含對外代言
 
 
+def test_build_owner_system_guides_code_change_flow():
+    # 改某專案的請求 → 引導走「修復計畫→執行」委派流程，別丟手動步驟
+    s = assistant.build_owner_system("", "")
+    assert "別只丟手動步驟" in s and "修復計畫" in s
+
+
 def test_build_owner_system_includes_rag_and_status():
     s = assistant.build_owner_system("某知識片段XYZ", "專案狀態ABC")
     assert "某知識片段XYZ" in s and "專案狀態ABC" in s
