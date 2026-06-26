@@ -81,6 +81,19 @@ def test_ask_returns_result(tmp_path, monkeypatch):
     assert cd.ask("projx", "為何 401") == "這是答案"
 
 
+def test_ask_strips_secret_env(tmp_path, monkeypatch):
+    # ask 也要剝金鑰：不傳 ANTHROPIC_API_KEY → claude 走訂閱登入，不誤用低額度 API key
+    _proj(tmp_path, monkeypatch)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "SECRET")
+    monkeypatch.setenv("PATH", "/usr/bin")
+    seen = {}
+    monkeypatch.setattr(cd.subprocess, "run",
+                        lambda cmd, **k: seen.update(env=k.get("env")) or _R(0, '{"result":"x","is_error":false}'))
+    cd.ask("projx", "版本？")
+    assert "ANTHROPIC_API_KEY" not in seen["env"]    # 金鑰被剝除
+    assert seen["env"].get("PATH") == "/usr/bin"      # 必要的留著
+
+
 def test_ask_prompt_reads_readme_first(tmp_path, monkeypatch):
     # 委派前導：要 agent 先讀專案 README/CLAUDE.md（少探索、省預算），原問題也要帶上
     _proj(tmp_path, monkeypatch)

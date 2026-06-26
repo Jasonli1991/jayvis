@@ -75,10 +75,13 @@ def ask(project, question, now=None) -> str:
     if not shutil.which("claude"):
         return "程式助手暫時不可用（這台機器上找不到 Agent）。"
     try:
+        # env 白名單：**不傳 ANTHROPIC_API_KEY 等金鑰**，讓 claude CLI 走使用者的訂閱登入（~/.claude），
+        # 而非誤用 JAYVIS .env 裡那把 API key 去計費（該 API 帳戶可能額度不足 → "Credit balance too low" → is_error）。
+        env = {k: os.environ[k] for k in _ENV_ALLOW if k in os.environ}
         r = subprocess.run(
             ["claude", "-p", _ASK_PREAMBLE + question, "--output-format", "json", "--model", config.CODE_MODEL,
              "--allowedTools", _READ_TOOLS, "--max-budget-usd", str(CODE_BUDGET_USD)],
-            cwd=path, capture_output=True, text=True, timeout=CODE_TIMEOUT_S)
+            cwd=path, env=env, capture_output=True, text=True, timeout=CODE_TIMEOUT_S)
     except subprocess.TimeoutExpired:
         return f"這題查太久了（超過 {CODE_TIMEOUT_S // 60} 分鐘逾時），晚點再試或等 {config.OWNER_NAME} 回來。"
     except Exception:
