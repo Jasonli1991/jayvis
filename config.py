@@ -64,7 +64,7 @@ COMMITS_PER_REPO = 10
 
 CODE_ROOT = os.getenv("CODE_ROOT", "")     # 本機專案母資料夾（子資料夾＝專案），供程式問答委派
 CODE_MODEL = os.getenv("CODE_MODEL", "claude-opus-4-8")    # 委派用 claude CLI 模型（CLI≥2.1.178 後 4-8 可用）
-CODE_ASK_BUDGET_USD = _float_env("CODE_ASK_BUDGET_USD", 2.0)      # A/B 問答/計畫預算（Opus 較貴，給足）
+CODE_ASK_BUDGET_USD = _float_env("CODE_ASK_BUDGET_USD", 5.0)      # A/B 問答/計畫預算（Opus 較貴；先讀 README 省探索、上限給足避免邊界 is_error）
 CODE_APPLY_BUDGET_USD = _float_env("CODE_APPLY_BUDGET_USD", 15.0) # C1 改碼+測試+開 PR 預算（Opus 思考較吃）
 
 

@@ -18,6 +18,11 @@ _log = logging.getLogger("jayvis")
 CODE_BUDGET_USD = config.CODE_ASK_BUDGET_USD    # A/B（.env: CODE_ASK_BUDGET_USD）
 CODE_TIMEOUT_S = 180
 _READ_TOOLS = "Read Grep Glob"
+# 委派問答前導：先讀專案 README/CLAUDE.md → 少探索、省預算、更準（多數問題文件裡就有）。
+_ASK_PREAMBLE = (
+    "你在某個既有專案的根目錄。請**先讀這個專案的 README.md**（若有 CLAUDE.md 也一起讀）"
+    "來掌握專案的結構、版本與慣例；**優先採用文件裡已寫明的資訊**，文件沒寫的再去翻程式碼，"
+    "不用整庫亂找。請簡潔作答。\n\n以下是要回答的問題：\n")
 
 
 def projects() -> list:
@@ -71,7 +76,7 @@ def ask(project, question, now=None) -> str:
         return "程式助手暫時不可用（這台機器上找不到 Agent）。"
     try:
         r = subprocess.run(
-            ["claude", "-p", question, "--output-format", "json", "--model", config.CODE_MODEL,
+            ["claude", "-p", _ASK_PREAMBLE + question, "--output-format", "json", "--model", config.CODE_MODEL,
              "--allowedTools", _READ_TOOLS, "--max-budget-usd", str(CODE_BUDGET_USD)],
             cwd=path, capture_output=True, text=True, timeout=CODE_TIMEOUT_S)
     except subprocess.TimeoutExpired:

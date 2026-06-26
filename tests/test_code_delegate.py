@@ -81,6 +81,17 @@ def test_ask_returns_result(tmp_path, monkeypatch):
     assert cd.ask("projx", "為何 401") == "這是答案"
 
 
+def test_ask_prompt_reads_readme_first(tmp_path, monkeypatch):
+    # 委派前導：要 agent 先讀專案 README/CLAUDE.md（少探索、省預算），原問題也要帶上
+    _proj(tmp_path, monkeypatch)
+    seen = {}
+    monkeypatch.setattr(cd.subprocess, "run",
+                        lambda cmd, **k: seen.update(cmd=cmd) or _R(0, '{"result":"x","is_error":false}'))
+    cd.ask("projx", "目前版本號是多少")
+    prompt = seen["cmd"][seen["cmd"].index("-p") + 1]
+    assert "README" in prompt and "目前版本號是多少" in prompt
+
+
 def test_ask_is_error_message(tmp_path, monkeypatch):
     _proj(tmp_path, monkeypatch)
     monkeypatch.setattr(cd.subprocess, "run",
