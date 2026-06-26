@@ -103,6 +103,7 @@ def test_ask_prompt_reads_readme_first(tmp_path, monkeypatch):
     cd.ask("projx", "目前版本號是多少")
     prompt = seen["cmd"][seen["cmd"].index("-p") + 1]
     assert "README" in prompt and "目前版本號是多少" in prompt
+    assert "唯讀" in prompt and "不要嘗試修改" in prompt   # ask 階段唯讀、不亂動手/不請求授權
 
 
 def test_ask_is_error_message(tmp_path, monkeypatch):

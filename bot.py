@@ -364,7 +364,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # owner-only 動作（行事曆 / 收發信）：私訊 + owner + 任一啟用 + 純文字才走（無附檔）；
     # 非動作回 None → 往下走一般 compose_reply（含 RAG）。同事/群組永不進此分支。
     if (not is_group and (config.ACTIONS_ENABLED or config.EMAIL_ENABLED)
-            and is_owner(user.id) and text and not msg.photo and msg.document is None):
+            and is_owner(user.id) and text and not msg.photo and msg.document is None
+            # 委派延續指令（裸「執行」「修復計畫」且有暫存）別被行事曆/收信 agent 攔走 → 落到 Phase C/B
+            and not (code_delegate.is_apply_command(text) and code_delegate.has_apply(user.id))
+            and not (code_delegate.is_fix_command(text) and code_delegate.has_fix(user.id))):
         try:
             action_reply = await asyncio.to_thread(
                 agent.handle, text, datetime.now(), config.ACTIONS_ENABLED, config.EMAIL_ENABLED)
