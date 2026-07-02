@@ -117,6 +117,8 @@ JAYVIS 是給「希望請假/離線時，同事仍能問到事情」的人用的
 
 ### 步驟 1｜安裝
 
+**macOS / Linux：**
+
 ```bash
 git clone <your-fork-url> jayvis && cd jayvis
 python3.11 -m venv .venv && source .venv/bin/activate
@@ -124,7 +126,18 @@ pip install -r requirements.txt
 cp .env.example .env          # 之後填金鑰（見「設定詳解」）
 ```
 
-> 之後文件一律用 `.venv/bin/python` 代表虛擬環境的 Python（已 `source` 啟用後也可直接 `python`）。
+**Windows（PowerShell）：** 先確認 `python --version` 是 3.11；在 jayvis 資料夾按右鍵「在終端機開啟」（PowerShell）後：
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1     # 前面出現 (.venv) 代表啟用成功
+pip install -r requirements.txt
+copy .env.example .env
+```
+
+> Windows 上 `pip install` 若噴編碼錯，先 `Get-Content requirements.txt | Set-Content requirements_utf8.txt -Encoding UTF8`，再 `pip install -r requirements_utf8.txt`。
+>
+> 之後文件寫的 `.venv/bin/python`（macOS/Linux）＝Windows 的 `.venv\Scripts\python`；venv 啟用後兩者都可直接打 `python`。
 
 ### 步驟 2｜填設定（兩種方式擇一）
 
